@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { Question } from '../../../types';
 import { quizService } from '../services/quizService';
@@ -7,6 +7,7 @@ import { auth } from '../../../config/firebase';
 
 export default function QuizEditor() {
   const navigate = useNavigate();
+  const { quizId } = useParams();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([
@@ -24,6 +25,32 @@ export default function QuizEditor() {
     },
   ]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(!!quizId);
+
+  useEffect(() => {
+    if (quizId) {
+      loadQuiz(quizId);
+    }
+  }, [quizId]);
+
+  const loadQuiz = async (id: string) => {
+    try {
+      const quiz = await quizService.getQuizById(id);
+      if (quiz) {
+        setTitle(quiz.title);
+        setDescription(quiz.description || '');
+        setQuestions(quiz.questions.length > 0 ? quiz.questions : questions);
+      } else {
+        alert('Không tìm thấy bộ câu hỏi!');
+        navigate('/teacher/dashboard');
+      }
+    } catch (error) {
+      console.error('Error loading quiz:', error);
+      alert('Lỗi khi tải bộ câu hỏi');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddQuestion = () => {
     setQuestions([
@@ -88,13 +115,21 @@ export default function QuizEditor() {
 
     setSaving(true);
     try {
-      await quizService.createQuiz({
-        title,
-        description,
-        teacherId: currentUser.uid,
-        questions,
-        createdAt: Date.now(),
-      });
+      if (quizId) {
+        await quizService.updateQuiz(quizId, {
+          title,
+          description,
+          questions,
+        });
+      } else {
+        await quizService.createQuiz({
+          title,
+          description,
+          teacherId: currentUser.uid,
+          questions,
+          createdAt: Date.now(),
+        });
+      }
       navigate('/teacher/dashboard');
     } catch (error: any) {
       console.error(error);
@@ -108,10 +143,14 @@ export default function QuizEditor() {
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-20">Đang tải...</div>;
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h1 className="text-2xl font-bold mb-6">Tạo bộ câu hỏi mới</h1>
+        <h1 className="text-2xl font-bold mb-6">{quizId ? 'Chỉnh sửa bộ câu hỏi' : 'Tạo bộ câu hỏi mới'}</h1>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Tên bộ câu hỏi</label>

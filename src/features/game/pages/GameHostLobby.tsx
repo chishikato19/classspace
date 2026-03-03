@@ -1,42 +1,137 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { GameSession } from '../../../types';
+import { GameSession, GameSettings } from '../../../types';
 import { gameService } from '../services/gameService';
+import { auth } from '../../../config/firebase';
 
 export default function GameHostLobby() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [setupMode, setSetupMode] = useState(true);
+  const [settings, setSettings] = useState<GameSettings>({
+    shuffleQuestions: false,
+    shuffleAnswers: false,
+    equalPoints: false,
+    timeBasedPoints: true,
+    streakBonus: true,
+  });
 
-  useEffect(() => {
+  const handleCreateSession = async () => {
     if (!quizId) return;
-
-    const initSession = async () => {
-      try {
-        // Tạo session mới
-        const sessionId = await gameService.createSession(quizId, 'admin'); // Mock hostId
-        
-        // Lắng nghe thay đổi
-        const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
-          setSession(data);
-          setLoading(false);
-        });
-
-        return () => unsubscribe();
-      } catch (error) {
-        console.error("Error creating session:", error);
-      }
-    };
-
-    initSession();
-  }, [quizId]);
+    setLoading(true);
+    try {
+      const hostId = auth?.currentUser?.uid || 'admin';
+      const sessionId = await gameService.createSession(quizId, hostId, settings);
+      
+      // Lắng nghe thay đổi
+      gameService.subscribeToSession(sessionId, (data) => {
+        setSession(data);
+        setLoading(false);
+        setSetupMode(false);
+      });
+    } catch (error) {
+      console.error("Error creating session:", error);
+      setLoading(false);
+    }
+  };
 
   const handleStartGame = async () => {
     if (!session) return;
     await gameService.startGame(session.id);
     navigate(`/game/dashboard/${session.id}`);
   };
+
+  if (setupMode) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-indigo-600 p-6 text-white text-center">
+            <h1 className="text-2xl font-bold">Cài đặt phòng thi</h1>
+            <p className="opacity-80 mt-2">Tùy chỉnh các luật chơi trước khi bắt đầu</p>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            <div className="space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-gray-700 font-medium">Đảo thứ tự câu hỏi</span>
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+                  checked={settings.shuffleQuestions}
+                  onChange={(e) => setSettings({...settings, shuffleQuestions: e.target.checked})}
+                />
+              </label>
+              
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-gray-700 font-medium">Đảo thứ tự đáp án</span>
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+                  checked={settings.shuffleAnswers}
+                  onChange={(e) => setSettings({...settings, shuffleAnswers: e.target.checked})}
+                />
+              </label>
+
+              <div className="border-t border-gray-200 pt-4"></div>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-gray-700 font-medium">Tính điểm các câu như nhau</span>
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+                  checked={settings.equalPoints}
+                  onChange={(e) => setSettings({...settings, equalPoints: e.target.checked})}
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="pr-4">
+                  <span className="text-gray-700 font-medium block">Điểm theo thời gian</span>
+                  <span className="text-xs text-gray-500">Trả lời càng nhanh điểm càng cao</span>
+                </div>
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+                  checked={settings.timeBasedPoints}
+                  onChange={(e) => setSettings({...settings, timeBasedPoints: e.target.checked})}
+                  disabled={settings.equalPoints}
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="pr-4">
+                  <span className="text-gray-700 font-medium block">Điểm thưởng chuỗi đúng (Streak)</span>
+                  <span className="text-xs text-gray-500">Cộng thêm điểm khi trả lời đúng liên tiếp</span>
+                </div>
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+                  checked={settings.streakBonus}
+                  onChange={(e) => setSettings({...settings, streakBonus: e.target.checked})}
+                />
+              </label>
+            </div>
+
+            <button
+              onClick={handleCreateSession}
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition disabled:opacity-50"
+            >
+              {loading ? 'Đang tạo phòng...' : 'Tạo phòng thi'}
+            </button>
+            <button
+              onClick={() => navigate('/teacher/dashboard')}
+              className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl border border-gray-300 transition mt-2"
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="flex h-screen items-center justify-center text-2xl font-bold">Đang tạo phòng...</div>;
   if (!session) return <div className="flex h-screen items-center justify-center text-red-500">Lỗi tạo phòng!</div>;

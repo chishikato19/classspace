@@ -43,6 +43,14 @@ export interface Quiz {
 
 export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
 
+export interface GameSettings {
+  shuffleQuestions: boolean;
+  shuffleAnswers: boolean;
+  equalPoints: boolean;
+  timeBasedPoints: boolean;
+  streakBonus: boolean;
+}
+
 export interface GameSession {
   id: string;
   pin: string; // Mã PIN 6 số
@@ -51,6 +59,7 @@ export interface GameSession {
   status: GameStatus;
   createdAt: number;
   currentQuestionIndex: number; // Dùng cho chế độ Teacher-paced (nếu cần)
+  settings: GameSettings;
 }
 
 export interface Player {

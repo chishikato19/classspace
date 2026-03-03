@@ -6,7 +6,7 @@ const getSessionsRef = () => collection(db, 'sessions');
 
 export const gameService = {
   // Tạo phòng game mới
-  createSession: async (quizId: string, hostId: string): Promise<string> => {
+  createSession: async (quizId: string, hostId: string, settings: any): Promise<string> => {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -17,7 +17,8 @@ export const gameService = {
       status: 'WAITING',
       createdAt: Date.now(),
       players: [],
-      currentQuestionIndex: 0
+      currentQuestionIndex: 0,
+      settings
     });
     return docRef.id;
   },
@@ -66,9 +67,30 @@ export const gameService = {
       
       // Logic tính điểm
       let points = 0;
+      const settings = data.settings || {
+        equalPoints: false,
+        timeBasedPoints: true,
+        streakBonus: true
+      };
+
       if (answerData.isCorrect) {
-        // Điểm cơ bản + (Streak * 100)
-        points = answerData.points + (player.streak * 100);
+        // Tính điểm cơ bản
+        let basePoints = settings.equalPoints ? 1000 : answerData.points;
+        
+        // Tính điểm theo thời gian (nếu được bật và không phải chế độ điểm bằng nhau)
+        if (settings.timeBasedPoints && !settings.equalPoints) {
+          // Giả sử answerData.timeTaken là số giây đã trôi qua, answerData.timeLimit là tổng thời gian
+          const timeLimit = answerData.timeLimit || 30;
+          const timeTaken = answerData.timeTaken || 0;
+          const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+          // Điểm tối thiểu là 50% số điểm, điểm tối đa là 100%
+          basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
+        }
+
+        // Tính điểm thưởng chuỗi đúng
+        const streakBonus = settings.streakBonus ? (player.streak * 100) : 0;
+        
+        points = basePoints + streakBonus;
         player.streak += 1;
       } else {
         player.streak = 0;

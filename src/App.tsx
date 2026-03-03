@@ -40,6 +40,7 @@ export default function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/teacher/dashboard" element={<QuizDashboard />} />
           <Route path="/teacher/quiz/new" element={<QuizEditor />} />
+          <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />
           {/* Add more routes here later */}
         </Route>
       </Routes>

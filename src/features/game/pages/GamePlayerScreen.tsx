@@ -9,6 +9,7 @@ export default function GamePlayerScreen() {
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -16,6 +17,7 @@ export default function GamePlayerScreen() {
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [questionStartTime, setQuestionStartTime] = useState<number>(0);
 
   // Load session and quiz data
   useEffect(() => {
@@ -27,7 +29,26 @@ export default function GamePlayerScreen() {
       // Load quiz data only once
       if (!quiz && data.quizId) {
         const quizData = await quizService.getQuizById(data.quizId);
-        setQuiz(quizData);
+        if (quizData) {
+          setQuiz(quizData);
+          
+          let questions = [...quizData.questions];
+          const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
+          
+          if (settings.shuffleQuestions) {
+            questions = questions.sort(() => Math.random() - 0.5);
+          }
+          
+          if (settings.shuffleAnswers) {
+            questions = questions.map(q => ({
+              ...q,
+              options: [...q.options].sort(() => Math.random() - 0.5)
+            }));
+          }
+          
+          setShuffledQuestions(questions);
+          setQuestionStartTime(Date.now());
+        }
       }
     });
 
@@ -36,19 +57,34 @@ export default function GamePlayerScreen() {
 
   // Handle answer submission
   const handleAnswer = async (optionId: string) => {
-    if (isSubmitted || !quiz || !session) return;
+    if (isSubmitted || !quiz || !session || shuffledQuestions.length === 0) return;
     
     setSelectedOptionId(optionId);
     setIsSubmitted(true);
 
-    const currentQuestion = quiz.questions[currentQuestionIndex];
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
     const correctOption = currentQuestion.options.find(o => o.isCorrect);
     const isAnswerCorrect = correctOption?.id === optionId;
     
     setIsCorrect(isAnswerCorrect);
     
+    const timeTaken = (Date.now() - questionStartTime) / 1000; // in seconds
+    const settings = session.settings || { equalPoints: false, timeBasedPoints: true, streakBonus: true };
+    
+    let points = 0;
     if (isAnswerCorrect) {
-      setScore(prev => prev + currentQuestion.points + (streak * 100));
+      let basePoints = settings.equalPoints ? 1000 : currentQuestion.points;
+      
+      if (settings.timeBasedPoints && !settings.equalPoints) {
+        const timeLimit = currentQuestion.timeLimit || 30;
+        const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+        basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
+      }
+      
+      const streakBonus = settings.streakBonus ? (streak * 100) : 0;
+      points = basePoints + streakBonus;
+      
+      setScore(prev => prev + points);
       setStreak(prev => prev + 1);
     } else {
       setStreak(0);
@@ -60,25 +96,27 @@ export default function GamePlayerScreen() {
       await gameService.submitAnswer(session.id, playerId, currentQuestion.id, {
         optionId,
         isCorrect: isAnswerCorrect,
-        timeTaken: 0, // TODO: Calculate time taken
+        timeTaken,
+        timeLimit: currentQuestion.timeLimit,
         points: currentQuestion.points
       });
     }
 
     // Move to next question after delay
     setTimeout(() => {
-      if (currentQuestionIndex < quiz.questions.length - 1) {
+      if (currentQuestionIndex < shuffledQuestions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
         setIsSubmitted(false);
         setSelectedOptionId(null);
         setIsCorrect(false);
+        setQuestionStartTime(Date.now());
       } else {
         setFinished(true);
       }
     }, 2000); // 2 seconds delay to show result
   };
 
-  if (!session || !quiz) return <div className="flex h-screen items-center justify-center">Đang tải câu hỏi...</div>;
+  if (!session || !quiz || shuffledQuestions.length === 0) return <div className="flex h-screen items-center justify-center">Đang tải câu hỏi...</div>;
 
   if (finished) {
     return (
@@ -96,7 +134,7 @@ export default function GamePlayerScreen() {
     );
   }
 
-  const currentQuestion = quiz.questions[currentQuestionIndex];
+  const currentQuestion = shuffledQuestions[currentQuestionIndex];
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -104,7 +142,7 @@ export default function GamePlayerScreen() {
       <div className="bg-white p-4 shadow-sm flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
-            {currentQuestionIndex + 1}/{quiz.questions.length}
+            {currentQuestionIndex + 1}/{shuffledQuestions.length}
           </div>
           <div className="text-sm font-medium text-gray-500">Streak: 🔥 {streak}</div>
         </div>

@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { Quiz } from '../../../types';
 
@@ -9,6 +9,12 @@ export const quizService = {
   createQuiz: async (quiz: Omit<Quiz, 'id'>): Promise<string> => {
     const docRef = await addDoc(getQuizzesRef(), quiz);
     return docRef.id;
+  },
+
+  // Cập nhật bộ câu hỏi
+  updateQuiz: async (quizId: string, quizData: Partial<Quiz>): Promise<void> => {
+    const docRef = doc(db, 'quizzes', quizId);
+    await updateDoc(docRef, quizData);
   },
 
   // Lấy danh sách quiz của giáo viên
