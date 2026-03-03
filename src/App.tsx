@@ -1,0 +1,48 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import Layout from './components/layout/Layout';
+import SetupRequired from './components/SetupRequired';
+import { isFirebaseConfigured } from './config/firebase';
+import AdminDashboard from './features/admin/pages/AdminDashboard';
+import LoginPage from './features/auth/pages/LoginPage';
+import GameHostDashboard from './features/game/pages/GameHostDashboard';
+import GameHostLobby from './features/game/pages/GameHostLobby';
+import GameJoinPage from './features/game/pages/GameJoinPage';
+import GamePlayerLobby from './features/game/pages/GamePlayerLobby';
+import GamePlayerScreen from './features/game/pages/GamePlayerScreen';
+import QuizDashboard from './features/quiz/pages/QuizDashboard';
+import QuizEditor from './features/quiz/pages/QuizEditor';
+
+export default function App() {
+  if (!isFirebaseConfigured) {
+    return <SetupRequired />;
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<GameJoinPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/* Game Routes (No Layout) */}
+        <Route path="/game/lobby/:sessionId" element={<GamePlayerLobby />} />
+        <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
+        <Route path="/game/host/:quizId" element={<GameHostLobby />} />
+        <Route path="/game/dashboard/:sessionId" element={<GameHostDashboard />} />
+
+        {/* Protected Routes (Wrapped in Layout) */}
+        <Route element={<Layout />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/teacher/dashboard" element={<QuizDashboard />} />
+          <Route path="/teacher/quiz/new" element={<QuizEditor />} />
+          {/* Add more routes here later */}
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
