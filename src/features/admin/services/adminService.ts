@@ -1,0 +1,49 @@
+import { addDoc, collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { ClassGroup, Student } from '../../../types';
+
+// Lazy initialization to prevent crash on module load if db is null
+const getClassesRef = () => collection(db, 'classes');
+const getStudentsRef = () => collection(db, 'students');
+
+export const adminService = {
+  // Lấy danh sách tất cả các lớp
+  getAllClasses: async (): Promise<ClassGroup[]> => {
+    const snapshot = await getDocs(getClassesRef());
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassGroup));
+  },
+
+  // Tạo lớp mới
+  createClass: async (name: string, teacherId: string): Promise<string> => {
+    const docRef = await addDoc(getClassesRef(), {
+      name,
+      teacherId,
+      createdAt: Date.now()
+    });
+    return docRef.id;
+  },
+
+  // Thêm danh sách học sinh vào lớp (Batch write để tối ưu hiệu năng)
+  addStudentsToClass: async (classId: string, studentNames: string[]) => {
+    const batch = writeBatch(db);
+    
+    studentNames.forEach(name => {
+      const newStudentRef = doc(getStudentsRef()); // Tự động sinh ID
+      batch.set(newStudentRef, {
+        name,
+        classId,
+        wallet_points: 0,
+        createdAt: Date.now()
+      });
+    });
+
+    await batch.commit();
+  },
+
+  // Lấy danh sách học sinh của một lớp
+  getStudentsByClass: async (classId: string): Promise<Student[]> => {
+    const q = query(getStudentsRef(), where('classId', '==', classId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+  }
+};
