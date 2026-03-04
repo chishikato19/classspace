@@ -14,6 +14,7 @@ import GameHostLobby from './features/game/pages/GameHostLobby';
 import GameJoinPage from './features/game/pages/GameJoinPage';
 import GamePlayerLobby from './features/game/pages/GamePlayerLobby';
 import GamePlayerScreen from './features/game/pages/GamePlayerScreen';
+import GameResults from './features/game/pages/GameResults';
 import QuizDashboard from './features/quiz/pages/QuizDashboard';
 import QuizEditor from './features/quiz/pages/QuizEditor';
 
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
         <Route path="/game/host/:quizId" element={<GameHostLobby />} />
         <Route path="/game/dashboard/:sessionId" element={<GameHostDashboard />} />
+        <Route path="/game/results/:sessionId" element={<GameResults />} />
 
         {/* Protected Routes (Wrapped in Layout) */}
         <Route element={<Layout />}>

@@ -31,6 +31,14 @@ export const gameService = {
     return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as GameSession;
   },
 
+  // Lấy thông tin phòng bằng ID
+  getSessionById: async (sessionId: string): Promise<GameSession | null> => {
+    const docRef = doc(db, 'sessions', sessionId);
+    const snapshot = await getDoc(docRef);
+    if (!snapshot.exists()) return null;
+    return { id: snapshot.id, ...snapshot.data() } as GameSession;
+  },
+
   // Học sinh tham gia phòng
   joinSession: async (sessionId: string, player: Player): Promise<void> => {
     const sessionRef = doc(db, 'sessions', sessionId);

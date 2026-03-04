@@ -1,21 +1,28 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { GameSession } from '../../../types';
+import { useParams, useNavigate } from 'react-router-dom';
+import { GameSession, Quiz } from '../../../types';
 import { gameService } from '../services/gameService';
+import { quizService } from '../../quiz/services/quizService';
 
 export default function GameHostDashboard() {
   const { sessionId } = useParams();
+  const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
+      if (!quiz && data.quizId) {
+        const quizData = await quizService.getQuizById(data.quizId);
+        setQuiz(quizData);
+      }
     });
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [sessionId, quiz]);
 
-  if (!session) return <div>Loading...</div>;
+  if (!session || !quiz) return <div className="flex h-screen items-center justify-center text-white bg-gray-900">Đang tải...</div>;
 
   // Sort players by score descending
   const sortedPlayers = [...(session.players || [])].sort((a, b) => b.score - a.score);
@@ -25,8 +32,16 @@ export default function GameHostDashboard() {
       <div className="max-w-7xl mx-auto">
         <header className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Bảng Xếp Hạng Trực Tiếp</h1>
-          <div className="text-xl bg-gray-800 px-4 py-2 rounded-lg">
-            Mã PIN: <span className="font-mono font-bold text-yellow-400">{session.pin}</span>
+          <div className="flex items-center gap-4">
+            <div className="text-xl bg-gray-800 px-4 py-2 rounded-lg">
+              Mã PIN: <span className="font-mono font-bold text-yellow-400">{session.pin}</span>
+            </div>
+            <button 
+              onClick={() => navigate(`/game/results/${sessionId}`)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-lg"
+            >
+              Kết thúc & Xem thống kê
+            </button>
           </div>
         </header>
 
@@ -81,11 +96,20 @@ export default function GameHostDashboard() {
                     <td className="px-6 py-4 font-mono text-gray-400">#{index + 1}</td>
                     <td className="px-6 py-4 font-bold">{player.name}</td>
                     <td className="px-6 py-4">
-                      <div className="w-full bg-gray-700 rounded-full h-2.5">
-                        <div 
-                          className="bg-green-500 h-2.5 rounded-full transition-all duration-500" 
-                          style={{ width: `${(player.progress / 10) * 100}%` }} // Mock progress max 10
-                        ></div>
+                      <div className="w-full h-2.5 flex gap-1">
+                        {quiz.questions.map((q) => {
+                          const answer = player.answers?.[q.id];
+                          let bgColor = 'bg-gray-700'; // Chưa trả lời
+                          if (answer) {
+                            bgColor = answer.isCorrect ? 'bg-green-500' : 'bg-red-500';
+                          }
+                          return (
+                            <div 
+                              key={q.id}
+                              className={`${bgColor} h-2.5 rounded-full transition-all duration-500 flex-1`}
+                            ></div>
+                          );
+                        })}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right font-mono text-yellow-400 font-bold text-lg">
