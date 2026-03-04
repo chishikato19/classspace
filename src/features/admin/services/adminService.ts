@@ -1,6 +1,7 @@
-import { addDoc, collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, where, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { ClassGroup, Student } from '../../../types';
+import { DEFAULT_AVATAR_STYLE } from '../../../utils/avatarUtils';
 
 // Lazy initialization to prevent crash on module load if db is null
 const getClassesRef = () => collection(db, 'classes');
@@ -23,6 +24,24 @@ export const adminService = {
     return docRef.id;
   },
 
+  // Xóa lớp và tất cả học sinh trong lớp
+  deleteClass: async (classId: string): Promise<void> => {
+    const batch = writeBatch(db);
+    
+    // Xóa lớp
+    const classRef = doc(db, 'classes', classId);
+    batch.delete(classRef);
+
+    // Lấy danh sách học sinh của lớp để xóa
+    const q = query(getStudentsRef(), where('classId', '==', classId));
+    const snapshot = await getDocs(q);
+    snapshot.docs.forEach(studentDoc => {
+      batch.delete(studentDoc.ref);
+    });
+
+    await batch.commit();
+  },
+
   // Thêm danh sách học sinh vào lớp (Batch write để tối ưu hiệu năng)
   addStudentsToClass: async (classId: string, studentNames: string[]) => {
     const batch = writeBatch(db);
@@ -33,11 +52,24 @@ export const adminService = {
         name,
         classId,
         wallet_points: 0,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        avatarConfig: {
+          style: DEFAULT_AVATAR_STYLE,
+          seed: name, // Dùng tên làm seed để avatar cố định
+        },
+        inventory: {
+          unlockedStyles: [DEFAULT_AVATAR_STYLE, 'initials'],
+        }
       });
     });
 
     await batch.commit();
+  },
+
+  // Xóa học sinh
+  deleteStudent: async (studentId: string): Promise<void> => {
+    const studentRef = doc(db, 'students', studentId);
+    await deleteDoc(studentRef);
   },
 
   // Lấy danh sách học sinh của một lớp

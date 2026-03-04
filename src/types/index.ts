@@ -7,11 +7,33 @@ export interface User {
   displayName?: string;
 }
 
+export interface AvatarConfig {
+  style: string;
+  seed: string;
+  backgroundColor?: string;
+}
+
+export interface Inventory {
+  unlockedStyles: string[];
+}
+
+export interface ShopItem {
+  id: string;
+  type: 'avatar_style' | 'frame' | 'effect';
+  name: string;
+  price: number;
+  config: { style: string };
+  requiredLevel: number;
+  imageUrl?: string;
+}
+
 export interface Student {
   id: string;
   name: string;
   classId: string;
   wallet_points: number; // Điểm tích lũy đổi quà
+  avatarConfig?: AvatarConfig;
+  inventory?: Inventory;
 }
 
 export interface ClassGroup {
@@ -76,4 +98,5 @@ export interface Player {
     timeTaken: number;
     pointsAwarded: number;
   }>;
+  avatarConfig?: AvatarConfig;
 }

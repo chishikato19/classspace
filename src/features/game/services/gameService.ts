@@ -56,6 +56,15 @@ export const gameService = {
     });
   },
 
+  // Kết thúc game
+  endGame: async (sessionId: string): Promise<void> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    await updateDoc(sessionRef, {
+      status: 'FINISHED',
+      finishedAt: Date.now()
+    });
+  },
+
   // Nộp câu trả lời (Quan trọng: Xử lý Transaction để cộng điểm chính xác)
   submitAnswer: async (sessionId: string, playerId: string, questionId: string, answerData: any) => {
     const sessionRef = doc(db, 'sessions', sessionId);
@@ -115,6 +124,27 @@ export const gameService = {
       };
 
       players[playerIndex] = player;
+
+      transaction.update(sessionRef, { players });
+    });
+  },
+
+  // Cập nhật avatar của người chơi
+  updatePlayerAvatar: async (sessionId: string, playerId: string, avatarConfig: any) => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw "Session not found";
+
+      const data = sessionDoc.data();
+      const players = data.players as Player[];
+      const playerIndex = players.findIndex((p: Player) => p.id === playerId);
+      
+      if (playerIndex === -1) throw "Player not found";
+
+      // Cập nhật avatar
+      players[playerIndex].avatarConfig = avatarConfig;
 
       transaction.update(sessionRef, { players });
     });

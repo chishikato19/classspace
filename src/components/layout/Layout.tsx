@@ -27,7 +27,13 @@ export default function Layout() {
               onClick={() => navigate('/teacher/dashboard')}
               className="text-sm font-medium text-gray-500 hover:text-gray-900"
             >
-              Giáo viên
+              Thư viện & Báo cáo
+            </button>
+            <button 
+              onClick={() => navigate('/teacher/random-selector')}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900"
+            >
+              Công cụ lớp học
             </button>
             <button 
               onClick={handleLogout}

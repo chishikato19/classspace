@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { GameSession, Question, Quiz } from '../../../types';
+import { GameSession, Question, Quiz, AvatarConfig } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
 import { gameService } from '../services/gameService';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 export default function GamePlayerScreen() {
   const { sessionId } = useParams();
@@ -18,9 +19,23 @@ export default function GamePlayerScreen() {
   const [streak, setStreak] = useState(0);
   const [finished, setFinished] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(undefined);
+  const [playerName, setPlayerName] = useState('');
 
   // Load session and quiz data
   useEffect(() => {
+    const name = localStorage.getItem('currentPlayerName');
+    if (name) setPlayerName(name);
+
+    const avatarJson = localStorage.getItem('currentPlayerAvatar');
+    if (avatarJson) {
+      try {
+        setAvatarConfig(JSON.parse(avatarJson));
+      } catch (e) {
+        console.error("Error parsing avatar config", e);
+      }
+    }
+
     if (!sessionId) return;
 
     const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
@@ -35,14 +50,24 @@ export default function GamePlayerScreen() {
           let questions = [...quizData.questions];
           const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
           
+          // Fisher-Yates shuffle function
+          const shuffleArray = <T,>(array: T[]): T[] => {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+          };
+
           if (settings.shuffleQuestions) {
-            questions = questions.sort(() => Math.random() - 0.5);
+            questions = shuffleArray(questions);
           }
           
           if (settings.shuffleAnswers) {
             questions = questions.map(q => ({
               ...q,
-              options: [...q.options].sort(() => Math.random() - 0.5)
+              options: shuffleArray(q.options)
             }));
           }
           
@@ -118,12 +143,20 @@ export default function GamePlayerScreen() {
 
   if (!session || !quiz || shuffledQuestions.length === 0) return <div className="flex h-screen items-center justify-center">Đang tải câu hỏi...</div>;
 
-  if (finished) {
+  if (finished || session?.status === 'FINISHED') {
     return (
       <div className="min-h-screen bg-indigo-900 text-white flex flex-col items-center justify-center p-4">
+        <StudentAvatar 
+          name={playerName} 
+          avatarConfig={avatarConfig} 
+          size={120} 
+          className="border-4 border-yellow-400 shadow-lg mb-6"
+        />
         <h1 className="text-4xl font-bold mb-4">HOÀN THÀNH!</h1>
         <div className="text-6xl font-black text-yellow-400 mb-8">{score} điểm</div>
-        <p className="text-xl opacity-80">Bạn đã trả lời hết các câu hỏi.</p>
+        <p className="text-xl opacity-80">
+          {session?.status === 'FINISHED' ? 'Giáo viên đã kết thúc bài thi.' : 'Bạn đã trả lời hết các câu hỏi.'}
+        </p>
         <button 
           onClick={() => navigate('/')}
           className="mt-8 bg-white text-indigo-900 px-6 py-3 rounded-lg font-bold hover:bg-gray-100"
@@ -141,6 +174,12 @@ export default function GamePlayerScreen() {
       {/* Header Info */}
       <div className="bg-white p-4 shadow-sm flex justify-between items-center">
         <div className="flex items-center gap-4">
+          <StudentAvatar 
+            name={playerName} 
+            avatarConfig={avatarConfig} 
+            size={40} 
+            className="border border-gray-200"
+          />
           <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
             {currentQuestionIndex + 1}/{shuffledQuestions.length}
           </div>

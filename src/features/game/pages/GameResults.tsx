@@ -4,6 +4,7 @@ import { GameSession, Quiz, Player } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { CheckCircle, XCircle, Clock, Award, ChevronLeft } from 'lucide-react';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 export default function GameResults() {
   const { sessionId } = useParams();
@@ -129,7 +130,8 @@ export default function GameResults() {
                     {session.players?.length ? 
                       Math.round(
                         session.players.reduce((acc, p) => {
-                          const correctCount = Object.values(p.answers || {}).filter(a => a.isCorrect).length;
+                          const answers = Object.values(p.answers || {}) as { isCorrect: boolean }[];
+                          const correctCount = answers.filter(a => a.isCorrect).length;
                           return acc + (correctCount / quiz.questions.length);
                         }, 0) / session.players.length * 100
                       ) : 0}%
@@ -166,7 +168,7 @@ export default function GameResults() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {sortedPlayers.map((player, index) => {
-                      const answers = Object.values(player.answers || {});
+                      const answers = Object.values(player.answers || {}) as { isCorrect: boolean }[];
                       const correct = answers.filter(a => a.isCorrect).length;
                       const incorrect = answers.filter(a => !a.isCorrect).length;
                       const unanswered = quiz.questions.length - (correct + incorrect);
@@ -174,7 +176,14 @@ export default function GameResults() {
                       return (
                         <tr key={player.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 font-medium text-gray-900">#{index + 1}</td>
-                          <td className="px-6 py-4 font-bold text-indigo-600">{player.name}</td>
+                          <td className="px-6 py-4 font-bold text-indigo-600 flex items-center gap-3">
+                            <StudentAvatar 
+                              name={player.name} 
+                              avatarConfig={player.avatarConfig} 
+                              size={32} 
+                            />
+                            {player.name}
+                          </td>
                           <td className="px-6 py-4 text-center text-green-600 font-medium">{correct}</td>
                           <td className="px-6 py-4 text-center text-red-600 font-medium">{incorrect}</td>
                           <td className="px-6 py-4 text-center text-gray-500">{unanswered}</td>
@@ -298,10 +307,17 @@ export default function GameResults() {
                         const ans = player.answers![currentQuestion.id];
                         const selectedOpt = currentQuestion.options.find(o => o.id === ans.optionId);
                         return (
-                          <div key={player.id} className="bg-red-50 p-3 rounded-lg border border-red-100">
-                            <div className="font-bold text-red-800">{player.name}</div>
-                            <div className="text-xs text-red-600 mt-1">
-                              Chọn: {selectedOpt?.text || 'Không rõ'}
+                          <div key={player.id} className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-center gap-3">
+                            <StudentAvatar 
+                              name={player.name} 
+                              avatarConfig={player.avatarConfig} 
+                              size={40} 
+                            />
+                            <div>
+                              <div className="font-bold text-red-800">{player.name}</div>
+                              <div className="text-xs text-red-600 mt-1">
+                                Chọn: {selectedOpt?.text || 'Không rõ'}
+                              </div>
                             </div>
                           </div>
                         );

@@ -54,6 +54,15 @@ src/
 2. **Authentication:** Tích hợp Firebase Auth cho Admin/Teacher (Email/Password).
 3. **Student Login Flow:** Cập nhật `GameJoinPage` -> Sau khi nhập PIN, học sinh không gõ tên thủ công mà sẽ chọn Lớp -> Chọn Tên từ danh sách lấy từ Firestore (Hỗ trợ chọn nhiều tên để tạo Nhóm).
 
+### ✅ Phase 2.5: Hệ thống Avatar & Giao diện Game (Đã hoàn thành)
+1. **Avatar Integration:**
+   - Tích hợp `StudentAvatar` vào toàn bộ các màn hình Game: Lobby, Player Screen, Dashboard, Results.
+   - Cập nhật `Player` interface để hỗ trợ `avatarConfig`.
+   - Cập nhật `GameJoinPage` để tạo avatar mặc định hoặc sử dụng avatar của học sinh khi tham gia game.
+2. **UI Improvements:**
+   - Hiển thị avatar trên bảng xếp hạng (Leaderboard) và bục vinh quang (Podium).
+   - Hiển thị avatar trong danh sách người chơi trả lời sai.
+
 ### 🚀 Phase 3: Gamification & Mở rộng (Kế hoạch tương lai)
 1. **Hệ thống phần thưởng (Rewards):** 
    - Viết logic cập nhật `wallet_points` cho học sinh sau khi kết thúc game.
@@ -67,3 +76,52 @@ src/
 - Luôn sử dụng `Tailwind CSS` cho styling.
 - Khi tương tác với Firestore, hãy viết các hàm logic trong file `*.service.ts` tương ứng, không gọi trực tiếp Firebase API từ trong UI Components.
 - Luôn kiểm tra `isFirebaseConfigured` trước khi thực hiện các thao tác liên quan đến Database.
+
+## 6. THIẾT KẾ HỆ THỐNG CỬA HÀNG (SHOP SYSTEM DESIGN)
+### A. Hệ thống Tiền tệ (Currency)
+- **EXP (Điểm kinh nghiệm):** Dùng để xếp hạng, lên cấp. Không bị trừ.
+- **Coin (Xu):** Dùng để mua vật phẩm. Tỉ lệ quy đổi từ EXP hoặc được giáo viên thưởng nóng.
+
+### B. Vật phẩm (Items)
+1. **Avatar (Generative Avatars):**
+   - Sử dụng công nghệ **DiceBear API** để tạo avatar tự động từ tên học sinh (Seed).
+   - Không cần upload ảnh, tiết kiệm chi phí lưu trữ và băng thông.
+   - **Phân loại Style (bán trong Shop):**
+     - *Default:* Initials (Chữ cái đầu), Bottts (Robot).
+     - *Unlockable (Level):* Fun Emoji, Icons.
+     - *Premium (Coins):* Adventurer (Phiêu lưu), Avataaars (Hoạt hình), Lorelei (Nghệ thuật).
+2. **Khung Avatar (Frames):** Viền trang trí (Lửa, Băng, v.v.).
+3. **Hiệu ứng xuất hiện (Entrance Effects):** Hiệu ứng đặc biệt khi được gọi tên trong Random Selector.
+
+### C. Danh hiệu (Titles)
+- **Thành tích (Achievements):** Tự động mở khóa (VD: "Cú Đêm", "Chăm Chỉ").
+- **Phong tặng:** Giáo viên trao tặng thủ công.
+
+### D. Cấu trúc dữ liệu Avatar (New Schema)
+- **`students` collection:**
+  ```typescript
+  avatarConfig: {
+    style: string;       // VD: 'adventurer', 'bottts'
+    seed: string;        // VD: 'student-123'
+    backgroundColor?: string;
+  }
+  inventory: {
+    unlockedStyles: string[]; // VD: ['initials', 'bottts', 'adventurer']
+  }
+  ```
+- **`shop_items` collection:**
+  ```typescript
+  {
+    id: string,
+    type: 'avatar_style' | 'frame' | 'effect',
+    name: string,
+    price: number,
+    config: { style: string }, // Cấu hình áp dụng khi mua
+    requiredLevel: number
+  }
+  ```
+
+### E. Lộ trình phát triển (Roadmap)
+1. **Database:** Thêm `coins`, `avatarConfig`, `inventory` vào `students`. Tạo bảng `shop_items`.
+2. **UI:** Xây dựng giao diện Shop, Inventory, Profile.
+3. **Integration:** Tích hợp hiển thị Avatar/Title vào Leaderboard và Random Selector (✅ Đã hoàn thành).

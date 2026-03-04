@@ -15,8 +15,11 @@ import GameJoinPage from './features/game/pages/GameJoinPage';
 import GamePlayerLobby from './features/game/pages/GamePlayerLobby';
 import GamePlayerScreen from './features/game/pages/GamePlayerScreen';
 import GameResults from './features/game/pages/GameResults';
-import QuizDashboard from './features/quiz/pages/QuizDashboard';
 import QuizEditor from './features/quiz/pages/QuizEditor';
+import TeacherDashboard from './features/teacher/pages/TeacherDashboard';
+import RandomSelector from './features/random-selector/pages/RandomSelector';
+
+import { StudentDashboardWrapper } from './features/shop/pages/StudentDashboard';
 
 export default function App() {
   if (!isFirebaseConfigured) {
@@ -30,6 +33,9 @@ export default function App() {
         <Route path="/" element={<GameJoinPage />} />
         <Route path="/login" element={<LoginPage />} />
         
+        {/* Student Shop Route */}
+        <Route path="/student/shop/:studentId" element={<StudentDashboardWrapper />} />
+
         {/* Game Routes (No Layout) */}
         <Route path="/game/lobby/:sessionId" element={<GamePlayerLobby />} />
         <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
@@ -40,7 +46,8 @@ export default function App() {
         {/* Protected Routes (Wrapped in Layout) */}
         <Route element={<Layout />}>
           <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/teacher/dashboard" element={<QuizDashboard />} />
+          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+          <Route path="/teacher/random-selector" element={<RandomSelector />} />
           <Route path="/teacher/quiz/new" element={<QuizEditor />} />
           <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />
           {/* Add more routes here later */}

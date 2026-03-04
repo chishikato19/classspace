@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { GameSession, Quiz } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 export default function GameHostDashboard() {
   const { sessionId } = useParams();
@@ -37,7 +38,10 @@ export default function GameHostDashboard() {
               Mã PIN: <span className="font-mono font-bold text-yellow-400">{session.pin}</span>
             </div>
             <button 
-              onClick={() => navigate(`/game/results/${sessionId}`)}
+              onClick={async () => {
+                await gameService.endGame(sessionId!);
+                navigate(`/game/results/${sessionId}`);
+              }}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-lg"
             >
               Kết thúc & Xem thống kê
@@ -49,31 +53,55 @@ export default function GameHostDashboard() {
           {/* Top 3 Podium */}
           <div className="lg:col-span-3 flex justify-center items-end gap-4 mb-8 h-64">
             {sortedPlayers[1] && (
-              <div className="w-32 bg-gray-700 rounded-t-lg p-4 text-center h-2/3 flex flex-col justify-end relative">
-                <div className="absolute -top-10 left-0 right-0 text-center">
-                  <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto flex items-center justify-center text-gray-800 font-bold text-xl border-4 border-gray-700">2</div>
+              <div className="w-32 bg-gray-700 rounded-t-lg p-4 text-center h-2/3 flex flex-col justify-end relative items-center">
+                <div className="absolute -top-10 left-0 right-0 text-center flex justify-center">
+                  <div className="relative">
+                    <StudentAvatar 
+                      name={sortedPlayers[1].name} 
+                      avatarConfig={sortedPlayers[1].avatarConfig} 
+                      size={64} 
+                      className="border-4 border-gray-400"
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-gray-400 text-gray-900 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs border-2 border-gray-700">2</div>
+                  </div>
                 </div>
-                <div className="font-bold truncate">{sortedPlayers[1].name}</div>
+                <div className="font-bold truncate w-full mt-8">{sortedPlayers[1].name}</div>
                 <div className="text-yellow-400 font-mono">{sortedPlayers[1].score}</div>
               </div>
             )}
             
             {sortedPlayers[0] && (
-              <div className="w-32 bg-yellow-600 rounded-t-lg p-4 text-center h-full flex flex-col justify-end relative shadow-lg shadow-yellow-600/20">
-                <div className="absolute -top-12 left-0 right-0 text-center">
-                  <div className="w-20 h-20 bg-yellow-400 rounded-full mx-auto flex items-center justify-center text-yellow-900 font-bold text-2xl border-4 border-yellow-600">1</div>
+              <div className="w-32 bg-yellow-600 rounded-t-lg p-4 text-center h-full flex flex-col justify-end relative shadow-lg shadow-yellow-600/20 items-center">
+                <div className="absolute -top-12 left-0 right-0 text-center flex justify-center">
+                  <div className="relative">
+                    <StudentAvatar 
+                      name={sortedPlayers[0].name} 
+                      avatarConfig={sortedPlayers[0].avatarConfig} 
+                      size={80} 
+                      className="border-4 border-yellow-400"
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg border-2 border-yellow-600">1</div>
+                  </div>
                 </div>
-                <div className="font-bold truncate text-lg">{sortedPlayers[0].name}</div>
+                <div className="font-bold truncate w-full mt-10 text-lg">{sortedPlayers[0].name}</div>
                 <div className="text-white font-mono text-xl">{sortedPlayers[0].score}</div>
               </div>
             )}
 
             {sortedPlayers[2] && (
-              <div className="w-32 bg-orange-700 rounded-t-lg p-4 text-center h-1/2 flex flex-col justify-end relative">
-                <div className="absolute -top-10 left-0 right-0 text-center">
-                  <div className="w-16 h-16 bg-orange-400 rounded-full mx-auto flex items-center justify-center text-orange-900 font-bold text-xl border-4 border-orange-700">3</div>
+              <div className="w-32 bg-orange-700 rounded-t-lg p-4 text-center h-1/2 flex flex-col justify-end relative items-center">
+                <div className="absolute -top-10 left-0 right-0 text-center flex justify-center">
+                  <div className="relative">
+                    <StudentAvatar 
+                      name={sortedPlayers[2].name} 
+                      avatarConfig={sortedPlayers[2].avatarConfig} 
+                      size={64} 
+                      className="border-4 border-orange-400"
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-orange-400 text-orange-900 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs border-2 border-orange-700">3</div>
+                  </div>
                 </div>
-                <div className="font-bold truncate">{sortedPlayers[2].name}</div>
+                <div className="font-bold truncate w-full mt-8">{sortedPlayers[2].name}</div>
                 <div className="text-yellow-400 font-mono">{sortedPlayers[2].score}</div>
               </div>
             )}
@@ -94,7 +122,14 @@ export default function GameHostDashboard() {
                 {sortedPlayers.map((player, index) => (
                   <tr key={player.id} className="hover:bg-gray-700/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-400">#{index + 1}</td>
-                    <td className="px-6 py-4 font-bold">{player.name}</td>
+                    <td className="px-6 py-4 font-bold flex items-center gap-3">
+                      <StudentAvatar 
+                        name={player.name} 
+                        avatarConfig={player.avatarConfig} 
+                        size={32} 
+                      />
+                      {player.name}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="w-full h-2.5 flex gap-1">
                         {quiz.questions.map((q) => {

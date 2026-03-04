@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { GameSession, GameSettings } from '../../../types';
 import { gameService } from '../services/gameService';
 import { auth } from '../../../config/firebase';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 export default function GameHostLobby() {
   const { quizId } = useParams();
@@ -162,10 +163,16 @@ export default function GameHostLobby() {
           {session.players?.map((player, index) => (
             <div 
               key={index} 
-              className="bg-indigo-700 p-4 rounded-lg text-center font-bold text-lg animate-bounce shadow-md border border-indigo-500"
+              className="bg-indigo-700 p-4 rounded-lg text-center font-bold text-lg animate-bounce shadow-md border border-indigo-500 flex flex-col items-center gap-2"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              {player.name}
+              <StudentAvatar 
+                name={player.name} 
+                avatarConfig={player.avatarConfig} 
+                size={64} 
+                className="border-2 border-white/50"
+              />
+              <span className="truncate w-full">{player.name}</span>
             </div>
           ))}
           {(!session.players || session.players.length === 0) && (

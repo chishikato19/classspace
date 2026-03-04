@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/adminService';
 import { ClassGroup, Student } from '../../../types';
+import { Trash2 } from 'lucide-react';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 export default function AdminDashboard() {
   const [classes, setClasses] = useState<ClassGroup[]>([]);
@@ -67,6 +69,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteClass = async (classId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Bạn có chắc chắn muốn xóa lớp này và toàn bộ học sinh trong lớp?")) return;
+
+    setLoading(true);
+    try {
+      await adminService.deleteClass(classId);
+      if (selectedClass?.id === classId) {
+        setSelectedClass(null);
+        setStudents([]);
+      }
+      await loadClasses();
+    } catch (error) {
+      console.error("Error deleting class:", error);
+      alert("Lỗi khi xóa lớp.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa học sinh này?")) return;
+
+    setLoading(true);
+    try {
+      await adminService.deleteStudent(studentId);
+      if (selectedClass) {
+        await loadStudents(selectedClass.id);
+      }
+    } catch (error) {
+      console.error("Error deleting student:", error);
+      alert("Lỗi khi xóa học sinh.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="border-b border-gray-200 pb-5">
@@ -112,10 +151,17 @@ export default function AdminDashboard() {
                     <div className="px-4 py-4 sm:px-6">
                       <div className="flex items-center justify-between">
                         <p className="truncate text-sm font-medium text-indigo-600">{cls.name}</p>
-                        <div className="ml-2 flex flex-shrink-0">
+                        <div className="ml-2 flex flex-shrink-0 items-center gap-2">
                           <p className="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">
                             Active
                           </p>
+                          <button
+                            onClick={(e) => handleDeleteClass(cls.id, e)}
+                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                            title="Xóa lớp"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -165,13 +211,21 @@ export default function AdminDashboard() {
                 <div className="mt-6 border-t border-gray-100 pt-4">
                   <ul className="divide-y divide-gray-100">
                     {students.map((student) => (
-                      <li key={student.id} className="flex justify-between gap-x-6 py-3">
-                        <div className="flex min-w-0 gap-x-4">
+                      <li key={student.id} className="flex justify-between gap-x-6 py-3 items-center">
+                        <div className="flex min-w-0 gap-x-4 items-center flex-1">
+                          <StudentAvatar student={student} size={40} />
                           <div className="min-w-0 flex-auto">
                             <p className="text-sm font-semibold leading-6 text-gray-900">{student.name}</p>
                             <p className="mt-1 truncate text-xs leading-5 text-gray-500">Điểm tích lũy: {student.wallet_points}</p>
                           </div>
                         </div>
+                        <button
+                          onClick={() => handleDeleteStudent(student.id)}
+                          className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-colors"
+                          title="Xóa học sinh"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </li>
                     ))}
                     {students.length === 0 && (

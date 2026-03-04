@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { ClassGroup, Student } from '../../../types';
+import { ClassGroup, Student, AvatarConfig } from '../../../types';
 import { adminService } from '../../admin/services/adminService';
 import { gameService } from '../services/gameService';
+import { DEFAULT_AVATAR_STYLE, AvatarStyle } from '../../../utils/avatarUtils';
 
 export default function GameJoinPage() {
   const [step, setStep] = useState<'PIN' | 'CLASS' | 'STUDENT'>('PIN');
@@ -79,8 +80,22 @@ export default function GameJoinPage() {
       const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
       const displayName = selectedStudents.map(s => s.name).join(', ');
 
+      // Determine avatar config
+      let avatarConfig: AvatarConfig;
+      if (selectedStudents.length === 1 && selectedStudents[0].avatarConfig) {
+        avatarConfig = selectedStudents[0].avatarConfig;
+      } else {
+        // Generate a default avatar for the group or if student has no avatar
+        avatarConfig = {
+          style: DEFAULT_AVATAR_STYLE as AvatarStyle,
+          seed: displayName,
+          backgroundColor: 'transparent'
+        };
+      }
+
       localStorage.setItem('currentPlayerId', playerId);
       localStorage.setItem('currentPlayerName', displayName);
+      localStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
 
       await gameService.joinSession(sessionId, {
         id: playerId,
@@ -90,7 +105,8 @@ export default function GameJoinPage() {
         streak: 0,
         progress: 0,
         finished: false,
-        answers: {}
+        answers: {},
+        avatarConfig: avatarConfig
       });
       
       navigate(`/game/lobby/${sessionId}`);
@@ -217,12 +233,21 @@ export default function GameJoinPage() {
       </div>
       
       {/* Teacher Login Link */}
-      <div className="mt-8 text-center">
+      <div className="mt-8 text-center flex flex-col gap-2">
         <button
           onClick={() => navigate('/login')}
           className="text-white/80 hover:text-white text-sm font-medium transition-colors"
         >
           Bạn là giáo viên? Đăng nhập tại đây
+        </button>
+        <button
+          onClick={() => {
+            const studentId = prompt('Nhập ID học sinh của bạn để vào cửa hàng:');
+            if (studentId) navigate(`/student/shop/${studentId}`);
+          }}
+          className="text-yellow-300 hover:text-yellow-100 text-sm font-bold transition-colors"
+        >
+          🛍️ Vào Cửa Hàng Đổi Quà
         </button>
       </div>
     </div>
