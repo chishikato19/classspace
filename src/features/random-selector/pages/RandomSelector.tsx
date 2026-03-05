@@ -35,8 +35,36 @@ export default function RandomSelector() {
   // New state for Action Modal and Queue
   const [currentSelectedStudent, setCurrentSelectedStudent] = useState<StudentData | null>(null);
   const [queue, setQueue] = useState<StudentData[]>([]);
+  const [isQueueOpen, setIsQueueOpen] = useState(true); // State for floating queue visibility
+
+  // Settings state
+  const [noDuplicate, setNoDuplicate] = useState(false);
+  const [hideSelected, setHideSelected] = useState(true);
+  const [selectedHistory, setSelectedHistory] = useState<string[]>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load settings
+  useEffect(() => {
+    const savedNoDuplicate = localStorage.getItem('randomSelector_noDuplicate');
+    if (savedNoDuplicate) {
+      setNoDuplicate(JSON.parse(savedNoDuplicate));
+    }
+    const savedHideSelected = localStorage.getItem('randomSelector_hideSelected');
+    if (savedHideSelected) {
+      setHideSelected(JSON.parse(savedHideSelected));
+    }
+  }, []);
+
+  // Filter students based on No Duplicate setting
+  const availableStudents = noDuplicate 
+    ? students.filter(s => !selectedHistory.includes(s.id))
+    : students;
+
+  // Students to pass to components for rendering
+  const displayStudents = (noDuplicate && hideSelected) 
+    ? availableStudents 
+    : students;
 
   // Fetch classes on mount
   useEffect(() => {
@@ -59,6 +87,9 @@ export default function RandomSelector() {
 
   // Update students based on source
   useEffect(() => {
+    // Reset history when list changes
+    setSelectedHistory([]);
+    
     if (listSource === 'manual') {
       const lines = manualInput.split('\n').filter(line => line.trim() !== '');
       const newStudents: StudentData[] = lines.map((name, index) => ({
@@ -88,7 +119,13 @@ export default function RandomSelector() {
   }, [randomMethod]);
 
   const handleStartSelection = () => {
-    if (students.length === 0) return;
+    if (availableStudents.length === 0) {
+      if (noDuplicate && students.length > 0) {
+        alert("Đã chọn hết tất cả học sinh trong phiên làm việc này!");
+        return;
+      }
+      return;
+    }
 
     if (randomMethod === 'random') {
       const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination'];
@@ -96,6 +133,15 @@ export default function RandomSelector() {
       setActiveRandomMethod(methods[randomIndex]);
     }
     setIsSelecting(true);
+  };
+
+  const handleNewSession = () => {
+    if (window.confirm("Bạn có muốn kết thúc phiên làm việc hiện tại và bắt đầu phiên mới? (Lịch sử chọn sẽ được xóa)")) {
+      setSelectedHistory([]);
+      setQueue([]);
+      setIsSelecting(false);
+      setCurrentSelectedStudent(null);
+    }
   };
 
   const handleBack = () => {
@@ -120,6 +166,7 @@ export default function RandomSelector() {
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Default names for testing
@@ -127,10 +174,16 @@ export default function RandomSelector() {
     if (manualInput === '') {
       setManualInput('Nguyễn Văn A\nTrần Thị B\nLê Văn C\nPhạm Thị D\nHoàng Văn E\nNgô Thị F\nĐặng Văn G\nBùi Thị H');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Action Handlers
   const handleStudentSelected = (student: StudentData) => {
+    // Add to history if no duplicate is on
+    if (noDuplicate) {
+      setSelectedHistory(prev => [...prev, student.id]);
+    }
+
     // Delay showing the modal slightly to let the animation finish visually in the child component
     setTimeout(() => {
       setCurrentSelectedStudent(student);
@@ -150,6 +203,7 @@ export default function RandomSelector() {
       // Check if already in queue
       if (!queue.some(s => s.id === currentSelectedStudent.id)) {
         setQueue(prev => [...prev, currentSelectedStudent]);
+        setIsQueueOpen(true); // Open queue when adding
       }
       setCurrentSelectedStudent(null);
     }
@@ -166,20 +220,35 @@ export default function RandomSelector() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6" ref={containerRef}>
+    <div className="max-w-5xl mx-auto space-y-6 relative" ref={containerRef}>
       {!isFullscreen && (
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Users className="w-6 h-6 text-indigo-600" />
             Chọn học sinh
           </h1>
-          <button
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Settings className="w-4 h-4" />
-            {isSettingsOpen ? 'Đóng cài đặt' : 'Cài đặt danh sách'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleNewSession}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors"
+              title="Làm mới phiên làm việc"
+            >
+              <Shuffle className="w-4 h-4" />
+              Phiên mới
+            </button>
+            {noDuplicate && (
+              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full border border-indigo-200">
+                Chế độ không trùng lặp
+              </span>
+            )}
+            <button
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              {isSettingsOpen ? 'Đóng cài đặt' : 'Cài đặt danh sách'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -187,14 +256,6 @@ export default function RandomSelector() {
         {/* Settings Sidebar */}
         {isSettingsOpen && !isFullscreen && (
           <div className="lg:col-span-1 space-y-6">
-            {/* Queue List */}
-            <QueueList 
-              queue={queue} 
-              onRemove={(id) => handleSkip(id)}
-              onAwardPoints={handleAwardPoints}
-              onSkip={handleSkip}
-            />
-
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <List className="w-5 h-5 text-indigo-500" />
@@ -253,6 +314,11 @@ export default function RandomSelector() {
               
               <div className="mt-4 text-sm text-gray-500 text-right">
                 Tổng cộng: <span className="font-bold text-indigo-600">{students.length}</span> học sinh
+                {noDuplicate && (
+                  <span className="block text-xs text-gray-400 mt-1">
+                    (Còn lại: {availableStudents.length})
+                  </span>
+                )}
               </div>
             </div>
 
@@ -358,7 +424,7 @@ export default function RandomSelector() {
         <div className={`bg-white p-8 rounded-xl shadow-sm border border-gray-200 min-h-[600px] flex flex-col items-center justify-center relative ${isFullscreen ? 'h-full border-0 rounded-none' : (isSettingsOpen ? 'lg:col-span-2' : 'lg:col-span-3')}`}>
           <button
             onClick={toggleFullscreen}
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors z-20"
             title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
           >
             {isFullscreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
@@ -367,7 +433,7 @@ export default function RandomSelector() {
           {mode === 'targeted' ? (
             <div className="w-full">
               <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">Chế độ chọn chỉ định</h2>
-              <TargetedSelector students={students} onSelect={handleStudentSelected} />
+              <TargetedSelector students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />
             </div>
           ) : (
             !isSelecting ? (
@@ -375,16 +441,21 @@ export default function RandomSelector() {
                 <div className="text-center space-y-2">
                   <h2 className="text-3xl font-bold text-gray-900">Sẵn sàng chọn ngẫu nhiên?</h2>
                   <p className="text-gray-500">
-                    Danh sách hiện tại có <span className="font-bold text-indigo-600">{students.length}</span> học sinh.
+                    Danh sách hiện tại có <span className="font-bold text-indigo-600">{availableStudents.length}</span> học sinh.
                   </p>
+                  {noDuplicate && (
+                    <p className="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full inline-block">
+                      Đang bật chế độ không trùng lặp
+                    </p>
+                  )}
                 </div>
                 
                 <button
                   onClick={handleStartSelection}
-                  disabled={students.length === 0}
+                  disabled={availableStudents.length === 0}
                   className={`
                     group relative px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xl font-bold rounded-2xl shadow-lg transform transition-all duration-200
-                    ${students.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 hover:shadow-xl active:scale-95'}
+                    ${availableStudents.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 hover:shadow-xl active:scale-95'}
                   `}
                 >
                   <span className="flex items-center gap-3">
@@ -394,10 +465,21 @@ export default function RandomSelector() {
                   <div className="absolute inset-0 rounded-2xl bg-white/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                 </button>
 
-                {students.length === 0 && (
+                {availableStudents.length === 0 && (
                   <p className="text-red-500 text-sm animate-bounce">
-                    Vui lòng nhập danh sách hoặc chọn lớp học để bắt đầu!
+                    {noDuplicate && students.length > 0 
+                      ? "Đã chọn hết học sinh! Vui lòng làm mới hoặc tắt chế độ không trùng lặp."
+                      : "Vui lòng nhập danh sách hoặc chọn lớp học để bắt đầu!"}
                   </p>
+                )}
+                
+                {noDuplicate && students.length > 0 && availableStudents.length === 0 && (
+                  <button 
+                    onClick={() => setSelectedHistory([])}
+                    className="mt-4 text-indigo-600 hover:text-indigo-800 text-sm font-medium underline"
+                  >
+                    Làm mới lịch sử chọn
+                  </button>
                 )}
               </div>
             ) : (
@@ -410,18 +492,57 @@ export default function RandomSelector() {
                 </button>
                 
                 <div className="w-full h-full flex items-center justify-center pt-12">
-                  {activeRandomMethod === 'wheel' && <WheelSpinner students={students} onSelect={handleStudentSelected} />}
-                  {activeRandomMethod === 'name' && <RandomName students={students} onSelect={handleStudentSelected} />}
-                  {activeRandomMethod === 'card' && <CardDraw students={students} onSelect={handleStudentSelected} />}
-                  {activeRandomMethod === 'box' && <MysteryBox students={students} onSelect={handleStudentSelected} />}
-                  {activeRandomMethod === 'magic' && <MagicHat students={students} onSelect={handleStudentSelected} />}
-                  {activeRandomMethod === 'slot' && <SlotMachine students={students} onSelect={handleStudentSelected} />}
-                  {activeRandomMethod === 'elimination' && <Elimination students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'wheel' && <WheelSpinner students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'name' && <RandomName students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'card' && <CardDraw students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'box' && <MysteryBox students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'magic' && <MagicHat students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'slot' && <SlotMachine students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'elimination' && <Elimination students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
                 </div>
               </div>
             )
           )}
         </div>
+      </div>
+
+      {/* Floating Queue List */}
+      <div className={`fixed bottom-4 right-4 z-40 transition-all duration-300 ${isQueueOpen ? 'w-80' : 'w-auto'}`}>
+        {isQueueOpen ? (
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="bg-indigo-600 p-3 flex items-center justify-between text-white">
+              <h3 className="font-bold flex items-center gap-2">
+                <List className="w-4 h-4" />
+                Hàng chờ ({queue.length})
+              </h3>
+              <button 
+                onClick={() => setIsQueueOpen(false)}
+                className="p-1 hover:bg-indigo-700 rounded transition-colors"
+              >
+                <Minimize className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              <QueueList 
+                queue={queue} 
+                onAwardPoints={handleAwardPoints}
+                onSkip={handleSkip}
+              />
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsQueueOpen(true)}
+            className="bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-all hover:scale-110 flex items-center gap-2"
+          >
+            <List className="w-6 h-6" />
+            {queue.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">
+                {queue.length}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Action Modal */}

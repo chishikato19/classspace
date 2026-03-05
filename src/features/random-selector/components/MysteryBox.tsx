@@ -6,21 +6,29 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface MysteryBoxProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function MysteryBox({ students, onSelect }: MysteryBoxProps) {
+export default function MysteryBox({ students, onSelect, selectableIds }: MysteryBoxProps) {
   const [isOpening, setIsOpening] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   const openBox = () => {
     if (students.length === 0 || isOpening || selectedStudent) return;
     
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (selectableStudents.length === 0) return;
+
     setIsOpening(true);
     
     // Simulate opening animation
     setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * students.length);
-      const winner = students[randomIndex];
+      // Pick a winner from selectable students
+      const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
       setSelectedStudent(winner);
       setIsOpening(false);
       if (onSelect) {

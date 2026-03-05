@@ -5,9 +5,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface RandomNameProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function RandomName({ students, onSelect }: RandomNameProps) {
+export default function RandomName({ students, onSelect, selectableIds }: RandomNameProps) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [currentStudent, setCurrentStudent] = useState<StudentData | null>(null);
@@ -15,6 +16,13 @@ export default function RandomName({ students, onSelect }: RandomNameProps) {
   const selectRandom = () => {
     if (students.length === 0 || isSelecting) return;
     
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (selectableStudents.length === 0) return;
+
     setIsSelecting(true);
     setSelectedStudent(null);
     
@@ -23,17 +31,22 @@ export default function RandomName({ students, onSelect }: RandomNameProps) {
     const intervalTime = 50; // ms
     
     const interval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * students.length);
-      const randomStudent = students[randomIndex];
-      setCurrentStudent(randomStudent);
+      // For visual effect, we can show any student from the list
+      const visualRandomIndex = Math.floor(Math.random() * students.length);
+      const visualRandomStudent = students[visualRandomIndex];
+      setCurrentStudent(visualRandomStudent);
       counter++;
       
       if (counter >= maxIterations) {
         clearInterval(interval);
         setIsSelecting(false);
-        setSelectedStudent(randomStudent);
+        
+        // Pick the actual winner from selectable students
+        const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
+        setCurrentStudent(winner);
+        setSelectedStudent(winner);
         if (onSelect) {
-          onSelect(randomStudent);
+          onSelect(winner);
         }
       }
     }, intervalTime);

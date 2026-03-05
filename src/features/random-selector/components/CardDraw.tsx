@@ -5,24 +5,32 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface CardDrawProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function CardDraw({ students, onSelect }: CardDrawProps) {
+export default function CardDraw({ students, onSelect, selectableIds }: CardDrawProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
-  const [cards, setCards] = useState<number[]>([1, 2, 3, 4, 5]); // Show 5 generic cards
+  const [cards] = useState<number[]>([1, 2, 3, 4, 5]); // Show 5 generic cards
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
 
   const drawCard = (index: number) => {
     if (students.length === 0 || isDrawing || selectedStudent) return;
     
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (selectableStudents.length === 0) return;
+
     setIsDrawing(true);
     setSelectedCardIndex(index);
     
     // Simulate drawing animation
     setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * students.length);
-      const winner = students[randomIndex];
+      // Pick a winner from selectable students
+      const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
       setSelectedStudent(winner);
       setIsDrawing(false);
       if (onSelect) {

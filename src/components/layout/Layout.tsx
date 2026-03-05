@@ -42,6 +42,12 @@ export default function Layout() {
               Công cụ lớp học
             </button>
             <button 
+              onClick={() => navigate('/teacher/settings')}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900"
+            >
+              Cài đặt
+            </button>
+            <button 
               onClick={handleLogout}
               className="text-sm font-medium text-red-500 hover:text-red-700 ml-4 border border-red-200 px-3 py-1 rounded-md"
             >

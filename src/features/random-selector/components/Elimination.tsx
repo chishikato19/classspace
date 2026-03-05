@@ -6,22 +6,44 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface EliminationProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function Elimination({ students, onSelect }: EliminationProps) {
+export default function Elimination({ students, onSelect, selectableIds }: EliminationProps) {
   const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
   const [winner, setWinner] = useState<StudentData | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
+  // Initialize eliminatedIds with non-selectable students
+  useEffect(() => {
+    if (selectableIds) {
+      const initialEliminated = new Set<string>();
+      students.forEach(s => {
+        if (!selectableIds.includes(s.id)) {
+          initialEliminated.add(s.id);
+        }
+      });
+      setEliminatedIds(initialEliminated);
+    } else {
+      setEliminatedIds(new Set());
+    }
+    setWinner(null);
+    setIsRunning(false);
+  }, [students, selectableIds]);
+
   const startElimination = async () => {
-    if (isRunning || students.length < 2) return;
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (isRunning || selectableStudents.length < 2) return;
     
     setIsRunning(true);
-    setEliminatedIds(new Set());
     setWinner(null);
 
-    // Create a copy of students to manipulate
-    let remaining = [...students];
+    // Create a copy of selectable students to manipulate
+    let remaining = [...selectableStudents];
     
     // Elimination loop
     while (remaining.length > 1) {
@@ -40,8 +62,7 @@ export default function Elimination({ students, onSelect }: EliminationProps) {
       remaining.splice(randomIndex, 1);
       
       // Wait for animation (speed up as fewer students remain)
-      // Start slow (800ms) and speed up to very fast (100ms)
-      const delay = Math.max(100, 800 - (students.length - remaining.length) * 50);
+      const delay = Math.max(100, 800 - (selectableStudents.length - remaining.length) * 50);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 

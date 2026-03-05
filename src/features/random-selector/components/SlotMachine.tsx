@@ -5,9 +5,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface SlotMachineProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function SlotMachine({ students, onSelect }: SlotMachineProps) {
+export default function SlotMachine({ students, onSelect, selectableIds }: SlotMachineProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [displayDigits, setDisplayDigits] = useState<string[]>(['0', '0']); // [Tens, Units]
@@ -15,6 +16,13 @@ export default function SlotMachine({ students, onSelect }: SlotMachineProps) {
   const spin = () => {
     if (students.length === 0 || isSpinning || selectedStudent) return;
     
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (selectableStudents.length === 0) return;
+
     setIsSpinning(true);
     
     let counter = 0;
@@ -29,10 +37,11 @@ export default function SlotMachine({ students, onSelect }: SlotMachineProps) {
       if (counter > 20) {
         clearInterval(interval);
         
-        // Pick winner
-        const randomIndex = Math.floor(Math.random() * students.length);
-        const chosen = students[randomIndex];
-        const studentNumber = randomIndex + 1; // 1-based index
+        // Pick winner from selectable students
+        const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
+        // Find its index in the full students array for the number display
+        const winnerIndex = students.findIndex(s => s.id === winner.id);
+        const studentNumber = winnerIndex + 1; // 1-based index
         const numberStr = studentNumber.toString().padStart(2, '0');
         
         setDisplayDigits([numberStr[0], numberStr[1]]);
@@ -40,9 +49,9 @@ export default function SlotMachine({ students, onSelect }: SlotMachineProps) {
 
         // Wait 1 second before showing the student name
         setTimeout(() => {
-          setSelectedStudent(chosen);
+          setSelectedStudent(winner);
           if (onSelect) {
-            onSelect(chosen);
+            onSelect(winner);
           }
         }, 1000);
       }

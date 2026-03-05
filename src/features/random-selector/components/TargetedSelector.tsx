@@ -4,9 +4,10 @@ import { StudentData } from '../services/classService';
 interface TargetedSelectorProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function TargetedSelector({ students, onSelect }: TargetedSelectorProps) {
+export default function TargetedSelector({ students, onSelect, selectableIds }: TargetedSelectorProps) {
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   if (students.length === 0) {
@@ -16,20 +17,26 @@ export default function TargetedSelector({ students, onSelect }: TargetedSelecto
   return (
     <div className="flex flex-col items-center">
       <div className="w-full max-w-3xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
-        {students.map((student) => (
-          <button
-            key={student.id}
-            onClick={() => setSelectedStudent(student)}
-            className={`
-              p-4 rounded-xl text-center font-semibold transition-all duration-200 shadow-sm border-2
-              ${selectedStudent?.id === student.id 
-                ? 'bg-indigo-600 text-white border-indigo-700 scale-105 shadow-md' 
-                : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'}
-            `}
-          >
-            {student.name}
-          </button>
-        ))}
+        {students.map((student) => {
+          const isSelectable = !selectableIds || selectableIds.includes(student.id);
+          return (
+            <button
+              key={student.id}
+              onClick={() => isSelectable && setSelectedStudent(student)}
+              disabled={!isSelectable}
+              className={`
+                p-4 rounded-xl text-center font-semibold transition-all duration-200 shadow-sm border-2
+                ${selectedStudent?.id === student.id 
+                  ? 'bg-indigo-600 text-white border-indigo-700 scale-105 shadow-md' 
+                  : isSelectable 
+                    ? 'bg-white text-gray-700 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'}
+              `}
+            >
+              {student.name}
+            </button>
+          );
+        })}
       </div>
 
       {selectedStudent && (

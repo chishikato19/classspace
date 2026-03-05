@@ -5,9 +5,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface WheelSpinnerProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function WheelSpinner({ students, onSelect }: WheelSpinnerProps) {
+export default function WheelSpinner({ students, onSelect, selectableIds }: WheelSpinnerProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [rotation, setRotation] = useState(0);
@@ -15,26 +16,32 @@ export default function WheelSpinner({ students, onSelect }: WheelSpinnerProps) 
   const spinWheel = () => {
     if (students.length === 0 || isSpinning) return;
     
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (selectableStudents.length === 0) return;
+
     setIsSpinning(true);
     setSelectedStudent(null);
     
-    // Calculate random rotation
-    const spinDuration = 3000; // 3 seconds
-    const extraSpins = 5 * 360; // 5 full rotations
-    const randomIndex = Math.floor(Math.random() * students.length);
+    // Pick a winner from selectable students
+    const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
+    // Find its index in the full students array to calculate rotation
+    const winnerIndex = students.findIndex(s => s.id === winner.id);
+    
+    const spinDuration = 3000;
+    const extraSpins = 5 * 360;
     const sliceAngle = 360 / students.length;
     
-    // Target angle to stop at the center of the selected slice
-    // We subtract from 360 because the wheel rotates clockwise but slices are drawn clockwise
-    const targetAngle = 360 - (randomIndex * sliceAngle + sliceAngle / 2);
-    
+    const targetAngle = 360 - (winnerIndex * sliceAngle + sliceAngle / 2);
     const newRotation = rotation + extraSpins + targetAngle - (rotation % 360);
     
     setRotation(newRotation);
     
     setTimeout(() => {
       setIsSpinning(false);
-      const winner = students[randomIndex];
       setSelectedStudent(winner);
       if (onSelect) {
         onSelect(winner);
@@ -72,7 +79,9 @@ export default function WheelSpinner({ students, onSelect }: WheelSpinnerProps) 
               background: `conic-gradient(${students.map((s, i) => {
                 const startAngle = (i * 360) / students.length;
                 const endAngle = ((i + 1) * 360) / students.length;
-                return `${colors[i % colors.length]} ${startAngle}deg ${endAngle}deg`;
+                const isSelectable = !selectableIds || selectableIds.includes(s.id);
+                const color = isSelectable ? colors[i % colors.length] : '#D1D5DB'; // Gray for non-selectable
+                return `${color} ${startAngle}deg ${endAngle}deg`;
               }).join(', ')})`
             }}
           ></div>
@@ -80,10 +89,11 @@ export default function WheelSpinner({ students, onSelect }: WheelSpinnerProps) 
           {/* Labels */}
           {students.map((student, index) => {
             const angle = (360 / students.length) * index + (360 / students.length) / 2;
+            const isSelectable = !selectableIds || selectableIds.includes(student.id);
             return (
               <div 
                 key={`label-${student.id}`}
-                className="absolute w-full h-full top-0 left-0 flex items-start justify-center pt-4 text-white font-bold text-sm drop-shadow-md"
+                className={`absolute w-full h-full top-0 left-0 flex items-start justify-center pt-4 text-white font-bold text-sm drop-shadow-md ${!isSelectable ? 'opacity-50' : ''}`}
                 style={{ transform: `rotate(${angle}deg)` }}
               >
                 <span className="truncate w-24 text-center" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center bottom', marginTop: '40px' }}>

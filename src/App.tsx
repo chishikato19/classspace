@@ -22,6 +22,7 @@ import RandomSelector from './features/random-selector/pages/RandomSelector';
 import { StudentDashboardWrapper } from './features/shop/pages/StudentDashboard';
 
 import ShopManager from './features/shop/pages/ShopManager';
+import Settings from './features/teacher/pages/Settings';
 
 export default function App() {
   if (!isFirebaseConfigured) {
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
           <Route path="/teacher/shop" element={<ShopManager />} />
           <Route path="/teacher/random-selector" element={<RandomSelector />} />
+          <Route path="/teacher/settings" element={<Settings />} />
           <Route path="/teacher/quiz/new" element={<QuizEditor />} />
           <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />
           {/* Add more routes here later */}

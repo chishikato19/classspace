@@ -6,21 +6,29 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface MagicHatProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
+  selectableIds?: string[];
 }
 
-export default function MagicHat({ students, onSelect }: MagicHatProps) {
+export default function MagicHat({ students, onSelect, selectableIds }: MagicHatProps) {
   const [isMagic, setIsMagic] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   const performMagic = () => {
     if (students.length === 0 || isMagic || selectedStudent) return;
     
+    // Determine which students can be selected
+    const selectableStudents = selectableIds 
+      ? students.filter(s => selectableIds.includes(s.id))
+      : students;
+
+    if (selectableStudents.length === 0) return;
+
     setIsMagic(true);
     
     // Simulate magic animation
     setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * students.length);
-      const winner = students[randomIndex];
+      // Pick a winner from selectable students
+      const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
       setSelectedStudent(winner);
       setIsMagic(false);
       if (onSelect) {
