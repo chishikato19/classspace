@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../../../config/firebase';
 import { GameSession, Quiz } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
-import { Clock, Users, ChevronRight, BarChart2 } from 'lucide-react';
+import { Clock, Users, ChevronRight, BarChart2, Activity } from 'lucide-react';
 
 export default function ReportsDashboard() {
   const navigate = useNavigate();
@@ -48,6 +48,15 @@ export default function ReportsDashboard() {
     fetchSessions();
   }, []);
 
+  const handleViewResults = (sessionId: string) => {
+    navigate(`/game/results/${sessionId}`);
+  };
+
+  const handleMonitorHomework = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    navigate(`/game/dashboard/${sessionId}`);
+  };
+
   if (loading) {
     return <div className="flex h-64 items-center justify-center">Đang tải dữ liệu...</div>;
   }
@@ -83,19 +92,26 @@ export default function ReportsDashboard() {
             {sessions.map((session) => (
               <li 
                 key={session.id}
-                onClick={() => navigate(`/game/results/${session.id}`)}
+                onClick={() => handleViewResults(session.id)}
                 className="hover:bg-gray-50 cursor-pointer transition-colors p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
                     <h3 className="text-lg font-bold text-gray-900">{session.quizTitle}</h3>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      session.status === 'FINISHED' ? 'bg-green-100 text-green-800' :
-                      session.status === 'PLAYING' ? 'bg-blue-100 text-blue-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {session.status === 'FINISHED' ? 'Đã kết thúc' : session.status === 'PLAYING' ? 'Đang diễn ra' : 'Đang chờ'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        session.status === 'FINISHED' ? 'bg-green-100 text-green-800' :
+                        session.status === 'PLAYING' ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {session.status === 'FINISHED' ? 'Đã kết thúc' : session.status === 'PLAYING' ? 'Đang diễn ra' : 'Đang chờ'}
+                      </span>
+                      {session.mode === 'HOMEWORK' && (
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          BTVN
+                        </span>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex items-center gap-6 text-sm text-gray-500 mt-2">
@@ -113,9 +129,20 @@ export default function ReportsDashboard() {
                   </div>
                 </div>
                 
-                <div className="flex items-center text-indigo-600 font-medium group">
-                  Xem chi tiết
-                  <ChevronRight className="w-5 h-5 ml-1 transform group-hover:translate-x-1 transition-transform" />
+                <div className="flex items-center gap-3">
+                  {session.mode === 'HOMEWORK' && (
+                    <button
+                      onClick={(e) => handleMonitorHomework(e, session.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors"
+                    >
+                      <Activity className="w-4 h-4" />
+                      Theo dõi
+                    </button>
+                  )}
+                  <div className="flex items-center text-gray-400 font-medium group">
+                    <span className="hidden sm:inline">Xem kết quả</span>
+                    <ChevronRight className="w-5 h-5 ml-1 transform group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
               </li>
             ))}

@@ -6,7 +6,7 @@ const getSessionsRef = () => collection(db, 'sessions');
 
 export const gameService = {
   // Tạo phòng game mới
-  createSession: async (quizId: string, settings: any, mode: 'LIVE' | 'HOMEWORK' = 'LIVE', homeworkConfig?: any): Promise<string> => {
+  createSession: async (quizId: string, settings: any, mode: 'LIVE' | 'HOMEWORK' = 'LIVE', homeworkConfig?: any): Promise<{ id: string; pin: string }> => {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -15,19 +15,24 @@ export const gameService = {
 
     const status = mode === 'HOMEWORK' ? 'PLAYING' : 'WAITING';
 
-    const docRef = await addDoc(getSessionsRef(), {
+    const sessionData: any = {
       pin,
       quizId,
       hostId,
       status,
       mode,
-      homeworkConfig,
       createdAt: Date.now(),
       players: [],
       currentQuestionIndex: 0,
       settings
-    });
-    return docRef.id;
+    };
+
+    if (homeworkConfig) {
+      sessionData.homeworkConfig = homeworkConfig;
+    }
+
+    const docRef = await addDoc(getSessionsRef(), sessionData);
+    return { id: docRef.id, pin };
   },
 
   // Tìm phòng bằng PIN

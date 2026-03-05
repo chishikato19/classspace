@@ -48,14 +48,16 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     try {
       const homeworkConfig: HomeworkConfig = {
         deadline: new Date(deadline).getTime(),
-        classId: selectedClassId || undefined
       };
-
-      const sessionId = await gameService.createSession(quizId, settings, 'HOMEWORK', homeworkConfig);
       
-      // Navigate to dashboard or show success
-      // For now, let's go to the Game Host Dashboard (which we will adapt for Homework)
-      navigate(`/game/dashboard/${sessionId}`);
+      if (selectedClassId) {
+        homeworkConfig.classId = selectedClassId;
+      }
+
+      const { id: sessionId, pin } = await gameService.createSession(quizId, settings, 'HOMEWORK', homeworkConfig);
+      
+      alert(`Đã giao bài tập thành công! Mã PIN: ${pin}`);
+      onClose();
     } catch (error) {
       console.error("Failed to create homework", error);
       alert("Lỗi khi tạo bài tập về nhà");
