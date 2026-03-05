@@ -5,9 +5,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface MysteryBoxProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function MysteryBox({ students }: MysteryBoxProps) {
+export default function MysteryBox({ students, onSelect }: MysteryBoxProps) {
   const [isOpening, setIsOpening] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
@@ -19,8 +20,12 @@ export default function MysteryBox({ students }: MysteryBoxProps) {
     // Simulate opening animation
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * students.length);
-      setSelectedStudent(students[randomIndex]);
+      const winner = students[randomIndex];
+      setSelectedStudent(winner);
       setIsOpening(false);
+      if (onSelect) {
+        onSelect(winner);
+      }
     }, 2000);
   };
 

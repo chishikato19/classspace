@@ -4,9 +4,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface CardDrawProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function CardDraw({ students }: CardDrawProps) {
+export default function CardDraw({ students, onSelect }: CardDrawProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [cards, setCards] = useState<number[]>([1, 2, 3, 4, 5]); // Show 5 generic cards
@@ -21,8 +22,12 @@ export default function CardDraw({ students }: CardDrawProps) {
     // Simulate drawing animation
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * students.length);
-      setSelectedStudent(students[randomIndex]);
+      const winner = students[randomIndex];
+      setSelectedStudent(winner);
       setIsDrawing(false);
+      if (onSelect) {
+        onSelect(winner);
+      }
     }, 1500);
   };
 

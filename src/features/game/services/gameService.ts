@@ -6,7 +6,7 @@ const getSessionsRef = () => collection(db, 'sessions');
 
 export const gameService = {
   // Tạo phòng game mới
-  createSession: async (quizId: string, settings: any, mode: 'LIVE' | 'HOMEWORK' = 'LIVE', homeworkConfig?: any): Promise<{ id: string; pin: string }> => {
+  createSession: async (quizId: string, settings: any, mode: 'LIVE' | 'HOMEWORK' = 'LIVE', homeworkConfig?: any, title?: string): Promise<{ id: string; pin: string }> => {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -26,6 +26,10 @@ export const gameService = {
       currentQuestionIndex: 0,
       settings
     };
+
+    if (title) {
+      sessionData.title = title;
+    }
 
     if (homeworkConfig) {
       sessionData.homeworkConfig = homeworkConfig;

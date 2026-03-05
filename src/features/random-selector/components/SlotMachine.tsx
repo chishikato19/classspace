@@ -4,9 +4,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface SlotMachineProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function SlotMachine({ students }: SlotMachineProps) {
+export default function SlotMachine({ students, onSelect }: SlotMachineProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [displayDigits, setDisplayDigits] = useState<string[]>(['0', '0']); // [Tens, Units]
@@ -40,6 +41,9 @@ export default function SlotMachine({ students }: SlotMachineProps) {
         // Wait 1 second before showing the student name
         setTimeout(() => {
           setSelectedStudent(chosen);
+          if (onSelect) {
+            onSelect(chosen);
+          }
         }, 1000);
       }
     }, 100);

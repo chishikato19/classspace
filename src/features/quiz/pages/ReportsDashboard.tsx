@@ -32,9 +32,11 @@ export default function ReportsDashboard() {
         const sessionsWithQuiz = await Promise.all(sessionData.map(async (session) => {
           if (session.quizId) {
             const quiz = await quizService.getQuizById(session.quizId);
-            return { ...session, quizTitle: quiz?.title || 'Bộ câu hỏi không xác định' };
+            const quizTitle = quiz?.title || 'Bộ câu hỏi không xác định';
+            // Nếu session có title riêng thì dùng, không thì dùng title của quiz
+            return { ...session, quizTitle: session.title || quizTitle };
           }
-          return { ...session, quizTitle: 'Không có bộ câu hỏi' };
+          return { ...session, quizTitle: session.title || 'Không có bộ câu hỏi' };
         }));
         
         setSessions(sessionsWithQuiz);

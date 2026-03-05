@@ -5,9 +5,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface EliminationProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function Elimination({ students }: EliminationProps) {
+export default function Elimination({ students, onSelect }: EliminationProps) {
   const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
   const [winner, setWinner] = useState<StudentData | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -45,8 +46,16 @@ export default function Elimination({ students }: EliminationProps) {
     }
 
     // The last one standing
-    setWinner(remaining[0]);
+    const finalWinner = remaining[0];
+    setWinner(finalWinner);
     setIsRunning(false);
+    
+    if (onSelect) {
+      // Wait a bit for the winner animation to start
+      setTimeout(() => {
+        onSelect(finalWinner);
+      }, 1500);
+    }
   };
 
   const reset = () => {

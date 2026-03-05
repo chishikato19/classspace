@@ -3,9 +3,10 @@ import { StudentData } from '../services/classService';
 
 interface TargetedSelectorProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function TargetedSelector({ students }: TargetedSelectorProps) {
+export default function TargetedSelector({ students, onSelect }: TargetedSelectorProps) {
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   if (students.length === 0) {
@@ -32,9 +33,18 @@ export default function TargetedSelector({ students }: TargetedSelectorProps) {
       </div>
 
       {selectedStudent && (
-        <div className="mt-8 p-6 bg-indigo-100 border-2 border-indigo-500 rounded-xl text-center animate-fade-in shadow-lg w-full max-w-md">
-          <h3 className="text-lg text-indigo-800 font-semibold mb-1">Học sinh được chọn:</h3>
-          <p className="text-3xl font-black text-indigo-600">{selectedStudent.name}</p>
+        <div className="mt-8 p-6 bg-indigo-100 border-2 border-indigo-500 rounded-xl text-center animate-fade-in shadow-lg w-full max-w-md flex flex-col items-center gap-4">
+          <div>
+            <h3 className="text-lg text-indigo-800 font-semibold mb-1">Học sinh được chọn:</h3>
+            <p className="text-3xl font-black text-indigo-600">{selectedStudent.name}</p>
+          </div>
+          
+          <button
+            onClick={() => onSelect && onSelect(selectedStudent)}
+            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition-colors"
+          >
+            Xác nhận chọn
+          </button>
         </div>
       )}
     </div>

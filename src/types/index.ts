@@ -89,6 +89,7 @@ export interface GameSession {
   id: string;
   pin: string; // Mã PIN 6 số
   quizId: string;
+  title?: string; // Tên phiên làm việc (VD: Lớp 12A1 - Kiểm tra 15p)
   hostId: string; // ID giáo viên tạo phòng
   status: GameStatus;
   mode: GameMode;

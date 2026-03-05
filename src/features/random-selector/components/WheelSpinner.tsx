@@ -4,9 +4,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface WheelSpinnerProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function WheelSpinner({ students }: WheelSpinnerProps) {
+export default function WheelSpinner({ students, onSelect }: WheelSpinnerProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [rotation, setRotation] = useState(0);
@@ -33,7 +34,11 @@ export default function WheelSpinner({ students }: WheelSpinnerProps) {
     
     setTimeout(() => {
       setIsSpinning(false);
-      setSelectedStudent(students[randomIndex]);
+      const winner = students[randomIndex];
+      setSelectedStudent(winner);
+      if (onSelect) {
+        onSelect(winner);
+      }
     }, spinDuration);
   };
 

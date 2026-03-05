@@ -18,13 +18,14 @@ export default function GameHostLobby() {
     timeBasedPoints: true,
     streakBonus: true,
   });
+  const [sessionTitle, setSessionTitle] = useState('');
 
   const handleCreateSession = async () => {
     if (!quizId) return;
     setLoading(true);
     try {
       // const hostId = auth?.currentUser?.uid || 'admin'; // Removed hostId param
-      const { id: sessionId } = await gameService.createSession(quizId, settings, 'LIVE');
+      const { id: sessionId } = await gameService.createSession(quizId, settings, 'LIVE', undefined, sessionTitle);
       
       // Lắng nghe thay đổi
       gameService.subscribeToSession(sessionId, (data) => {
@@ -55,6 +56,17 @@ export default function GameHostLobby() {
           
           <div className="p-6 space-y-6">
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên phiên thi (Tùy chọn)</label>
+                <input 
+                  type="text" 
+                  placeholder="VD: Lớp 12A1 - Kiểm tra 15p"
+                  value={sessionTitle}
+                  onChange={(e) => setSessionTitle(e.target.value)}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="text-gray-700 font-medium">Đảo thứ tự câu hỏi</span>
                 <input 

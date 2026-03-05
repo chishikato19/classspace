@@ -8,6 +8,8 @@ import MysteryBox from '../components/MysteryBox';
 import MagicHat from '../components/MagicHat';
 import SlotMachine from '../components/SlotMachine';
 import Elimination from '../components/Elimination';
+import StudentActionModal from '../components/StudentActionModal';
+import QueueList from '../components/QueueList';
 import { StudentData, ClassData, classService } from '../services/classService';
 import { auth } from '../../../config/firebase';
 
@@ -29,6 +31,10 @@ export default function RandomSelector() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+
+  // New state for Action Modal and Queue
+  const [currentSelectedStudent, setCurrentSelectedStudent] = useState<StudentData | null>(null);
+  const [queue, setQueue] = useState<StudentData[]>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +100,7 @@ export default function RandomSelector() {
 
   const handleBack = () => {
     setIsSelecting(false);
+    setCurrentSelectedStudent(null);
   };
 
   // Fullscreen logic
@@ -122,6 +129,42 @@ export default function RandomSelector() {
     }
   }, []);
 
+  // Action Handlers
+  const handleStudentSelected = (student: StudentData) => {
+    // Delay showing the modal slightly to let the animation finish visually in the child component
+    setTimeout(() => {
+      setCurrentSelectedStudent(student);
+    }, 500);
+  };
+
+  const handleAwardPoints = async (studentId: string, points: number) => {
+    await classService.updateStudentPoints(studentId, points);
+    setCurrentSelectedStudent(null);
+    
+    // Also remove from queue if present
+    setQueue(prev => prev.filter(s => s.id !== studentId));
+  };
+
+  const handleAddToQueue = () => {
+    if (currentSelectedStudent) {
+      // Check if already in queue
+      if (!queue.some(s => s.id === currentSelectedStudent.id)) {
+        setQueue(prev => [...prev, currentSelectedStudent]);
+      }
+      setCurrentSelectedStudent(null);
+    }
+  };
+
+  const handleSkip = (studentId?: string) => {
+    if (studentId) {
+      // Remove from queue
+      setQueue(prev => prev.filter(s => s.id !== studentId));
+    } else {
+      // Skip current selection
+      setCurrentSelectedStudent(null);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6" ref={containerRef}>
       {!isFullscreen && (
@@ -144,6 +187,14 @@ export default function RandomSelector() {
         {/* Settings Sidebar */}
         {isSettingsOpen && !isFullscreen && (
           <div className="lg:col-span-1 space-y-6">
+            {/* Queue List */}
+            <QueueList 
+              queue={queue} 
+              onRemove={(id) => handleSkip(id)}
+              onAwardPoints={handleAwardPoints}
+              onSkip={handleSkip}
+            />
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <List className="w-5 h-5 text-indigo-500" />
@@ -316,7 +367,7 @@ export default function RandomSelector() {
           {mode === 'targeted' ? (
             <div className="w-full">
               <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">Chế độ chọn chỉ định</h2>
-              <TargetedSelector students={students} />
+              <TargetedSelector students={students} onSelect={handleStudentSelected} />
             </div>
           ) : (
             !isSelecting ? (
@@ -359,19 +410,30 @@ export default function RandomSelector() {
                 </button>
                 
                 <div className="w-full h-full flex items-center justify-center pt-12">
-                  {activeRandomMethod === 'wheel' && <WheelSpinner students={students} />}
-                  {activeRandomMethod === 'name' && <RandomName students={students} />}
-                  {activeRandomMethod === 'card' && <CardDraw students={students} />}
-                  {activeRandomMethod === 'box' && <MysteryBox students={students} />}
-                  {activeRandomMethod === 'magic' && <MagicHat students={students} />}
-                  {activeRandomMethod === 'slot' && <SlotMachine students={students} />}
-                  {activeRandomMethod === 'elimination' && <Elimination students={students} />}
+                  {activeRandomMethod === 'wheel' && <WheelSpinner students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'name' && <RandomName students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'card' && <CardDraw students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'box' && <MysteryBox students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'magic' && <MagicHat students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'slot' && <SlotMachine students={students} onSelect={handleStudentSelected} />}
+                  {activeRandomMethod === 'elimination' && <Elimination students={students} onSelect={handleStudentSelected} />}
                 </div>
               </div>
             )
           )}
         </div>
       </div>
+
+      {/* Action Modal */}
+      {currentSelectedStudent && (
+        <StudentActionModal 
+          student={currentSelectedStudent}
+          onClose={() => handleSkip()}
+          onAwardPoints={(points) => handleAwardPoints(currentSelectedStudent.id, points)}
+          onAddToQueue={handleAddToQueue}
+          onSkip={() => handleSkip()}
+        />
+      )}
     </div>
   );
 }

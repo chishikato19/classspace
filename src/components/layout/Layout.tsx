@@ -27,7 +27,13 @@ export default function Layout() {
               onClick={() => navigate('/teacher/dashboard')}
               className="text-sm font-medium text-gray-500 hover:text-gray-900"
             >
-              Thư viện & Báo cáo
+              Quizizz
+            </button>
+            <button 
+              onClick={() => navigate('/teacher/shop')}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900"
+            >
+              Cửa hàng
             </button>
             <button 
               onClick={() => navigate('/teacher/random-selector')}

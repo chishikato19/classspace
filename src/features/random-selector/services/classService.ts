@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { AvatarConfig } from '../../../types';
 
@@ -32,5 +32,22 @@ export const classService = {
     const q = query(collection(db, 'students'), where('classId', '==', classId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentData));
+  },
+
+  updateStudentPoints: async (studentId: string, points: number): Promise<void> => {
+    // Since we might be using manual input students (id starts with 'manual-'), we can't update Firestore for them.
+    if (studentId.startsWith('manual-')) {
+      console.log(`Updated manual student ${studentId} points by ${points}`);
+      return;
+    }
+    
+    // For real students, update Firestore
+    try {
+      const studentRef = doc(db, 'students', studentId);
+      await updateDoc(studentRef, { wallet_points: increment(points) });
+      console.log(`Updated student ${studentId} points by ${points}`);
+    } catch (error) {
+      console.error(`Error updating points for student ${studentId}:`, error);
+    }
   }
 };

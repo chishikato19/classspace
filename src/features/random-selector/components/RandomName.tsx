@@ -4,9 +4,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface RandomNameProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function RandomName({ students }: RandomNameProps) {
+export default function RandomName({ students, onSelect }: RandomNameProps) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [currentStudent, setCurrentStudent] = useState<StudentData | null>(null);
@@ -31,6 +32,9 @@ export default function RandomName({ students }: RandomNameProps) {
         clearInterval(interval);
         setIsSelecting(false);
         setSelectedStudent(randomStudent);
+        if (onSelect) {
+          onSelect(randomStudent);
+        }
       }
     }, intervalTime);
   };

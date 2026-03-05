@@ -5,9 +5,10 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 
 interface MagicHatProps {
   students: StudentData[];
+  onSelect?: (student: StudentData) => void;
 }
 
-export default function MagicHat({ students }: MagicHatProps) {
+export default function MagicHat({ students, onSelect }: MagicHatProps) {
   const [isMagic, setIsMagic] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
@@ -19,8 +20,12 @@ export default function MagicHat({ students }: MagicHatProps) {
     // Simulate magic animation
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * students.length);
-      setSelectedStudent(students[randomIndex]);
+      const winner = students[randomIndex];
+      setSelectedStudent(winner);
       setIsMagic(false);
+      if (onSelect) {
+        onSelect(winner);
+      }
     }, 2500);
   };
 

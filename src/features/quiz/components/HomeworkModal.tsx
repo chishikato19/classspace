@@ -21,6 +21,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16) // Default 7 days
   );
   const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [sessionTitle, setSessionTitle] = useState('');
   
   // Game Settings State
   const [settings, setSettings] = useState<GameSettings>({
@@ -54,7 +55,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
         homeworkConfig.classId = selectedClassId;
       }
 
-      const { id: sessionId, pin } = await gameService.createSession(quizId, settings, 'HOMEWORK', homeworkConfig);
+      const { id: sessionId, pin } = await gameService.createSession(quizId, settings, 'HOMEWORK', homeworkConfig, sessionTitle);
       
       alert(`Đã giao bài tập thành công! Mã PIN: ${pin}`);
       onClose();
@@ -82,6 +83,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
             <h3 className="text-lg font-semibold flex items-center gap-2 text-indigo-700">
               <Calendar size={20} /> Cấu hình cơ bản
             </h3>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tên bài tập (Tùy chọn)</label>
+              <input 
+                type="text" 
+                placeholder="VD: Bài tập về nhà tuần 1"
+                value={sessionTitle}
+                onChange={(e) => setSessionTitle(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp bài</label>
