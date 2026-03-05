@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Question } from '../../../types';
 import { quizService } from '../services/quizService';
 import { auth } from '../../../config/firebase';
+import { Trash2 } from 'lucide-react';
 
 export default function QuizEditor() {
   const navigate = useNavigate();
@@ -87,6 +88,15 @@ export default function QuizEditor() {
     newQuestions[qIndex].options.forEach((opt, idx) => {
       opt.isCorrect = idx === oIndex;
     });
+    setQuestions(newQuestions);
+  };
+
+  const handleDeleteQuestion = (index: number) => {
+    if (questions.length <= 1) {
+      alert('Bộ câu hỏi phải có ít nhất 1 câu');
+      return;
+    }
+    const newQuestions = questions.filter((_, i) => i !== index);
     setQuestions(newQuestions);
   };
 
@@ -177,7 +187,16 @@ export default function QuizEditor() {
       <div className="space-y-6">
         {questions.map((q, qIndex) => (
           <div key={q.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative">
-            <div className="absolute top-4 right-4 text-sm text-gray-400 font-bold">Câu {qIndex + 1}</div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="text-sm text-gray-400 font-bold">Câu {qIndex + 1}</div>
+              <button
+                onClick={() => handleDeleteQuestion(qIndex)}
+                className="text-red-400 hover:text-red-600 transition-colors p-1"
+                title="Xóa câu hỏi"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>

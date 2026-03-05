@@ -1,5 +1,5 @@
 import { addDoc, arrayUnion, collection, doc, getDoc, getDocs, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
+import { db, auth } from '../../../config/firebase';
 import { GameSession, Player, Question } from '../../../types';
 
 const getSessionsRef = () => collection(db, 'sessions');
@@ -10,12 +10,7 @@ export const gameService = {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Lấy hostId từ auth (cần import auth hoặc truyền vào)
-    // Tạm thời lấy từ settings hoặc tham số nếu có, nhưng ở đây ta cần sửa signature hàm
-    // Signature cũ: createSession(quizId, hostId, settings)
-    // Signature mới: createSession(quizId, settings, mode, homeworkConfig)
-    // Cần lấy hostId từ auth hiện tại
-    const { auth } = require('../../../config/firebase');
+    // Lấy hostId từ auth hiện tại
     const hostId = auth.currentUser?.uid || 'unknown';
 
     const status = mode === 'HOMEWORK' ? 'PLAYING' : 'WAITING';

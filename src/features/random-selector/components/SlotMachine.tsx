@@ -34,9 +34,13 @@ export default function SlotMachine({ students }: SlotMachineProps) {
         const studentNumber = randomIndex + 1; // 1-based index
         const numberStr = studentNumber.toString().padStart(2, '0');
         
-        setSelectedStudent(chosen);
         setDisplayDigits([numberStr[0], numberStr[1]]);
         setIsSpinning(false);
+
+        // Wait 1 second before showing the student name
+        setTimeout(() => {
+          setSelectedStudent(chosen);
+        }, 1000);
       }
     }, 100);
   };
