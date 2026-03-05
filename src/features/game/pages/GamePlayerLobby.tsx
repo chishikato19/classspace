@@ -33,13 +33,20 @@ export default function GamePlayerLobby() {
 
     const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
       setSession(data);
-      if (data.status === 'PLAYING') {
+      // Only auto-redirect for LIVE games
+      if (data.status === 'PLAYING' && data.mode !== 'HOMEWORK') {
         navigate(`/game/play/${sessionId}`);
       }
     });
 
     return () => unsubscribe();
   }, [sessionId, navigate]);
+
+  const handleStartHomework = () => {
+    if (sessionId) {
+      navigate(`/game/play/${sessionId}`);
+    }
+  };
 
   const handleSaveAvatar = async (newConfig: AvatarConfig) => {
     setAvatarConfig(newConfig);
@@ -71,8 +78,19 @@ export default function GamePlayerLobby() {
       
       <h1 className="text-4xl font-bold mb-4 text-center">Bạn đã tham gia!</h1>
       <p className="text-xl opacity-90 text-center max-w-md">
-        Hãy nhìn lên màn hình của giáo viên. Trò chơi sẽ bắt đầu sớm thôi.
+        {session?.mode === 'HOMEWORK' 
+          ? 'Đây là bài tập về nhà. Bạn có thể bắt đầu bất cứ lúc nào.' 
+          : 'Hãy nhìn lên màn hình của giáo viên. Trò chơi sẽ bắt đầu sớm thôi.'}
       </p>
+      
+      {session?.mode === 'HOMEWORK' && (
+        <button
+          onClick={handleStartHomework}
+          className="mt-8 bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg transform transition hover:scale-105 animate-bounce"
+        >
+          BẮT ĐẦU LÀM BÀI
+        </button>
+      )}
       
       <div className="mt-12 bg-indigo-800 rounded-lg p-6 w-full max-w-sm text-center shadow-xl border border-indigo-500 flex flex-col items-center gap-4">
         <p className="text-sm uppercase tracking-widest opacity-70">Tên của bạn</p>

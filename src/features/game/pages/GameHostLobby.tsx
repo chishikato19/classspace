@@ -23,8 +23,8 @@ export default function GameHostLobby() {
     if (!quizId) return;
     setLoading(true);
     try {
-      const hostId = auth?.currentUser?.uid || 'admin';
-      const sessionId = await gameService.createSession(quizId, hostId, settings);
+      // const hostId = auth?.currentUser?.uid || 'admin'; // Removed hostId param
+      const sessionId = await gameService.createSession(quizId, settings, 'LIVE');
       
       // Lắng nghe thay đổi
       gameService.subscribeToSession(sessionId, (data) => {

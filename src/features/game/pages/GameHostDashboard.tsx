@@ -32,19 +32,30 @@ export default function GameHostDashboard() {
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <header className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Bảng Xếp Hạng Trực Tiếp</h1>
+          <div>
+            <h1 className="text-3xl font-bold">
+              {session.mode === 'HOMEWORK' ? 'Theo Dõi Bài Tập Về Nhà' : 'Bảng Xếp Hạng Trực Tiếp'}
+            </h1>
+            {session.mode === 'HOMEWORK' && session.homeworkConfig?.deadline && (
+              <p className="text-gray-400 mt-1">
+                Hạn chót: {new Date(session.homeworkConfig.deadline).toLocaleString('vi-VN')}
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-4">
             <div className="text-xl bg-gray-800 px-4 py-2 rounded-lg">
               Mã PIN: <span className="font-mono font-bold text-yellow-400">{session.pin}</span>
             </div>
             <button 
               onClick={async () => {
-                await gameService.endGame(sessionId!);
-                navigate(`/game/results/${sessionId}`);
+                if (window.confirm('Bạn có chắc chắn muốn kết thúc bài tập này? Học sinh sẽ không thể nộp bài nữa.')) {
+                  await gameService.endGame(sessionId!);
+                  navigate(`/game/results/${sessionId}`);
+                }
               }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-lg"
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-lg"
             >
-              Kết thúc & Xem thống kê
+              {session.mode === 'HOMEWORK' ? 'Kết thúc bài tập' : 'Kết thúc & Xem thống kê'}
             </button>
           </div>
         </header>

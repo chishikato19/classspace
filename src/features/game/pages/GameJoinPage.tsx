@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { ClassGroup, Student, AvatarConfig } from '../../../types';
+import { ClassGroup, Student, AvatarConfig, GameSession } from '../../../types';
 import { adminService } from '../../admin/services/adminService';
 import { gameService } from '../services/gameService';
 import { DEFAULT_AVATAR_STYLE, AvatarStyle } from '../../../utils/avatarUtils';
 
 export default function GameJoinPage() {
-  const [step, setStep] = useState<'PIN' | 'CLASS' | 'STUDENT'>('PIN');
+  const [step, setStep] = useState<'PIN' | 'CLASS' | 'STUDENT' | 'PASSCODE' | 'NAME_INPUT'>('PIN');
   const [pin, setPin] = useState('');
-  const [sessionId, setSessionId] = useState('');
+  const [session, setSession] = useState<GameSession | null>(null);
   
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [passcode, setPasscode] = useState('');
+  const [playerName, setPlayerName] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,13 +29,30 @@ export default function GameJoinPage() {
     setError('');
     
     try {
-      const session = await gameService.findSessionByPin(pin);
-      if (session) {
-        setSessionId(session.id);
-        // Fetch classes for the next step
-        const classList = await adminService.getAllClasses();
-        setClasses(classList);
-        setStep('CLASS');
+      const foundSession = await gameService.findSessionByPin(pin);
+      if (foundSession) {
+        setSession(foundSession);
+        
+        // Check deadline for Homework
+        if (foundSession.mode === 'HOMEWORK' && foundSession.homeworkConfig?.deadline) {
+          if (Date.now() > foundSession.homeworkConfig.deadline) {
+            setError('Bài tập này đã hết hạn nộp.');
+            setLoading(false);
+            return;
+          }
+        }
+
+        // If session enforces a class, go straight to student selection
+        if (foundSession.homeworkConfig?.classId) {
+          const studentList = await adminService.getStudentsByClass(foundSession.homeworkConfig.classId);
+          setStudents(studentList);
+          setStep('STUDENT');
+        } else {
+          // Fetch classes for the next step
+          const classList = await adminService.getAllClasses();
+          setClasses(classList);
+          setStep('CLASS');
+        }
       } else {
         setError('Không tìm thấy phòng chơi với mã PIN này.');
       }
@@ -69,38 +88,96 @@ export default function GameJoinPage() {
     );
   };
 
-  const handleJoin = async () => {
+  const handleStudentSubmit = () => {
     if (selectedStudentIds.length === 0) return;
+
+    // Check if passcode is required
+    if (session?.settings?.requirePasscode) {
+      setStep('PASSCODE');
+    } else {
+      handleJoin();
+    }
+  };
+
+  const handlePasscodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    // Verify passcode for each selected student
+    // For simplicity, if multiple students are selected (Team mode), we might require all passcodes or just one.
+    // But usually Homework is individual.
+    // If multiple students, let's assume we check the first one or require all.
+    // Let's implement individual check for now.
+    
+    try {
+      const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
+      
+      for (const student of selectedStudents) {
+        if (student.passcode && student.passcode !== passcode) {
+          throw new Error(`Mật khẩu không đúng cho học sinh ${student.name}`);
+        }
+        // If student has no passcode set, maybe allow? Or fail?
+        // Let's assume if requirePasscode is ON, student MUST have a passcode.
+        if (!student.passcode) {
+           // If no passcode set in DB, maybe allow any passcode or specific default?
+           // For now, fail if not set.
+           // throw new Error(`Học sinh ${student.name} chưa được cấp mật khẩu.`);
+        }
+      }
+      
+      await handleJoin();
+    } catch (err: any) {
+      setError(err.message || 'Mật khẩu không đúng.');
+      setLoading(false);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (step === 'STUDENT' && selectedStudentIds.length === 0) return;
+    if (step === 'NAME_INPUT' && !playerName.trim()) return;
+    if (!session) return;
     
     setLoading(true);
     try {
-      const playerId = uuidv4();
-      
-      // Lấy tên các học sinh đã chọn để ghép thành tên hiển thị
-      const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
-      const displayName = selectedStudents.map(s => s.name).join(', ');
-
-      // Determine avatar config
+      let displayName = '';
+      let playerId = uuidv4();
       let avatarConfig: AvatarConfig;
-      if (selectedStudents.length === 1 && selectedStudents[0].avatarConfig) {
-        avatarConfig = selectedStudents[0].avatarConfig;
-      } else {
-        // Generate a default avatar for the group or if student has no avatar
+      let studentIds: string[] = [];
+
+      if (step === 'NAME_INPUT') {
+        displayName = playerName;
         avatarConfig = {
           style: DEFAULT_AVATAR_STYLE as AvatarStyle,
           seed: displayName,
           backgroundColor: 'transparent'
         };
+      } else {
+        // STUDENT selection
+        const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
+        displayName = selectedStudents.map(s => s.name).join(', ');
+        studentIds = selectedStudentIds;
+
+        if (selectedStudents.length === 1) {
+          playerId = selectedStudents[0].id;
+          if (selectedStudents[0].avatarConfig) {
+             avatarConfig = selectedStudents[0].avatarConfig;
+          } else {
+             avatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
+          }
+        } else {
+           avatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
+        }
       }
 
       localStorage.setItem('currentPlayerId', playerId);
       localStorage.setItem('currentPlayerName', displayName);
       localStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
 
-      await gameService.joinSession(sessionId, {
+      await gameService.joinSession(session.id, {
         id: playerId,
         name: displayName,
-        studentIds: selectedStudentIds,
+        studentIds: studentIds,
         score: 0,
         streak: 0,
         progress: 0,
@@ -109,10 +186,10 @@ export default function GameJoinPage() {
         avatarConfig: avatarConfig
       });
       
-      navigate(`/game/lobby/${sessionId}`);
-    } catch (err) {
+      navigate(`/game/lobby/${session.id}`);
+    } catch (err: any) {
       console.error(err);
-      setError('Không thể tham gia phòng. Vui lòng thử lại.');
+      setError(err.message || 'Không thể tham gia phòng. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -126,8 +203,14 @@ export default function GameJoinPage() {
           <p className="mt-2 text-lg font-medium text-gray-600">
             {step === 'PIN' && 'Nhập mã PIN để tham gia'}
             {step === 'CLASS' && 'Chọn lớp của bạn'}
-            {step === 'STUDENT' && 'Chọn tên của bạn (Có thể chọn nhiều)'}
+            {step === 'STUDENT' && 'Chọn tên của bạn'}
+            {step === 'PASSCODE' && 'Nhập mật khẩu cá nhân'}
           </p>
+          {session?.mode === 'HOMEWORK' && (
+             <div className="mt-2 text-sm text-orange-600 bg-orange-50 py-1 px-2 rounded-full inline-block">
+               📚 Bài tập về nhà
+             </div>
+          )}
         </div>
 
         {error && (
@@ -184,6 +267,48 @@ export default function GameJoinPage() {
             >
               Quay lại
             </button>
+            
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <button
+                onClick={() => setStep('NAME_INPUT')}
+                className="w-full text-center text-indigo-600 font-bold hover:text-indigo-800 transition-colors"
+              >
+                Tham gia với tên tự do
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'NAME_INPUT' && (
+          <div className="mt-8 space-y-6">
+            <div>
+              <label htmlFor="playerName" className="block text-sm font-medium text-gray-700 mb-2">
+                Nhập tên hiển thị của bạn
+              </label>
+              <input
+                type="text"
+                id="playerName"
+                required
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border"
+                placeholder="Ví dụ: Nguyễn Văn A"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <button
+              onClick={handleJoin}
+              disabled={loading || !playerName.trim()}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-4 text-xl font-bold text-white shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'ĐANG XỬ LÝ...' : 'VÀO THI'}
+            </button>
+            <button
+              onClick={() => setStep('CLASS')}
+              className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+            >
+              Quay lại chọn lớp
+            </button>
           </div>
         )}
 
@@ -216,11 +341,11 @@ export default function GameJoinPage() {
             </div>
 
             <button
-              onClick={handleJoin}
+              onClick={handleStudentSubmit}
               disabled={loading || selectedStudentIds.length === 0}
               className="w-full rounded-lg bg-indigo-600 px-4 py-4 text-xl font-bold text-white shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'ĐANG VÀO...' : `THAM GIA (${selectedStudentIds.length})`}
+              {loading ? 'ĐANG XỬ LÝ...' : `TIẾP TỤC`}
             </button>
             <button
               onClick={() => setStep('CLASS')}
@@ -229,6 +354,38 @@ export default function GameJoinPage() {
               Quay lại chọn lớp
             </button>
           </div>
+        )}
+
+        {step === 'PASSCODE' && (
+          <form className="mt-8 space-y-6" onSubmit={handlePasscodeSubmit}>
+            <div>
+              <p className="text-sm text-gray-500 mb-2 text-center">
+                Vui lòng nhập mật khẩu cá nhân của bạn
+              </p>
+              <input
+                type="password"
+                required
+                className="block w-full rounded-lg border-2 border-gray-300 py-3 text-center text-2xl font-bold tracking-widest text-gray-900 placeholder:text-gray-300 focus:border-indigo-600 focus:ring-0"
+                placeholder="••••••"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading || !passcode}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-4 text-xl font-bold text-white shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'ĐANG KIỂM TRA...' : 'VÀO THI'}
+            </button>
+            <button
+              onClick={() => setStep('STUDENT')}
+              className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+            >
+              Quay lại chọn tên
+            </button>
+          </form>
         )}
       </div>
       

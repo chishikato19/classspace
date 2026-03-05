@@ -153,7 +153,9 @@ export default function GamePlayerScreen() {
           className="border-4 border-yellow-400 shadow-lg mb-6"
         />
         <h1 className="text-4xl font-bold mb-4">HOÀN THÀNH!</h1>
-        <div className="text-6xl font-black text-yellow-400 mb-8">{score} điểm</div>
+        {session?.settings?.showCorrectAnswers !== 'NEVER' && (
+          <div className="text-6xl font-black text-yellow-400 mb-8">{score} điểm</div>
+        )}
         <p className="text-xl opacity-80">
           {session?.status === 'FINISHED' ? 'Giáo viên đã kết thúc bài thi.' : 'Bạn đã trả lời hết các câu hỏi.'}
         </p>
@@ -183,9 +185,11 @@ export default function GamePlayerScreen() {
           <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
             {currentQuestionIndex + 1}/{shuffledQuestions.length}
           </div>
-          <div className="text-sm font-medium text-gray-500">Streak: 🔥 {streak}</div>
+          <div className="text-sm font-medium text-gray-500">Streak: 🔥 {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? streak : '?'}</div>
         </div>
-        <div className="font-bold text-xl text-indigo-600">{score} điểm</div>
+        <div className="font-bold text-xl text-indigo-600">
+          {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? `${score} điểm` : '---'}
+        </div>
       </div>
 
       {/* Question Area */}
@@ -198,10 +202,19 @@ export default function GamePlayerScreen() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {currentQuestion.options.map((option, index) => {
             let bgClass = "bg-white hover:bg-gray-50 border-2 border-gray-200";
+            
             if (isSubmitted) {
-              if (option.isCorrect) bgClass = "bg-green-500 border-green-600 text-white";
-              else if (option.id === selectedOptionId) bgClass = "bg-red-500 border-red-600 text-white";
-              else bgClass = "bg-gray-100 border-gray-200 opacity-50";
+              const showAnswers = session?.settings?.showCorrectAnswers === 'IMMEDIATELY';
+              
+              if (showAnswers) {
+                if (option.isCorrect) bgClass = "bg-green-500 border-green-600 text-white";
+                else if (option.id === selectedOptionId) bgClass = "bg-red-500 border-red-600 text-white";
+                else bgClass = "bg-gray-100 border-gray-200 opacity-50";
+              } else {
+                // Just highlight selected
+                if (option.id === selectedOptionId) bgClass = "bg-indigo-500 border-indigo-600 text-white";
+                else bgClass = "bg-gray-100 border-gray-200 opacity-50";
+              }
             }
 
             return (
@@ -220,8 +233,14 @@ export default function GamePlayerScreen() {
 
       {/* Feedback Overlay */}
       {isSubmitted && (
-        <div className={`fixed inset-x-0 top-0 p-4 text-center font-bold text-white text-lg animate-slide-down ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
-          {isCorrect ? 'CHÍNH XÁC! +Điểm' : 'SAI RỒI!'}
+        <div className={`fixed inset-x-0 top-0 p-4 text-center font-bold text-white text-lg animate-slide-down ${
+          session?.settings?.showCorrectAnswers === 'IMMEDIATELY' 
+            ? (isCorrect ? 'bg-green-500' : 'bg-red-500')
+            : 'bg-indigo-500'
+        }`}>
+          {session?.settings?.showCorrectAnswers === 'IMMEDIATELY'
+            ? (isCorrect ? 'CHÍNH XÁC! +Điểm' : 'SAI RỒI!')
+            : 'Đã ghi nhận câu trả lời!'}
         </div>
       )}
     </div>

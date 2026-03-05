@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { shopService } from '../services/shopService';
-import { ShopItem, Student } from '../../types';
+import { ShopItem, Student } from '../../../types';
 import { ShoppingCart, Star, Lock, Check } from 'lucide-react';
 
 interface ShopProps {

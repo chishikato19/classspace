@@ -34,6 +34,7 @@ export interface Student {
   wallet_points: number; // Điểm tích lũy đổi quà
   avatarConfig?: AvatarConfig;
   inventory?: Inventory;
+  passcode?: string; // Mật khẩu cá nhân để chống gian lận
 }
 
 export interface ClassGroup {
@@ -63,7 +64,8 @@ export interface Quiz {
   createdAt: number;
 }
 
-export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED';
+export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'EXPIRED';
+export type GameMode = 'LIVE' | 'HOMEWORK';
 
 export interface GameSettings {
   shuffleQuestions: boolean;
@@ -71,6 +73,16 @@ export interface GameSettings {
   equalPoints: boolean;
   timeBasedPoints: boolean;
   streakBonus: boolean;
+  // Anti-cheating & Homework settings
+  showCorrectAnswers: 'IMMEDIATELY' | 'AFTER_GAME' | 'NEVER';
+  maxAttempts: number; // 0 = unlimited
+  requirePasscode: boolean;
+  allowRetry: boolean; // Cho phép làm lại ngay sau khi sai (chế độ luyện tập)
+}
+
+export interface HomeworkConfig {
+  deadline: number; // Timestamp
+  classId?: string; // Nếu null -> Open mode (ai cũng vào được)
 }
 
 export interface GameSession {
@@ -79,9 +91,11 @@ export interface GameSession {
   quizId: string;
   hostId: string; // ID giáo viên tạo phòng
   status: GameStatus;
+  mode: GameMode;
   createdAt: number;
   currentQuestionIndex: number; // Dùng cho chế độ Teacher-paced (nếu cần)
   settings: GameSettings;
+  homeworkConfig?: HomeworkConfig;
 }
 
 export interface Player {

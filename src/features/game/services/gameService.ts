@@ -6,15 +6,27 @@ const getSessionsRef = () => collection(db, 'sessions');
 
 export const gameService = {
   // Tạo phòng game mới
-  createSession: async (quizId: string, hostId: string, settings: any): Promise<string> => {
+  createSession: async (quizId: string, settings: any, mode: 'LIVE' | 'HOMEWORK' = 'LIVE', homeworkConfig?: any): Promise<string> => {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
+    // Lấy hostId từ auth (cần import auth hoặc truyền vào)
+    // Tạm thời lấy từ settings hoặc tham số nếu có, nhưng ở đây ta cần sửa signature hàm
+    // Signature cũ: createSession(quizId, hostId, settings)
+    // Signature mới: createSession(quizId, settings, mode, homeworkConfig)
+    // Cần lấy hostId từ auth hiện tại
+    const { auth } = require('../../../config/firebase');
+    const hostId = auth.currentUser?.uid || 'unknown';
+
+    const status = mode === 'HOMEWORK' ? 'PLAYING' : 'WAITING';
+
     const docRef = await addDoc(getSessionsRef(), {
       pin,
       quizId,
       hostId,
-      status: 'WAITING',
+      status,
+      mode,
+      homeworkConfig,
       createdAt: Date.now(),
       players: [],
       currentQuestionIndex: 0,
@@ -42,8 +54,44 @@ export const gameService = {
   // Học sinh tham gia phòng
   joinSession: async (sessionId: string, player: Player): Promise<void> => {
     const sessionRef = doc(db, 'sessions', sessionId);
-    await updateDoc(sessionRef, {
-      players: arrayUnion(player) // Lưu ý: Player object cần plain object
+    
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw new Error("Session not found");
+      
+      const sessionData = sessionDoc.data();
+      const players = (sessionData.players || []) as Player[];
+      const settings = sessionData.settings || {};
+      
+      const existingPlayerIndex = players.findIndex(p => p.id === player.id);
+      
+      if (existingPlayerIndex !== -1) {
+        // Player exists
+        const existingPlayer = players[existingPlayerIndex];
+        
+        // Check if they have played (score > 0 or answers not empty)
+        const hasPlayed = existingPlayer.score > 0 || (existingPlayer.answers && Object.keys(existingPlayer.answers).length > 0);
+        
+        if (hasPlayed) {
+          // Check maxAttempts / allowRetry
+          // Default maxAttempts is 1. If > 1, allow retry.
+          // Or if allowRetry is explicitly true.
+          const maxAttempts = settings.maxAttempts || 1;
+          const allowRetry = settings.allowRetry || (maxAttempts > 1);
+          
+          if (!allowRetry) {
+             throw new Error("Bạn đã hết lượt làm bài.");
+          }
+        }
+        
+        // Overwrite/Reset player
+        players[existingPlayerIndex] = player;
+      } else {
+        // New player
+        players.push(player);
+      }
+      
+      transaction.update(sessionRef, { players });
     });
   },
 

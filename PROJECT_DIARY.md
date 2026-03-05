@@ -71,6 +71,19 @@ src/
    - Tính năng "Vòng quay may mắn" (Random Student Picker) lấy dữ liệu từ danh sách lớp.
    - Tính năng "Chiếu Video chung" (Youtube Sync Player) - Giáo viên bật video, màn hình học sinh tự động đồng bộ.
 
+### 📚 Phase 4: Bài tập về nhà (Homework Mode)
+1. **Tính năng:**
+   - Giáo viên giao bài tập với Deadline cụ thể.
+   - Học sinh làm bài theo tốc độ cá nhân (Student-paced) bất cứ lúc nào.
+   - Báo cáo kết quả không đồng bộ.
+2. **Kiểm soát gian lận:**
+   - Tùy chọn hiển thị đáp án (Ngay lập tức / Sau khi nộp / Không hiện).
+   - Giới hạn số lần làm bài (Attempts).
+   - Yêu cầu Mật khẩu cá nhân (Passcode) để tránh mạo danh.
+3. **Cập nhật Schema:**
+   - `GameSession`: Thêm `mode` ('LIVE' | 'HOMEWORK'), `homeworkConfig` (deadline, classId).
+   - `Student`: Thêm `passcode`.
+
 ## 5. HƯỚNG DẪN CHO AI (INSTRUCTIONS FOR FUTURE AI)
 - Khi được yêu cầu thêm tính năng mới, hãy tuân thủ **Feature-based Architecture**. Tạo thư mục mới trong `src/features/` nếu tính năng đó đủ lớn (VD: `features/shop`, `features/tools`).
 - Luôn sử dụng `Tailwind CSS` cho styling.
