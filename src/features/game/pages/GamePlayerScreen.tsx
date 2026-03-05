@@ -39,6 +39,20 @@ export default function GamePlayerScreen() {
     if (!sessionId) return;
 
     const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
+      // Handle Teacher-paced synchronization
+      if (data.mode === 'TEACHER_PACED') {
+        // Reset question state when moving to a new question
+        if (session && data.currentQuestionIndex !== session.currentQuestionIndex) {
+          setIsSubmitted(false);
+          setSelectedOptionId(null);
+          setIsCorrect(false);
+          setQuestionStartTime(Date.now());
+        }
+        
+        // Sync current question index
+        setCurrentQuestionIndex(data.currentQuestionIndex);
+      }
+
       setSession(data);
       
       // Load quiz data only once
@@ -60,15 +74,18 @@ export default function GamePlayerScreen() {
             return newArray;
           };
 
-          if (settings.shuffleQuestions) {
-            questions = shuffleArray(questions);
-          }
-          
-          if (settings.shuffleAnswers) {
-            questions = questions.map(q => ({
-              ...q,
-              options: shuffleArray(q.options)
-            }));
+          // Only shuffle if NOT teacher-paced (everyone must see the same order in teacher-paced)
+          if (data.mode !== 'TEACHER_PACED') {
+            if (settings.shuffleQuestions) {
+              questions = shuffleArray(questions);
+            }
+            
+            if (settings.shuffleAnswers) {
+              questions = questions.map(q => ({
+                ...q,
+                options: shuffleArray(q.options)
+              }));
+            }
           }
           
           setShuffledQuestions(questions);
@@ -78,7 +95,7 @@ export default function GamePlayerScreen() {
     });
 
     return () => unsubscribe();
-  }, [sessionId, quiz]);
+  }, [sessionId, quiz, session?.currentQuestionIndex]);
 
   // Handle answer submission
   const handleAnswer = async (optionId: string) => {
@@ -127,21 +144,52 @@ export default function GamePlayerScreen() {
       });
     }
 
-    // Move to next question after delay
-    setTimeout(() => {
-      if (currentQuestionIndex < shuffledQuestions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
-        setIsSubmitted(false);
-        setSelectedOptionId(null);
-        setIsCorrect(false);
-        setQuestionStartTime(Date.now());
-      } else {
-        setFinished(true);
-      }
-    }, 2000); // 2 seconds delay to show result
+    // Move to next question after delay (Only for Student-paced)
+    if (session.mode !== 'TEACHER_PACED') {
+      setTimeout(() => {
+        if (currentQuestionIndex < shuffledQuestions.length - 1) {
+          setCurrentQuestionIndex(prev => prev + 1);
+          setIsSubmitted(false);
+          setSelectedOptionId(null);
+          setIsCorrect(false);
+          setQuestionStartTime(Date.now());
+        } else {
+          setFinished(true);
+        }
+      }, 2000); // 2 seconds delay to show result
+    }
   };
 
   if (!session || !quiz || shuffledQuestions.length === 0) return <div className="flex h-screen items-center justify-center">Đang tải câu hỏi...</div>;
+
+  // Teacher-paced waiting screens
+  if (session.mode === 'TEACHER_PACED') {
+    if (session.status === 'WAITING' || session.status === 'STARTING') {
+      return (
+        <div className="min-h-screen bg-indigo-900 text-white flex flex-col items-center justify-center p-4">
+          <div className="animate-pulse text-2xl font-bold">Chuẩn bị bắt đầu...</div>
+          <p className="mt-4 opacity-70">Hãy nhìn lên màn hình của giáo viên</p>
+        </div>
+      );
+    }
+    
+    if (session.status === 'LEADERBOARD') {
+      return (
+        <div className="min-h-screen bg-indigo-900 text-white flex flex-col items-center justify-center p-4">
+          <div className="text-center mb-8">
+            <div className="text-sm uppercase tracking-widest opacity-60 mb-2">Điểm hiện tại</div>
+            <div className="text-6xl font-black text-yellow-400">{score}</div>
+          </div>
+          
+          <div className={`p-6 rounded-2xl text-center font-bold text-xl ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+            {isCorrect ? '🔥 TUYỆT VỜI!' : '😢 CỐ GẮNG HƠN NHÉ!'}
+          </div>
+          
+          <p className="mt-12 animate-bounce text-indigo-300">Đang chờ câu hỏi tiếp theo...</p>
+        </div>
+      );
+    }
+  }
 
   if (finished || session?.status === 'FINISHED') {
     return (

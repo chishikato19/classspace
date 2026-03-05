@@ -7,16 +7,17 @@ interface EliminationProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function Elimination({ students, onSelect, selectableIds }: EliminationProps) {
+export default function Elimination({ students, onSelect, selectableIds, hideSelected }: EliminationProps) {
   const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
   const [winner, setWinner] = useState<StudentData | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
   // Initialize eliminatedIds with non-selectable students
   useEffect(() => {
-    if (selectableIds) {
+    if (selectableIds && hideSelected) {
       const initialEliminated = new Set<string>();
       students.forEach(s => {
         if (!selectableIds.includes(s.id)) {
@@ -29,7 +30,7 @@ export default function Elimination({ students, onSelect, selectableIds }: Elimi
     }
     setWinner(null);
     setIsRunning(false);
-  }, [students, selectableIds]);
+  }, [students, selectableIds, hideSelected]);
 
   const startElimination = async () => {
     // Determine which students can be selected

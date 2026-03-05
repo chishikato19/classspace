@@ -6,9 +6,10 @@ interface SlotMachineProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function SlotMachine({ students, onSelect, selectableIds }: SlotMachineProps) {
+export default function SlotMachine({ students, onSelect, selectableIds, hideSelected }: SlotMachineProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [displayDigits, setDisplayDigits] = useState<string[]>(['0', '0']); // [Tens, Units]

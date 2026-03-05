@@ -64,8 +64,8 @@ export interface Quiz {
   createdAt: number;
 }
 
-export type GameStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'EXPIRED';
-export type GameMode = 'LIVE' | 'HOMEWORK';
+export type GameStatus = 'WAITING' | 'STARTING' | 'QUESTION' | 'LEADERBOARD' | 'PLAYING' | 'FINISHED' | 'EXPIRED';
+export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK';
 
 export interface GameSettings {
   shuffleQuestions: boolean;

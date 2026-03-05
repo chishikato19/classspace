@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { GameSession, GameSettings } from '../../../types';
+import { GameMode, GameSession, GameSettings } from '../../../types';
 import { gameService } from '../services/gameService';
 import { auth } from '../../../config/firebase';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
@@ -11,6 +11,7 @@ export default function GameHostLobby() {
   const [session, setSession] = useState<GameSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [setupMode, setSetupMode] = useState(true);
+  const [gameMode, setGameMode] = useState<GameMode>('STUDENT_PACED');
   const [settings, setSettings] = useState<GameSettings>({
     shuffleQuestions: false,
     shuffleAnswers: false,
@@ -25,7 +26,7 @@ export default function GameHostLobby() {
     setLoading(true);
     try {
       // const hostId = auth?.currentUser?.uid || 'admin'; // Removed hostId param
-      const { id: sessionId } = await gameService.createSession(quizId, settings, 'LIVE', undefined, sessionTitle);
+      const { id: sessionId } = await gameService.createSession(quizId, settings, gameMode, undefined, sessionTitle);
       
       // Lắng nghe thay đổi
       gameService.subscribeToSession(sessionId, (data) => {
@@ -65,6 +66,39 @@ export default function GameHostLobby() {
                   onChange={(e) => setSessionTitle(e.target.value)}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Chế độ chơi</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGameMode('STUDENT_PACED')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                      gameMode === 'STUDENT_PACED'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Học sinh tự làm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGameMode('TEACHER_PACED')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                      gameMode === 'TEACHER_PACED'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Giáo viên điều khiển
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 italic">
+                  {gameMode === 'STUDENT_PACED' 
+                    ? 'Học sinh tự hoàn thành bài thi theo tốc độ cá nhân.' 
+                    : 'Cả lớp cùng làm một câu hỏi. Giáo viên bấm nút để sang câu tiếp theo.'}
+                </p>
               </div>
 
               <label className="flex items-center justify-between cursor-pointer">

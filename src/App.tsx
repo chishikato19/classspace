@@ -18,6 +18,7 @@ import GameResults from './features/game/pages/GameResults';
 import QuizEditor from './features/quiz/pages/QuizEditor';
 import TeacherDashboard from './features/teacher/pages/TeacherDashboard';
 import RandomSelector from './features/random-selector/pages/RandomSelector';
+import VideoPlayer from './features/video-player/pages/VideoPlayer';
 
 import { StudentDashboardWrapper } from './features/shop/pages/StudentDashboard';
 
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
           <Route path="/teacher/shop" element={<ShopManager />} />
           <Route path="/teacher/random-selector" element={<RandomSelector />} />
+          <Route path="/teacher/video-player" element={<VideoPlayer />} />
           <Route path="/teacher/settings" element={<Settings />} />
           <Route path="/teacher/quiz/new" element={<QuizEditor />} />
           <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />

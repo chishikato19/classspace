@@ -7,9 +7,10 @@ interface MagicHatProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function MagicHat({ students, onSelect, selectableIds }: MagicHatProps) {
+export default function MagicHat({ students, onSelect, selectableIds, hideSelected }: MagicHatProps) {
   const [isMagic, setIsMagic] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 

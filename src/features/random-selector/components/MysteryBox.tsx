@@ -7,9 +7,10 @@ interface MysteryBoxProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function MysteryBox({ students, onSelect, selectableIds }: MysteryBoxProps) {
+export default function MysteryBox({ students, onSelect, selectableIds, hideSelected }: MysteryBoxProps) {
   const [isOpening, setIsOpening] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 

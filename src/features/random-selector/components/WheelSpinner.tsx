@@ -6,9 +6,10 @@ interface WheelSpinnerProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function WheelSpinner({ students, onSelect, selectableIds }: WheelSpinnerProps) {
+export default function WheelSpinner({ students, onSelect, selectableIds, hideSelected }: WheelSpinnerProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [rotation, setRotation] = useState(0);
@@ -80,7 +81,7 @@ export default function WheelSpinner({ students, onSelect, selectableIds }: Whee
                 const startAngle = (i * 360) / students.length;
                 const endAngle = ((i + 1) * 360) / students.length;
                 const isSelectable = !selectableIds || selectableIds.includes(s.id);
-                const color = isSelectable ? colors[i % colors.length] : '#D1D5DB'; // Gray for non-selectable
+                const color = (isSelectable || !hideSelected) ? colors[i % colors.length] : '#D1D5DB'; // Gray only if hideSelected is true
                 return `${color} ${startAngle}deg ${endAngle}deg`;
               }).join(', ')})`
             }}
@@ -93,7 +94,7 @@ export default function WheelSpinner({ students, onSelect, selectableIds }: Whee
             return (
               <div 
                 key={`label-${student.id}`}
-                className={`absolute w-full h-full top-0 left-0 flex items-start justify-center pt-4 text-white font-bold text-sm drop-shadow-md ${!isSelectable ? 'opacity-50' : ''}`}
+                className={`absolute w-full h-full top-0 left-0 flex items-start justify-center pt-4 text-white font-bold text-sm drop-shadow-md ${(!isSelectable && hideSelected) ? 'opacity-50' : ''}`}
                 style={{ transform: `rotate(${angle}deg)` }}
               >
                 <span className="truncate w-24 text-center" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center bottom', marginTop: '40px' }}>

@@ -6,9 +6,10 @@ interface RandomNameProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function RandomName({ students, onSelect, selectableIds }: RandomNameProps) {
+export default function RandomName({ students, onSelect, selectableIds, hideSelected }: RandomNameProps) {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [currentStudent, setCurrentStudent] = useState<StudentData | null>(null);

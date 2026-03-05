@@ -42,6 +42,12 @@ export default function Layout() {
               Công cụ lớp học
             </button>
             <button 
+              onClick={() => navigate('/teacher/video-player')}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900"
+            >
+              Video YouTube
+            </button>
+            <button 
               onClick={() => navigate('/teacher/settings')}
               className="text-sm font-medium text-gray-500 hover:text-gray-900"
             >

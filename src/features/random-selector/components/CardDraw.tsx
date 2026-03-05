@@ -6,9 +6,10 @@ interface CardDrawProps {
   students: StudentData[];
   onSelect?: (student: StudentData) => void;
   selectableIds?: string[];
+  hideSelected?: boolean;
 }
 
-export default function CardDraw({ students, onSelect, selectableIds }: CardDrawProps) {
+export default function CardDraw({ students, onSelect, selectableIds, hideSelected }: CardDrawProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
   const [cards] = useState<number[]>([1, 2, 3, 4, 5]); // Show 5 generic cards

@@ -236,11 +236,6 @@ export default function RandomSelector() {
               <Shuffle className="w-4 h-4" />
               Phiên mới
             </button>
-            {noDuplicate && (
-              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full border border-indigo-200">
-                Chế độ không trùng lặp
-              </span>
-            )}
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -433,7 +428,7 @@ export default function RandomSelector() {
           {mode === 'targeted' ? (
             <div className="w-full">
               <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">Chế độ chọn chỉ định</h2>
-              <TargetedSelector students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />
+              <TargetedSelector students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />
             </div>
           ) : (
             !isSelecting ? (
@@ -492,13 +487,13 @@ export default function RandomSelector() {
                 </button>
                 
                 <div className="w-full h-full flex items-center justify-center pt-12">
-                  {activeRandomMethod === 'wheel' && <WheelSpinner students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
-                  {activeRandomMethod === 'name' && <RandomName students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
-                  {activeRandomMethod === 'card' && <CardDraw students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
-                  {activeRandomMethod === 'box' && <MysteryBox students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
-                  {activeRandomMethod === 'magic' && <MagicHat students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
-                  {activeRandomMethod === 'slot' && <SlotMachine students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
-                  {activeRandomMethod === 'elimination' && <Elimination students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} />}
+                  {activeRandomMethod === 'wheel' && <WheelSpinner students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'name' && <RandomName students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'card' && <CardDraw students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'box' && <MysteryBox students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'magic' && <MagicHat students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'slot' && <SlotMachine students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'elimination' && <Elimination students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                 </div>
               </div>
             )

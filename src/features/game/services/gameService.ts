@@ -1,12 +1,12 @@
 import { addDoc, arrayUnion, collection, doc, getDoc, getDocs, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
 import { db, auth } from '../../../config/firebase';
-import { GameSession, Player, Question } from '../../../types';
+import { GameMode, GameSession, GameStatus, Player, Question } from '../../../types';
 
 const getSessionsRef = () => collection(db, 'sessions');
 
 export const gameService = {
   // Tạo phòng game mới
-  createSession: async (quizId: string, settings: any, mode: 'LIVE' | 'HOMEWORK' = 'LIVE', homeworkConfig?: any, title?: string): Promise<{ id: string; pin: string }> => {
+  createSession: async (quizId: string, settings: any, mode: GameMode = 'STUDENT_PACED', homeworkConfig?: any, title?: string): Promise<{ id: string; pin: string }> => {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -102,10 +102,46 @@ export const gameService = {
   // Bắt đầu game
   startGame: async (sessionId: string): Promise<void> => {
     const sessionRef = doc(db, 'sessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+    const sessionData = sessionDoc.data() as GameSession;
+
+    if (sessionData.mode === 'TEACHER_PACED') {
+      await updateDoc(sessionRef, {
+        status: 'QUESTION',
+        currentQuestionIndex: 0,
+        questionStartTime: Date.now(),
+        startedAt: Date.now()
+      });
+    } else {
+      await updateDoc(sessionRef, {
+        status: 'PLAYING',
+        startedAt: Date.now()
+      });
+    }
+  },
+
+  // Chuyển sang câu hỏi tiếp theo
+  nextQuestion: async (sessionId: string, nextIndex: number): Promise<void> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
     await updateDoc(sessionRef, {
-      status: 'PLAYING',
-      startedAt: Date.now()
+      status: 'QUESTION',
+      currentQuestionIndex: nextIndex,
+      questionStartTime: Date.now()
     });
+  },
+
+  // Hiện bảng xếp hạng (sau mỗi câu trong Teacher-paced)
+  showLeaderboard: async (sessionId: string): Promise<void> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    await updateDoc(sessionRef, {
+      status: 'LEADERBOARD'
+    });
+  },
+
+  // Cập nhật trạng thái game
+  updateGameState: async (sessionId: string, status: GameStatus): Promise<void> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    await updateDoc(sessionRef, { status });
   },
 
   // Kết thúc game

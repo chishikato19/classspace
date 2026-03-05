@@ -63,13 +63,27 @@ src/
    - Hiển thị avatar trên bảng xếp hạng (Leaderboard) và bục vinh quang (Podium).
    - Hiển thị avatar trong danh sách người chơi trả lời sai.
 
+### ✅ Phase 2.6: Chế độ Kahoot (Teacher-paced) (Đã hoàn thành)
+1. **Game Flow:**
+   - Cập nhật `GameStatus` và `GameMode` types để hỗ trợ luồng giáo viên điều khiển.
+   - Bổ sung các trạng thái: `STARTING`, `QUESTION`, `LEADERBOARD`.
+2. **Teacher Controls:**
+   - Giáo viên chọn chế độ "Teacher-paced" khi tạo phòng.
+   - Giao diện Dashboard hiển thị câu hỏi, bộ đếm thời gian (Timer) và thống kê câu trả lời theo thời gian thực.
+   - Giáo viên chủ động chuyển câu hỏi hoặc xem bảng xếp hạng.
+   - Tự động chuyển sang bảng xếp hạng khi hết giờ.
+3. **Student Experience:**
+   - Học sinh đồng bộ câu hỏi với giáo viên.
+   - Hiển thị màn hình chờ khi giáo viên chưa bắt đầu hoặc đang xem bảng xếp hạng.
+   - Tắt tính năng xáo trộn câu hỏi trong chế độ này để đảm bảo tính đồng nhất.
+
 ### 🚀 Phase 3: Gamification & Mở rộng (Kế hoạch tương lai)
 1. **Hệ thống phần thưởng (Rewards):** 
    - Viết logic cập nhật `wallet_points` cho học sinh sau khi kết thúc game.
    - Xây dựng tính năng "Shop" để học sinh dùng điểm đổi avatar, hiệu ứng, hoặc phần thưởng thực tế do giáo viên quy định.
 2. **Công cụ lớp học (Classroom Tools):**
-   - Tính năng "Vòng quay may mắn" (Random Student Picker) lấy dữ liệu từ danh sách lớp.
-   - Tính năng "Chiếu Video chung" (Youtube Sync Player) - Giáo viên bật video, màn hình học sinh tự động đồng bộ.
+   - Tính năng "Vòng quay may mắn" (Random Student Picker) lấy dữ liệu từ danh sách lớp (✅ Đã hoàn thành).
+   - Tính năng "Chiếu Video chung" (Youtube Sync Player) - Giáo viên lưu trữ và trình chiếu video YouTube trực tiếp (✅ Đã hoàn thành).
 
 ### 📚 Phase 4: Bài tập về nhà (Homework Mode)
 1. **Tính năng:**
