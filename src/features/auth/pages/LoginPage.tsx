@@ -22,7 +22,15 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      setError(err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất. Vui lòng thử lại và giữ cửa sổ mở cho đến khi đăng nhập xong.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Trình duyệt của bạn đã chặn cửa sổ đăng nhập. Vui lòng cho phép hiển thị popup (cửa sổ bật lên) cho trang web này.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Tên miền này chưa được cấp quyền đăng nhập Firebase. Vui lòng kiểm tra lại cấu hình Firebase.');
+      } else {
+        setError(err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      }
     } finally {
       setLoading(false);
     }

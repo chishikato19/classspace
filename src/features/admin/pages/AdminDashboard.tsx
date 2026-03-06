@@ -144,9 +144,9 @@ export default function AdminDashboard() {
             <ul role="list" className="divide-y divide-gray-200">
               {classes.map((cls) => (
                 <li key={cls.id}>
-                  <button
+                  <div
                     onClick={() => setSelectedClass(cls)}
-                    className={`block w-full hover:bg-gray-50 text-left ${selectedClass?.id === cls.id ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-600' : ''}`}
+                    className={`block w-full hover:bg-gray-50 text-left cursor-pointer ${selectedClass?.id === cls.id ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-600' : ''}`}
                   >
                     <div className="px-4 py-4 sm:px-6">
                       <div className="flex items-center justify-between">
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 </li>
               ))}
               {classes.length === 0 && (

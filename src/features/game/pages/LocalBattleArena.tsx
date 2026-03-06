@@ -18,7 +18,7 @@ interface PlayerState {
   lastAnswer: string | null;
   isCorrect: boolean | null;
   questionIndex: number;
-  item: ItemType | null;
+  items: ItemType[];
   hasShield: boolean;
   isFrozen: boolean;
   frozenUntil: number;
@@ -27,33 +27,9 @@ interface PlayerState {
   showFeedback: boolean;
   isSelectingItem: boolean;
   selectionOptions: ItemType[];
+  questionStartTime: number;
+  wrongAttempts: number;
 }
-
-const TEAM_RED = {
-  id: 'red',
-  name: 'Đội Đỏ',
-  color: 'red',
-  keys: {
-    'w': '0', 'W': '0',
-    'a': '1', 'A': '1',
-    's': '2', 'S': '2',
-    'd': '3', 'D': '3',
-    'q': 'ITEM', 'Q': 'ITEM'
-  }
-};
-
-const TEAM_BLUE = {
-  id: 'blue',
-  name: 'Đội Xanh',
-  color: 'blue',
-  keys: {
-    'ArrowUp': '0',
-    'ArrowLeft': '1',
-    'ArrowDown': '2',
-    'ArrowRight': '3',
-    'Enter': 'ITEM'
-  }
-};
 
 const ITEMS: { type: ItemType; name: string; icon: any; color: string; desc: string }[] = [
   { type: 'FREEZE', name: 'Đóng băng', icon: Snowflake, color: 'blue', desc: 'Khóa đối thủ 5s' },
@@ -71,14 +47,25 @@ export default function LocalBattleArena() {
   const [gameState, setGameState] = useState<'SETUP' | 'PLAYING' | 'FINISHED'>('SETUP');
   const [gameMode, setGameMode] = useState<GameMode>('sync');
   const [itemsEnabled, setItemsEnabled] = useState(false);
+  const [timeBonusEnabled, setTimeBonusEnabled] = useState(false);
   const [balance, setBalance] = useState(50); // 0 = Red wins, 100 = Blue wins, 50 = Balanced
+  
+  // Key Bindings
+  const [redKeys, setRedKeys] = useState({
+    up: 'w', left: 'a', down: 's', right: 'd',
+    item1: '1', item2: '2', item3: '3'
+  });
+  const [blueKeys, setBlueKeys] = useState({
+    up: 'ArrowUp', left: 'ArrowLeft', down: 'ArrowDown', right: 'ArrowRight',
+    item1: '7', item2: '8', item3: '9'
+  });
   
   // Player State
   const [redPlayer, setRedPlayer] = useState<PlayerState>({
-    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, item: null, hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, showFeedback: false, isSelectingItem: false, selectionOptions: []
+    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0
   });
   const [bluePlayer, setBluePlayer] = useState<PlayerState>({
-    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, item: null, hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, showFeedback: false, isSelectingItem: false, selectionOptions: []
+    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0
   });
 
   // Load Quiz
@@ -100,12 +87,34 @@ export default function LocalBattleArena() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const now = Date.now();
+      const keyLower = e.key.toLowerCase();
+      
+      const redKeyMap: Record<string, string> = {
+        [redKeys.up.toLowerCase()]: '0',
+        [redKeys.left.toLowerCase()]: '1',
+        [redKeys.down.toLowerCase()]: '2',
+        [redKeys.right.toLowerCase()]: '3',
+        [redKeys.item1.toLowerCase()]: 'ITEM1',
+        [redKeys.item2.toLowerCase()]: 'ITEM2',
+        [redKeys.item3.toLowerCase()]: 'ITEM3',
+      };
+      
+      const blueKeyMap: Record<string, string> = {
+        [blueKeys.up]: '0',
+        [blueKeys.left]: '1',
+        [blueKeys.down]: '2',
+        [blueKeys.right]: '3',
+        [blueKeys.item1]: 'ITEM1',
+        [blueKeys.item2]: 'ITEM2',
+        [blueKeys.item3]: 'ITEM3',
+      };
       
       // Check Red Input
-      const redKey = TEAM_RED.keys[e.key as keyof typeof TEAM_RED.keys];
-      if (redKey !== undefined) {
-        if (redKey === 'ITEM') {
-          useItem('red');
+      const redAction = redKeyMap[keyLower];
+      if (redAction !== undefined) {
+        if (redAction.startsWith('ITEM')) {
+          const itemIndex = parseInt(redAction.replace('ITEM', '')) - 1;
+          useItem('red', itemIndex);
         } else {
           if (redPlayer.isLocked && now < redPlayer.lockedUntil) return;
           if (redPlayer.isFrozen && now < redPlayer.frozenUntil) return;
@@ -114,17 +123,18 @@ export default function LocalBattleArena() {
           const currentQuestion = quiz?.questions[redPlayer.questionIndex];
           if (!currentQuestion) return;
 
-          const answerIndex = parseInt(redKey);
+          const answerIndex = parseInt(redAction);
           const option = currentQuestion.options[answerIndex];
           if (option) handleAnswer('red', option.id, option.isCorrect);
         }
       }
 
       // Check Blue Input
-      const blueKey = TEAM_BLUE.keys[e.key as keyof typeof TEAM_BLUE.keys];
-      if (blueKey !== undefined) {
-        if (blueKey === 'ITEM') {
-          useItem('blue');
+      const blueAction = blueKeyMap[e.key];
+      if (blueAction !== undefined) {
+        if (blueAction.startsWith('ITEM')) {
+          const itemIndex = parseInt(blueAction.replace('ITEM', '')) - 1;
+          useItem('blue', itemIndex);
         } else {
           if (bluePlayer.isLocked && now < bluePlayer.lockedUntil) return;
           if (bluePlayer.isFrozen && now < bluePlayer.frozenUntil) return;
@@ -133,7 +143,7 @@ export default function LocalBattleArena() {
           const currentQuestion = quiz?.questions[bluePlayer.questionIndex];
           if (!currentQuestion) return;
 
-          const answerIndex = parseInt(blueKey);
+          const answerIndex = parseInt(blueAction);
           const option = currentQuestion.options[answerIndex];
           if (option) handleAnswer('blue', option.id, option.isCorrect);
         }
@@ -142,7 +152,7 @@ export default function LocalBattleArena() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, quiz, redPlayer, bluePlayer]);
+  }, [gameState, quiz, redPlayer, bluePlayer, redKeys, blueKeys]);
 
   // Timer for unlocking players
   useEffect(() => {
@@ -169,17 +179,23 @@ export default function LocalBattleArena() {
     return shuffled.slice(0, 3).map(i => i.type);
   };
 
-  const useItem = (team: 'red' | 'blue') => {
+  const useItem = (team: 'red' | 'blue', itemIndex: number) => {
     const isRed = team === 'red';
     const player = isRed ? redPlayer : bluePlayer;
     const opponent = isRed ? bluePlayer : redPlayer;
     const setPlayer = isRed ? setRedPlayer : setBluePlayer;
     const setOpponent = isRed ? setBluePlayer : setRedPlayer;
 
-    if (!player.item) return;
+    if (itemIndex >= player.items.length) return;
+    const itemToUse = player.items[itemIndex];
 
-    if (player.item === 'SHIELD') {
-      setPlayer(p => ({ ...p, item: null, hasShield: true }));
+    // Remove item from inventory
+    const newItems = [...player.items];
+    newItems.splice(itemIndex, 1);
+    setPlayer(p => ({ ...p, items: newItems }));
+
+    if (itemToUse === 'SHIELD') {
+      setPlayer(p => ({ ...p, hasShield: true }));
       soundService.play('item');
     } else {
       // Offensive items
@@ -188,31 +204,56 @@ export default function LocalBattleArena() {
         soundService.play('wrong'); // Shield break sound
       } else {
         soundService.play('item');
-        if (player.item === 'FREEZE') {
+        if (itemToUse === 'FREEZE') {
           setOpponent(p => ({ ...p, isFrozen: true, frozenUntil: Date.now() + 5000 }));
-        } else if (player.item === 'STEAL') {
+        } else if (itemToUse === 'STEAL') {
           setOpponent(p => ({ ...p, score: Math.max(0, p.score - 200) }));
           setPlayer(p => ({ ...p, score: p.score + 200 }));
-        } else if (player.item === 'BLIND') {
+        } else if (itemToUse === 'BLIND') {
           setOpponent(p => ({ ...p, isBlinded: true, blindedUntil: Date.now() + 5000 }));
         }
       }
-      setPlayer(p => ({ ...p, item: null }));
     }
   };
 
   const handleAnswer = (team: 'red' | 'blue', answerId: string, isCorrect: boolean) => {
     const isRed = team === 'red';
     const setter = isRed ? setRedPlayer : setBluePlayer;
+    const player = isRed ? redPlayer : bluePlayer;
+    const currentQuestion = quiz?.questions[player.questionIndex];
+    if (!currentQuestion) return;
 
     if (isCorrect) {
       // Correct Answer
       soundService.play('correct');
+      
+      let pointsEarned = 100;
+      const timeTaken = (Date.now() - player.questionStartTime) / 1000;
+      const timeLimit = currentQuestion.timeLimit || 30;
+      const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+
+      if (gameMode === 'chaos') {
+        // Base points based on time (50% to 100% of question points)
+        let basePoints = Math.round((currentQuestion.points || 100) * (0.5 + 0.5 * timeRatio));
+        
+        // Penalty for wrong attempts (e.g., -20% per wrong attempt)
+        const penaltyMultiplier = Math.max(0.2, 1 - (player.wrongAttempts * 0.2));
+        pointsEarned = Math.round(basePoints * penaltyMultiplier);
+      } else {
+        pointsEarned = currentQuestion.points || 100;
+      }
+
+      if (timeBonusEnabled) {
+        // Add up to 20% bonus for speed
+        const bonus = Math.round((currentQuestion.points || 100) * 0.2 * timeRatio);
+        pointsEarned += bonus;
+      }
+
       setter(p => ({ 
         ...p, 
         lastAnswer: answerId, 
         isCorrect: true, 
-        score: p.score + 100, 
+        score: p.score + pointsEarned, 
         streak: p.streak + 1, 
         showFeedback: true 
       }));
@@ -255,7 +296,8 @@ export default function LocalBattleArena() {
         isCorrect: false, 
         streak: 0,
         isLocked: true,
-        lockedUntil: Date.now() + 3000
+        lockedUntil: Date.now() + 3000,
+        wrongAttempts: p.wrongAttempts + 1
       }));
 
       setTimeout(() => {
@@ -268,7 +310,11 @@ export default function LocalBattleArena() {
     const isRed = team === 'red';
     const setter = isRed ? setRedPlayer : setBluePlayer;
     
-    setter(p => ({ ...p, item: item, isSelectingItem: false }));
+    setter(p => ({ 
+      ...p, 
+      items: p.items.length < 3 ? [...p.items, item] : p.items, 
+      isSelectingItem: false 
+    }));
     
     // In Chaos mode, advance immediately after picking
     if (gameMode === 'chaos') {
@@ -289,7 +335,7 @@ export default function LocalBattleArena() {
     const player = isRed ? redPlayer : bluePlayer;
 
     if (player.questionIndex < quiz.questions.length - 1) {
-      setter(p => ({ ...p, questionIndex: p.questionIndex + 1, lastAnswer: null, isCorrect: null, showFeedback: false, isSelectingItem: false }));
+      setter(p => ({ ...p, questionIndex: p.questionIndex + 1, lastAnswer: null, isCorrect: null, showFeedback: false, isSelectingItem: false, questionStartTime: Date.now(), wrongAttempts: 0 }));
     } else {
       setter(p => ({ ...p, showFeedback: true, lastAnswer: null, isCorrect: null, isSelectingItem: false }));
       
@@ -307,6 +353,9 @@ export default function LocalBattleArena() {
   };
 
   const startGame = () => {
+    const now = Date.now();
+    setRedPlayer(p => ({ ...p, questionStartTime: now, wrongAttempts: 0 }));
+    setBluePlayer(p => ({ ...p, questionStartTime: now, wrongAttempts: 0 }));
     setGameState('PLAYING');
     soundService.play('join');
   };
@@ -360,31 +409,67 @@ export default function LocalBattleArena() {
                 </button>
               </div>
             </div>
+
+            <div className="bg-gray-700 p-6 rounded-2xl flex-1 max-w-xs">
+              <h3 className="text-lg font-bold mb-4">Thưởng tốc độ</h3>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => setTimeBonusEnabled(true)}
+                  className={`p-3 rounded-xl font-bold transition ${timeBonusEnabled ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-gray-400 hover:bg-gray-600'}`}
+                >
+                  Bật (+ điểm nhanh)
+                </button>
+                <button 
+                  onClick={() => setTimeBonusEnabled(false)}
+                  className={`p-3 rounded-xl font-bold transition ${!timeBonusEnabled ? 'bg-red-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-600'}`}
+                >
+                  Tắt
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-12 mb-12">
             <div className="bg-red-900/30 border-2 border-red-500 rounded-2xl p-8">
               <h2 className="text-3xl font-bold text-red-500 mb-4">ĐỘI ĐỎ</h2>
               <div className="grid grid-cols-3 gap-2 max-w-[150px] mx-auto mb-4">
-                <div className="col-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold">W</div>
-                <div className="col-start-1 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold">A</div>
-                <div className="col-start-2 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold">S</div>
-                <div className="col-start-3 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold">D</div>
+                <div className="col-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold uppercase">{redKeys.up}</div>
+                <div className="col-start-1 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold uppercase">{redKeys.left}</div>
+                <div className="col-start-2 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold uppercase">{redKeys.down}</div>
+                <div className="col-start-3 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold uppercase">{redKeys.right}</div>
               </div>
-              <p className="text-sm text-red-300">Sử dụng các phím WASD để chọn đáp án</p>
-              {itemsEnabled && <p className="text-sm text-yellow-300 mt-2">Phím Q để dùng vật phẩm</p>}
+              <p className="text-sm text-red-300">Sử dụng các phím để chọn đáp án</p>
+              {itemsEnabled && (
+                <div className="mt-4">
+                  <h4 className="text-red-400 font-bold mb-2 text-sm">Cài đặt phím vật phẩm</h4>
+                  <div className="flex gap-2 justify-center">
+                    <input type="text" maxLength={1} value={redKeys.item1} onChange={e => setRedKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-red-500 rounded text-white uppercase" title="Vật phẩm 1" />
+                    <input type="text" maxLength={1} value={redKeys.item2} onChange={e => setRedKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-red-500 rounded text-white uppercase" title="Vật phẩm 2" />
+                    <input type="text" maxLength={1} value={redKeys.item3} onChange={e => setRedKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-red-500 rounded text-white uppercase" title="Vật phẩm 3" />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-blue-900/30 border-2 border-blue-500 rounded-2xl p-8">
               <h2 className="text-3xl font-bold text-blue-500 mb-4">ĐỘI XANH</h2>
               <div className="grid grid-cols-3 gap-2 max-w-[150px] mx-auto mb-4">
-                <div className="col-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold">↑</div>
-                <div className="col-start-1 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold">←</div>
-                <div className="col-start-2 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold">↓</div>
-                <div className="col-start-3 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold">→</div>
+                <div className="col-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold text-xl">{blueKeys.up === 'ArrowUp' ? '↑' : blueKeys.up}</div>
+                <div className="col-start-1 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold text-xl">{blueKeys.left === 'ArrowLeft' ? '←' : blueKeys.left}</div>
+                <div className="col-start-2 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold text-xl">{blueKeys.down === 'ArrowDown' ? '↓' : blueKeys.down}</div>
+                <div className="col-start-3 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold text-xl">{blueKeys.right === 'ArrowRight' ? '→' : blueKeys.right}</div>
               </div>
-              <p className="text-sm text-blue-300">Sử dụng các phím Mũi tên để chọn đáp án</p>
-              {itemsEnabled && <p className="text-sm text-yellow-300 mt-2">Phím Enter để dùng vật phẩm</p>}
+              <p className="text-sm text-blue-300">Sử dụng các phím để chọn đáp án</p>
+              {itemsEnabled && (
+                <div className="mt-4">
+                  <h4 className="text-blue-400 font-bold mb-2 text-sm">Cài đặt phím vật phẩm</h4>
+                  <div className="flex gap-2 justify-center">
+                    <input type="text" maxLength={1} value={blueKeys.item1} onChange={e => setBlueKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-blue-500 rounded text-white uppercase" title="Vật phẩm 1" />
+                    <input type="text" maxLength={1} value={blueKeys.item2} onChange={e => setBlueKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-blue-500 rounded text-white uppercase" title="Vật phẩm 2" />
+                    <input type="text" maxLength={1} value={blueKeys.item3} onChange={e => setBlueKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-blue-500 rounded text-white uppercase" title="Vật phẩm 3" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -507,25 +592,35 @@ export default function LocalBattleArena() {
           </div>
           
           {itemsEnabled && (
-            <button
-              onClick={() => useItem(team)}
-              disabled={!player.item || player.isFrozen || player.isLocked || player.isSelectingItem}
-              className={`px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95 touch-manipulation z-30 ${
-                player.item 
-                  ? `bg-gray-700 text-white border border-gray-500 hover:bg-gray-600`
-                  : 'bg-gray-800 text-gray-500 border border-gray-700'
-              }`}
-            >
-              {player.item ? (
-                <>
-                  {(() => {
-                    const i = ITEMS.find(x => x.type === player.item);
-                    return i ? <><i.icon size={18} className={`text-${i.color}-400`} /> {i.name}</> : null;
-                  })()}
-                  <span className="text-xs opacity-50 ml-1">({isRed ? 'Q' : 'Enter'})</span>
-                </>
-              ) : 'Chưa có vật phẩm'}
-            </button>
+            <div className="flex gap-2 z-30">
+              {[0, 1, 2].map(idx => {
+                const itemType = player.items[idx];
+                const itemDef = itemType ? ITEMS.find(x => x.type === itemType) : null;
+                const keyName = isRed ? (idx === 0 ? redKeys.item1 : idx === 1 ? redKeys.item2 : redKeys.item3) : (idx === 0 ? blueKeys.item1 : idx === 1 ? blueKeys.item2 : blueKeys.item3);
+                
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => useItem(team, idx)}
+                    disabled={!itemType || player.isFrozen || player.isLocked || player.isSelectingItem}
+                    className={`w-14 h-14 rounded-xl font-bold flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation relative ${
+                      itemType 
+                        ? `bg-gray-700 text-white border-2 border-${itemDef?.color}-500 hover:bg-gray-600`
+                        : 'bg-gray-800 text-gray-500 border border-gray-700'
+                    }`}
+                  >
+                    {itemDef ? (
+                      <>
+                        <itemDef.icon size={20} className={`text-${itemDef.color}-400`} />
+                        <span className="text-[10px] absolute bottom-0.5 opacity-70 uppercase">{keyName}</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] opacity-30 uppercase">{keyName}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -638,7 +733,7 @@ export default function LocalBattleArena() {
           {/* Tug Marker */}
           <div 
             className="absolute top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-xl border-4 border-gray-800 flex items-center justify-center transition-all duration-500 ease-out z-20"
-            style={{ left: `${balance}%`, transform: 'translate(-50%, -50%)' }}
+            style={{ left: `${100 - balance}%`, transform: 'translate(-50%, -50%)' }}
           >
             <Swords className="w-6 h-6 text-gray-800" />
           </div>

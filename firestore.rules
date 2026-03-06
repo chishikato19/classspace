@@ -127,6 +127,13 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (isOwner(resource.data.hostId) || isAdmin());
     }
 
+    match /videos/{videoId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
     // Default Deny
     match /{path=**} {
       allow read, write: if false;
