@@ -5,7 +5,7 @@ import { quizService } from '../services/quizService';
 import { auth } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { HomeworkModal } from '../components/HomeworkModal';
-import { Play, Clock, Trash2 } from 'lucide-react';
+import { Play, Clock, Trash2, Swords } from 'lucide-react';
 
 export default function QuizDashboard() {
   const navigate = useNavigate();
@@ -107,6 +107,14 @@ export default function QuizDashboard() {
                         className="flex-1 rounded-md bg-white border border-indigo-600 px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 flex items-center justify-center gap-2"
                       >
                         <Clock size={16} /> Giao Bài Tập
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => navigate(`/game/local-battle/${quiz.id}`)}
+                        className="flex-1 rounded-md bg-yellow-500 px-3 py-2 text-sm font-semibold text-black shadow-sm hover:bg-yellow-400 flex items-center justify-center gap-2"
+                      >
+                        <Swords size={16} /> Đối Kháng 1vs1
                       </button>
                     </div>
                     <div className="flex items-center gap-2">

@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "Class": {
+      "title": "Class",
+      "description": "A classroom group created by a teacher",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the class" },
+        "teacherId": { "type": "string", "description": "UID of the teacher who owns this class" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["name", "teacherId", "createdAt"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "A student within a class",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the student" },
+        "classId": { "type": "string", "description": "ID of the class this student belongs to" },
+        "wallet_points": { "type": "number", "description": "Points earned by the student" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" },
+        "avatarConfig": {
+          "type": "object",
+          "properties": {
+            "style": { "type": "string" },
+            "seed": { "type": "string" },
+            "backgroundColor": { "type": "string" }
+          }
+        },
+        "inventory": {
+          "type": "object",
+          "properties": {
+            "unlockedStyles": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["name", "classId", "wallet_points", "createdAt"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "A set of questions created by a teacher",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the quiz" },
+        "description": { "type": "string", "description": "Description of the quiz" },
+        "teacherId": { "type": "string", "description": "UID of the teacher who owns this quiz" },
+        "questions": { "type": "array", "description": "List of questions" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["title", "teacherId", "questions", "createdAt"]
+    },
+    "GameSession": {
+      "title": "GameSession",
+      "description": "A live or homework game session",
+      "type": "object",
+      "properties": {
+        "pin": { "type": "string", "description": "Access code for the session" },
+        "quizId": { "type": "string", "description": "ID of the quiz being played" },
+        "hostId": { "type": "string", "description": "UID of the teacher hosting the session" },
+        "status": { "type": "string", "description": "Current status of the game" },
+        "players": { "type": "array", "description": "List of players in the session" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" },
+        "mode": { "type": "string", "description": "LIVE or HOMEWORK" },
+        "homeworkConfig": { "type": "object", "description": "Configuration for homework mode" }
+      },
+      "required": ["pin", "quizId", "hostId", "status", "players", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/classes": { "schema": "Class", "description": "Collection of classes" },
+    "/students": { "schema": "Student", "description": "Collection of students" },
+    "/quizzes": { "schema": "Quiz", "description": "Collection of quizzes" },
+    "/sessions": { "schema": "GameSession", "description": "Collection of game sessions" }
+  }
+}

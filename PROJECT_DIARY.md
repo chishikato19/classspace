@@ -48,9 +48,8 @@ src/
    - Sử dụng `runTransaction` khi nộp câu trả lời để đảm bảo tính toán điểm số (Score) và chuỗi đúng (Streak) chính xác khi có nhiều request đồng thời.
    - Xây dựng UI: `GameJoinPage` (Nhập PIN), `GameHostLobby` (Giáo viên chờ), `GamePlayerLobby` (Học sinh chờ), `GamePlayerScreen` (Học sinh làm bài), `GameHostDashboard` (Bảng xếp hạng Live).
 
-### 🚧 Phase 2: Kết nối dữ liệu thật & Xác thực (Đang chờ thực hiện)
-*(Trạng thái hiện tại: Đang chờ cấu hình biến môi trường Firebase từ người dùng)*
-1. **Cấu hình Firebase:** Nhập các biến `VITE_FIREBASE_*` vào `.env` hoặc Secrets.
+### ✅ Phase 2: Kết nối dữ liệu thật & Xác thực (Đã hoàn thành)
+1. **Cấu hình Firebase:** Đã cấu hình thông qua `set_up_firebase` và `firebase-applet-config.json`.
 2. **Authentication:** Tích hợp Firebase Auth cho Admin/Teacher (Email/Password).
 3. **Student Login Flow:** Cập nhật `GameJoinPage` -> Sau khi nhập PIN, học sinh không gõ tên thủ công mà sẽ chọn Lớp -> Chọn Tên từ danh sách lấy từ Firestore (Hỗ trợ chọn nhiều tên để tạo Nhóm).
 
@@ -84,6 +83,15 @@ src/
 2. **Công cụ lớp học (Classroom Tools):**
    - Tính năng "Vòng quay may mắn" (Random Student Picker) lấy dữ liệu từ danh sách lớp (✅ Đã hoàn thành).
    - Tính năng "Chiếu Video chung" (Youtube Sync Player) - Giáo viên lưu trữ và trình chiếu video YouTube trực tiếp (✅ Đã hoàn thành).
+3. **Game Mode Mới: Đường Đua Tri Thức (Knowledge Race):**
+   - **Concept:** Hai đội điều khiển xe đua trên màn hình ngang. Trả lời đúng để tiến về đích.
+   - **Cơ chế:**
+     - *Đồng bộ (Synchronized):* Cả 2 đội cùng trả lời 1 câu hỏi. Ai nhanh hơn được bonus khoảng cách.
+     - *Hỗn loạn (Chaos Mode):* Màn hình chia đôi, mỗi đội có bộ câu hỏi riêng. Ai trả lời xong 10 câu trước là thắng.
+   - **Tính năng:**
+     - Hệ thống Nitro (Boost) khi trả lời đúng liên tiếp.
+     - Chướng ngại vật (làm chậm/đứng yên) khi trả lời sai.
+     - Hiệu ứng hình ảnh (khói, lửa, vấp ngã) vui nhộn.
 
 ### 📚 Phase 4: Bài tập về nhà (Homework Mode)
 1. **Tính năng:**

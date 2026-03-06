@@ -1,0 +1,135 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: classes
+// Fields:
+//   - name: string (required)
+//   - teacherId: string (required)
+//   - createdAt: number (required)
+//
+// Collection: students
+// Fields:
+//   - name: string (required)
+//   - classId: string (required)
+//   - wallet_points: number (required)
+//   - createdAt: number (required)
+//   - avatarConfig: map (optional)
+//   - inventory: map (optional)
+//
+// Collection: quizzes
+// Fields:
+//   - title: string (required)
+//   - description: string (optional)
+//   - teacherId: string (required)
+//   - questions: list (required)
+//   - createdAt: number (required)
+//
+// Collection: sessions
+// Fields:
+//   - pin: string (required)
+//   - quizId: string (required)
+//   - hostId: string (required)
+//   - status: string (required)
+//   - players: list (required)
+//   - createdAt: number (required)
+//   - mode: string (optional)
+//   - homeworkConfig: map (optional)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "chishikato19@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidClass(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.teacherId is string &&
+             data.createdAt is number;
+    }
+
+    function isValidStudent(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.classId is string &&
+             data.wallet_points is number &&
+             data.createdAt is number;
+    }
+
+    function isValidQuiz(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.teacherId is string &&
+             data.questions is list &&
+             data.createdAt is number;
+    }
+
+    function isValidSession(data) {
+      return data.pin is string && data.pin.size() == 6 &&
+             data.quizId is string &&
+             data.hostId is string &&
+             data.status is string &&
+             data.players is list &&
+             data.createdAt is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidClass(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidClass(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /students/{studentId} {
+      allow read: if true; // Students need to see their own data
+      allow create: if isAuthenticated() && isValidStudent(request.resource.data);
+      allow update: if isAuthenticated() && isValidStudent(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /quizzes/{quizId} {
+      allow read: if true; // Players need to read quiz metadata
+      allow create: if isAuthenticated() && isValidQuiz(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidQuiz(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if true; // Anyone with PIN can read
+      allow create: if isAuthenticated() && isValidSession(request.resource.data);
+      allow update: if true; // Players update their progress/answers
+      allow delete: if isAuthenticated() && (isOwner(resource.data.hostId) || isAdmin());
+    }
+
+    // Default Deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
