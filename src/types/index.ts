@@ -46,9 +46,11 @@ export interface ClassGroup {
 export interface Question {
   id: string;
   text: string;
+  imageUrl?: string;
   options: {
     id: string;
     text: string;
+    imageUrl?: string;
     isCorrect: boolean;
   }[];
   timeLimit: number; // giây

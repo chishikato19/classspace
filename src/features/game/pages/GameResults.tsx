@@ -5,6 +5,7 @@ import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { CheckCircle, XCircle, Clock, Award, ChevronLeft } from 'lucide-react';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { MathText } from '../../../components/MathText';
 
 export default function GameResults() {
   const { sessionId } = useParams();
@@ -244,7 +245,7 @@ export default function GameResults() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex justify-between items-start mb-6">
                   <h2 className="text-xl font-bold text-gray-900">
-                    Câu {selectedQuestionIndex + 1}: {currentQuestion.text}
+                    Câu {selectedQuestionIndex + 1}: <MathText text={currentQuestion.text} />
                   </h2>
                   <div className="flex gap-4 text-sm font-medium">
                     <div className="flex items-center gap-1 text-green-600">
@@ -283,7 +284,7 @@ export default function GameResults() {
                           <div className="flex items-center gap-2">
                             {option.isCorrect && <CheckCircle className="w-5 h-5 text-green-600" />}
                             <span className={`font-medium ${option.isCorrect ? 'text-green-800' : 'text-gray-700'}`}>
-                              {option.text}
+                              <MathText text={option.text} />
                             </span>
                           </div>
                           <div className="text-sm font-bold text-gray-500">
@@ -316,7 +317,7 @@ export default function GameResults() {
                             <div>
                               <div className="font-bold text-red-800">{player.name}</div>
                               <div className="text-xs text-red-600 mt-1">
-                                Chọn: {selectedOpt?.text || 'Không rõ'}
+                                Chọn: <MathText text={selectedOpt?.text || 'Không rõ'} />
                               </div>
                             </div>
                           </div>

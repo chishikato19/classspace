@@ -4,6 +4,8 @@ import { GameSession, Question, Quiz, AvatarConfig } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
 import { gameService } from '../services/gameService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { MathText } from '../../../components/MathText';
+import { soundService } from '../services/soundService';
 
 export default function GamePlayerScreen() {
   const { sessionId } = useParams();
@@ -109,6 +111,11 @@ export default function GamePlayerScreen() {
     const isAnswerCorrect = correctOption?.id === optionId;
     
     setIsCorrect(isAnswerCorrect);
+    if (isAnswerCorrect) {
+      soundService.play('correct');
+    } else {
+      soundService.play('wrong');
+    }
     
     const timeTaken = (Date.now() - questionStartTime) / 1000; // in seconds
     const settings = session.settings || { equalPoints: false, timeBasedPoints: true, streakBonus: true };
@@ -242,8 +249,17 @@ export default function GamePlayerScreen() {
 
       {/* Question Area */}
       <div className="flex-1 p-4 max-w-3xl mx-auto w-full flex flex-col justify-center">
-        <div className="bg-white p-6 rounded-2xl shadow-lg mb-6 text-center min-h-[200px] flex items-center justify-center">
-          <h2 className="text-2xl font-bold text-gray-800">{currentQuestion.text}</h2>
+        <div className="bg-white p-6 rounded-2xl shadow-lg mb-6 text-center min-h-[200px] flex flex-col items-center justify-center">
+          {currentQuestion.imageUrl && (
+            <img 
+              src={currentQuestion.imageUrl} 
+              alt="Question" 
+              className="max-h-64 object-contain rounded-lg mb-4 border-2 border-gray-100"
+              referrerPolicy="no-referrer"
+              onError={(e) => (e.currentTarget.style.display = 'none')}
+            />
+          )}
+          <h2 className="text-2xl font-bold text-gray-800"><MathText text={currentQuestion.text} /></h2>
         </div>
 
         {/* Options Grid */}
@@ -270,9 +286,18 @@ export default function GamePlayerScreen() {
                 key={option.id}
                 disabled={isSubmitted}
                 onClick={() => handleAnswer(option.id)}
-                className={`p-6 rounded-xl text-lg font-semibold transition-all transform active:scale-95 shadow-sm ${bgClass}`}
+                className={`p-6 rounded-xl text-lg font-semibold transition-all transform active:scale-95 shadow-sm flex flex-col items-center gap-2 ${bgClass}`}
               >
-                {option.text}
+                {option.imageUrl && (
+                  <img 
+                    src={option.imageUrl} 
+                    alt="Option" 
+                    className="w-full h-32 object-cover rounded border border-gray-300 bg-white"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                )}
+                <MathText text={option.text} />
               </button>
             );
           })}

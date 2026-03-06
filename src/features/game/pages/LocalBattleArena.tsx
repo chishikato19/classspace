@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Quiz, Question } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
 import { ArrowLeft, Trophy, Swords, Zap, Timer, AlertCircle, Shield, Snowflake, EyeOff, Magnet } from 'lucide-react';
+import { MathText } from '../../../components/MathText';
+import { soundService } from '../services/soundService';
 
 type GameMode = 'sync' | 'chaos';
 type ItemType = 'FREEZE' | 'SHIELD' | 'STEAL' | 'BLIND';
@@ -172,11 +174,14 @@ export default function LocalBattleArena() {
 
     if (player.item === 'SHIELD') {
       setPlayer(p => ({ ...p, item: null, hasShield: true }));
+      soundService.play('item');
     } else {
       // Offensive items
       if (opponent.hasShield) {
         setOpponent(p => ({ ...p, hasShield: false })); // Break shield
+        soundService.play('wrong'); // Shield break sound
       } else {
+        soundService.play('item');
         if (player.item === 'FREEZE') {
           setOpponent(p => ({ ...p, isFrozen: true, frozenUntil: Date.now() + 5000 }));
         } else if (player.item === 'STEAL') {
@@ -196,6 +201,7 @@ export default function LocalBattleArena() {
 
     if (isCorrect) {
       // Correct Answer
+      soundService.play('correct');
       setter(p => ({ 
         ...p, 
         lastAnswer: answerId, 
@@ -236,6 +242,7 @@ export default function LocalBattleArena() {
 
     } else {
       // Wrong Answer
+      soundService.play('wrong');
       setter(p => ({ 
         ...p, 
         lastAnswer: answerId, 
@@ -295,6 +302,7 @@ export default function LocalBattleArena() {
 
   const startGame = () => {
     setGameState('PLAYING');
+    soundService.play('join');
   };
 
   if (!quiz) return <div className="flex h-screen items-center justify-center">Đang tải...</div>;
@@ -533,8 +541,17 @@ export default function LocalBattleArena() {
                     </span>
                   </div>
                   
-                  <h2 className={`text-2xl font-bold mb-8 text-center flex-1 flex items-center justify-center ${player.isBlinded ? 'blur-md select-none opacity-50' : ''}`}>
-                    {currentQuestion?.text}
+                  <h2 className={`text-2xl font-bold mb-8 text-center flex-1 flex flex-col items-center justify-center ${player.isBlinded ? 'blur-md select-none opacity-50' : ''}`}>
+                    {currentQuestion?.imageUrl && (
+                      <img 
+                        src={currentQuestion.imageUrl} 
+                        alt="Question" 
+                        className="max-h-48 object-contain rounded-lg mb-4 border-2 border-gray-700"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    )}
+                    <MathText text={currentQuestion?.text || ''} />
                   </h2>
                 </>
               )}
@@ -561,7 +578,18 @@ export default function LocalBattleArena() {
                         ? (idx === 0 ? 'W' : idx === 1 ? 'A' : idx === 2 ? 'S' : 'D')
                         : (idx === 0 ? '↑' : idx === 1 ? '←' : idx === 2 ? '↓' : '→')}
                     </div>
-                    <span className="text-left">{opt.text}</span>
+                    <div className="flex-1 flex items-center gap-2 overflow-hidden">
+                      {opt.imageUrl && (
+                        <img 
+                          src={opt.imageUrl} 
+                          alt="Option" 
+                          className="h-12 w-12 object-cover rounded border border-gray-500 bg-black"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      )}
+                      <span className="text-left w-full truncate"><MathText text={opt.text} /></span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -639,15 +667,24 @@ export default function LocalBattleArena() {
                   </span>
                 </div>
                 
-                <h2 className={`text-4xl font-black mb-12 leading-tight max-w-3xl ${redPlayer.isBlinded || bluePlayer.isBlinded ? 'blur-md opacity-50' : ''}`}>
-                  {quiz.questions[redPlayer.questionIndex]?.text}
+                <h2 className={`text-4xl font-black mb-12 leading-tight max-w-3xl flex flex-col items-center ${redPlayer.isBlinded || bluePlayer.isBlinded ? 'blur-md opacity-50' : ''}`}>
+                  {quiz.questions[redPlayer.questionIndex]?.imageUrl && (
+                    <img 
+                      src={quiz.questions[redPlayer.questionIndex].imageUrl} 
+                      alt="Question" 
+                      className="max-h-96 object-contain rounded-xl mb-8 border-4 border-gray-700 shadow-2xl"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  )}
+                  <MathText text={quiz.questions[redPlayer.questionIndex]?.text || ''} />
                 </h2>
 
                 <div className="grid grid-cols-2 gap-6 w-full max-w-4xl">
                   {quiz.questions[redPlayer.questionIndex]?.options.map((opt, idx) => (
                     <div 
                       key={opt.id}
-                      className={`p-6 rounded-2xl border-l-8 text-left font-bold text-xl bg-gray-800 shadow-lg transition-all ${
+                      className={`p-6 rounded-2xl border-l-8 text-left font-bold text-xl bg-gray-800 shadow-lg transition-all flex flex-col gap-4 ${
                         (redPlayer.showFeedback || bluePlayer.showFeedback) && opt.isCorrect ? 'ring-4 ring-green-500 scale-105 bg-green-900/30' : ''
                       } ${
                         idx === 0 ? 'border-red-500' :
@@ -656,15 +693,26 @@ export default function LocalBattleArena() {
                         'border-green-500'
                       } ${redPlayer.isBlinded || bluePlayer.isBlinded ? 'blur-sm text-transparent' : ''}`}
                     >
-                      <span className={`mr-4 inline-block w-8 font-black ${
-                        idx === 0 ? 'text-red-500' :
-                        idx === 1 ? 'text-blue-500' :
-                        idx === 2 ? 'text-yellow-500' :
-                        'text-green-500'
-                      }`}>
-                        {String.fromCharCode(65 + idx)}.
-                      </span>
-                      {opt.text}
+                      <div className="flex items-center gap-4">
+                        <span className={`inline-block w-8 font-black ${
+                          idx === 0 ? 'text-red-500' :
+                          idx === 1 ? 'text-blue-500' :
+                          idx === 2 ? 'text-yellow-500' :
+                          'text-green-500'
+                        }`}>
+                          {String.fromCharCode(65 + idx)}.
+                        </span>
+                        <MathText text={opt.text} />
+                      </div>
+                      {opt.imageUrl && (
+                        <img 
+                          src={opt.imageUrl} 
+                          alt="Option" 
+                          className="w-full h-48 object-cover rounded-lg border border-gray-600 bg-black"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

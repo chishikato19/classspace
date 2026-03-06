@@ -4,7 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Question } from '../../../types';
 import { quizService } from '../services/quizService';
 import { auth } from '../../../config/firebase';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Eye, Image as ImageIcon } from 'lucide-react';
+import { MathText } from '../../../components/MathText';
 
 export default function QuizEditor() {
   const navigate = useNavigate();
@@ -15,13 +16,14 @@ export default function QuizEditor() {
     {
       id: uuidv4(),
       text: '',
+      imageUrl: '',
       timeLimit: 30,
       points: 1000,
       options: [
-        { id: uuidv4(), text: '', isCorrect: false },
-        { id: uuidv4(), text: '', isCorrect: false },
-        { id: uuidv4(), text: '', isCorrect: false },
-        { id: uuidv4(), text: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
       ],
     },
   ]);
@@ -59,13 +61,14 @@ export default function QuizEditor() {
       {
         id: uuidv4(),
         text: '',
+        imageUrl: '',
         timeLimit: 30,
         points: 1000,
         options: [
-          { id: uuidv4(), text: '', isCorrect: false },
-          { id: uuidv4(), text: '', isCorrect: false },
-          { id: uuidv4(), text: '', isCorrect: false },
-          { id: uuidv4(), text: '', isCorrect: false },
+          { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+          { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+          { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+          { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
         ],
       },
     ]);
@@ -77,9 +80,10 @@ export default function QuizEditor() {
     setQuestions(newQuestions);
   };
 
-  const handleOptionChange = (qIndex: number, oIndex: number, text: string) => {
+  const handleOptionChange = (qIndex: number, oIndex: number, field: 'text' | 'imageUrl', value: string) => {
     const newQuestions = [...questions];
-    newQuestions[qIndex].options[oIndex].text = text;
+    // @ts-ignore
+    newQuestions[qIndex].options[oIndex][field] = value;
     setQuestions(newQuestions);
   };
 
@@ -107,8 +111,8 @@ export default function QuizEditor() {
     }
     // Validate questions
     for (let i = 0; i < questions.length; i++) {
-      if (!questions[i].text.trim()) {
-        alert(`Câu hỏi số ${i + 1} chưa có nội dung`);
+      if (!questions[i].text.trim() && !questions[i].imageUrl) {
+        alert(`Câu hỏi số ${i + 1} chưa có nội dung (văn bản hoặc hình ảnh)`);
         return;
       }
       if (!questions[i].options.some(o => o.isCorrect)) {
@@ -198,34 +202,89 @@ export default function QuizEditor() {
               </button>
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>
-              <textarea
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
-                value={q.text}
-                onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
-                rows={2}
-                placeholder="Nhập câu hỏi tại đây..."
-              />
+            <div className="mb-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nội dung câu hỏi (Hỗ trợ LaTeX: $...$ hoặc $$...$$)
+                </label>
+                <textarea
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 mb-2"
+                  value={q.text}
+                  onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
+                  rows={2}
+                  placeholder="Nhập câu hỏi tại đây... Ví dụ: Giải phương trình $x^2 + 2x + 1 = 0$"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <ImageIcon size={16} /> Link Hình ảnh (Tùy chọn)
+                </label>
+                <input
+                  type="text"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                  value={q.imageUrl || ''}
+                  onChange={(e) => handleQuestionChange(qIndex, 'imageUrl', e.target.value)}
+                  placeholder="https://example.com/image.png"
+                />
+                {q.imageUrl && (
+                  <div className="mt-2">
+                    <img src={q.imageUrl} alt="Preview" className="h-32 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                  </div>
+                )}
+              </div>
+
+              {q.text && (
+                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
+                  <div className="text-xs text-gray-500 mb-1 font-bold flex items-center gap-1">
+                    <Eye size={12} /> Xem trước:
+                  </div>
+                  <MathText text={q.text} />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {q.options.map((opt, oIndex) => (
-                <div key={opt.id} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name={`correct-${q.id}`}
-                    checked={opt.isCorrect}
-                    onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  />
-                  <input
-                    type="text"
-                    className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 bg-green-50' : 'border-gray-300'}`}
-                    value={opt.text}
-                    onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
-                    placeholder={`Đáp án ${oIndex + 1}`}
-                  />
+                <div key={opt.id} className="flex flex-col gap-2 p-3 border rounded-md bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name={`correct-${q.id}`}
+                      checked={opt.isCorrect}
+                      onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <input
+                      type="text"
+                      className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 bg-green-50' : 'border-gray-300'}`}
+                      value={opt.text}
+                      onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                      placeholder={`Đáp án ${oIndex + 1}`}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2 pl-6">
+                    <ImageIcon size={14} className="text-gray-400" />
+                    <input
+                      type="text"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 text-xs border p-1"
+                      value={opt.imageUrl || ''}
+                      onChange={(e) => handleOptionChange(qIndex, oIndex, 'imageUrl', e.target.value)}
+                      placeholder="Link ảnh đáp án (tùy chọn)"
+                    />
+                  </div>
+                  {opt.imageUrl && (
+                     <div className="pl-6">
+                        <img src={opt.imageUrl} alt="Option Preview" className="h-16 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                     </div>
+                  )}
+
+                  {opt.text && (opt.text.includes('$') || opt.text.includes('\\')) && (
+                    <div className="pl-6 text-xs text-gray-600">
+                      <MathText text={opt.text} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

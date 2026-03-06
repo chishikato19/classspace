@@ -5,6 +5,8 @@ import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { CheckCircle2, XCircle, Users, Clock, ArrowRight } from 'lucide-react';
+import { MathText } from '../../../components/MathText';
+import { soundService } from '../services/soundService';
 
 export default function GameHostDashboard() {
   const { sessionId } = useParams();
@@ -35,10 +37,17 @@ export default function GameHostDashboard() {
       const updateTimer = () => {
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, Math.ceil((limit - elapsed) / 1000));
-        setTimeLeft(remaining);
+        
+        if (remaining !== timeLeft) {
+          if (remaining <= 5 && remaining > 0) {
+            soundService.play('tick');
+          }
+          setTimeLeft(remaining);
+        }
         
         if (remaining === 0) {
           // Auto transition to leaderboard when time is up
+          soundService.play('finish');
           gameService.showLeaderboard(session.id);
           return true; // Finished
         }
@@ -103,28 +112,50 @@ export default function GameHostDashboard() {
               </div>
             </div>
 
-            <h2 className="text-4xl font-black mb-8 leading-tight">{currentQuestion.text}</h2>
+            <h2 className="text-4xl font-black mb-8 leading-tight flex flex-col items-center">
+              {currentQuestion.imageUrl && (
+                <img 
+                  src={currentQuestion.imageUrl} 
+                  alt="Question" 
+                  className="max-h-96 object-contain rounded-xl mb-6 border-4 border-gray-200 shadow-lg"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              )}
+              <MathText text={currentQuestion.text} />
+            </h2>
             
             <div className="grid grid-cols-2 gap-4">
               {currentQuestion.options.map((opt, idx) => (
                 <div 
                   key={opt.id}
-                  className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex items-center gap-4 ${
+                  className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex flex-col gap-4 ${
                     idx === 0 ? 'bg-red-50 border-red-200 text-red-700' :
                     idx === 1 ? 'bg-blue-50 border-blue-200 text-blue-700' :
                     idx === 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
                     'bg-green-50 border-green-200 text-green-700'
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
-                    idx === 0 ? 'bg-red-500' :
-                    idx === 1 ? 'bg-blue-500' :
-                    idx === 2 ? 'bg-yellow-500' :
-                    'bg-green-500'
-                  }`}>
-                    {String.fromCharCode(65 + idx)}
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
+                      idx === 0 ? 'bg-red-500' :
+                      idx === 1 ? 'bg-blue-500' :
+                      idx === 2 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}>
+                      {String.fromCharCode(65 + idx)}
+                    </div>
+                    <MathText text={opt.text} />
                   </div>
-                  {opt.text}
+                  {opt.imageUrl && (
+                    <img 
+                      src={opt.imageUrl} 
+                      alt="Option" 
+                      className="w-full h-48 object-cover rounded-lg border border-gray-300 bg-white"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  )}
                 </div>
               ))}
             </div>
