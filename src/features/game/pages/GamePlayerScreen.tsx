@@ -23,6 +23,7 @@ export default function GamePlayerScreen() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(undefined);
   const [playerName, setPlayerName] = useState('');
+  const [shortAnswerText, setShortAnswerText] = useState('');
 
   // Load session and quiz data
   useEffect(() => {
@@ -100,15 +101,26 @@ export default function GamePlayerScreen() {
   }, [sessionId, quiz, session?.currentQuestionIndex]);
 
   // Handle answer submission
-  const handleAnswer = async (optionId: string) => {
+  const handleAnswer = async (optionId: string | null, textAnswer?: string) => {
     if (isSubmitted || !quiz || !session || shuffledQuestions.length === 0) return;
     
-    setSelectedOptionId(optionId);
-    setIsSubmitted(true);
-
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
-    const correctOption = currentQuestion.options.find(o => o.isCorrect);
-    const isAnswerCorrect = correctOption?.id === optionId;
+    let isAnswerCorrect = false;
+
+    if (currentQuestion.type === 'SHORT_ANSWER') {
+      if (!textAnswer || !textAnswer.trim()) return;
+      // Check against all correct options (case-insensitive)
+      isAnswerCorrect = currentQuestion.options.some(
+        opt => opt.text.trim().toLowerCase() === textAnswer.trim().toLowerCase()
+      );
+    } else {
+      if (!optionId) return;
+      setSelectedOptionId(optionId);
+      const correctOption = currentQuestion.options.find(o => o.isCorrect);
+      isAnswerCorrect = correctOption?.id === optionId;
+    }
+
+    setIsSubmitted(true);
     
     setIsCorrect(isAnswerCorrect);
     if (isAnswerCorrect) {
@@ -144,6 +156,7 @@ export default function GamePlayerScreen() {
     if (playerId) {
       await gameService.submitAnswer(session.id, playerId, currentQuestion.id, {
         optionId,
+        textAnswer,
         isCorrect: isAnswerCorrect,
         timeTaken,
         timeLimit: currentQuestion.timeLimit,
@@ -158,6 +171,7 @@ export default function GamePlayerScreen() {
           setCurrentQuestionIndex(prev => prev + 1);
           setIsSubmitted(false);
           setSelectedOptionId(null);
+          setShortAnswerText('');
           setIsCorrect(false);
           setQuestionStartTime(Date.now());
         } else {
@@ -263,45 +277,88 @@ export default function GamePlayerScreen() {
         </div>
 
         {/* Options Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {currentQuestion.options.map((option, index) => {
-            let bgClass = "bg-white hover:bg-gray-50 border-2 border-gray-200";
-            
-            if (isSubmitted) {
-              const showAnswers = session?.settings?.showCorrectAnswers === 'IMMEDIATELY';
+        {currentQuestion.type === 'SHORT_ANSWER' ? (
+          <div className="w-full max-w-md mx-auto">
+            <input
+              type="text"
+              value={shortAnswerText}
+              onChange={(e) => setShortAnswerText(e.target.value)}
+              disabled={isSubmitted}
+              placeholder="Nhập câu trả lời của bạn..."
+              className="w-full p-4 text-lg border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-indigo-500 mb-4 text-center shadow-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isSubmitted) {
+                  handleAnswer(null, shortAnswerText);
+                }
+              }}
+            />
+            <button
+              onClick={() => handleAnswer(null, shortAnswerText)}
+              disabled={isSubmitted || !shortAnswerText.trim()}
+              className="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold text-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
+            >
+              Gửi câu trả lời
+            </button>
+            {isSubmitted && (
+               <div className="mt-6 text-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                  <p className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-2">Đáp án chấp nhận:</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                     {currentQuestion.options.map(opt => (
+                        <span key={opt.id} className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
+                           {opt.text}
+                        </span>
+                     ))}
+                  </div>
+               </div>
+            )}
+          </div>
+        ) : (
+          <div className={`grid ${currentQuestion.type === 'TRUE_FALSE' ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} gap-4`}>
+            {currentQuestion.options.map((option, index) => {
+              let bgClass = "bg-white hover:bg-gray-50 border-2 border-gray-200";
               
-              if (showAnswers) {
-                if (option.isCorrect) bgClass = "bg-green-500 border-green-600 text-white";
-                else if (option.id === selectedOptionId) bgClass = "bg-red-500 border-red-600 text-white";
-                else bgClass = "bg-gray-100 border-gray-200 opacity-50";
-              } else {
-                // Just highlight selected
-                if (option.id === selectedOptionId) bgClass = "bg-indigo-500 border-indigo-600 text-white";
-                else bgClass = "bg-gray-100 border-gray-200 opacity-50";
+              if (isSubmitted) {
+                const showAnswers = session?.settings?.showCorrectAnswers === 'IMMEDIATELY';
+                
+                if (showAnswers) {
+                  if (option.isCorrect) bgClass = "bg-green-500 border-green-600 text-white";
+                  else if (option.id === selectedOptionId) bgClass = "bg-red-500 border-red-600 text-white";
+                  else bgClass = "bg-gray-100 border-gray-200 opacity-50";
+                } else {
+                  // Just highlight selected
+                  if (option.id === selectedOptionId) bgClass = "bg-indigo-500 border-indigo-600 text-white";
+                  else bgClass = "bg-gray-100 border-gray-200 opacity-50";
+                }
               }
-            }
 
-            return (
-              <button
-                key={option.id}
-                disabled={isSubmitted}
-                onClick={() => handleAnswer(option.id)}
-                className={`p-6 rounded-xl text-lg font-semibold transition-all transform active:scale-95 shadow-sm flex flex-col items-center gap-2 ${bgClass}`}
-              >
-                {option.imageUrl && (
-                  <img 
-                    src={option.imageUrl} 
-                    alt="Option" 
-                    className="w-full h-32 object-cover rounded border border-gray-300 bg-white"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
-                )}
-                <MathText text={option.text} />
-              </button>
-            );
-          })}
-        </div>
+              // For True/False, use specific colors if not submitted
+              if (!isSubmitted && currentQuestion.type === 'TRUE_FALSE') {
+                 if (index === 0) bgClass = "bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-800"; // True
+                 else bgClass = "bg-red-50 hover:bg-red-100 border-2 border-red-200 text-red-800"; // False
+              }
+
+              return (
+                <button
+                  key={option.id}
+                  disabled={isSubmitted}
+                  onClick={() => handleAnswer(option.id)}
+                  className={`p-6 rounded-xl text-lg font-semibold transition-all transform active:scale-95 shadow-sm flex flex-col items-center gap-2 ${bgClass} ${currentQuestion.type === 'TRUE_FALSE' ? 'h-40 justify-center text-2xl' : ''}`}
+                >
+                  {option.imageUrl && (
+                    <img 
+                      src={option.imageUrl} 
+                      alt="Option" 
+                      className="w-full h-32 object-cover rounded border border-gray-300 bg-white"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  )}
+                  <MathText text={option.text} />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Feedback Overlay */}

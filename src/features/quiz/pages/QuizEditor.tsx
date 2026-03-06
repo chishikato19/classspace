@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { Question } from '../../../types';
+import { Question, QuestionType } from '../../../types';
 import { quizService } from '../services/quizService';
 import { auth } from '../../../config/firebase';
-import { Trash2, Eye, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Eye, Image as ImageIcon, Upload, Plus, X } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
+import { compressImage } from '../../../utils/fileUtils';
 
 export default function QuizEditor() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function QuizEditor() {
   const [questions, setQuestions] = useState<Question[]>([
     {
       id: uuidv4(),
+      type: 'MULTIPLE_CHOICE',
       text: '',
       imageUrl: '',
       timeLimit: 30,
@@ -42,7 +44,12 @@ export default function QuizEditor() {
       if (quiz) {
         setTitle(quiz.title);
         setDescription(quiz.description || '');
-        setQuestions(quiz.questions.length > 0 ? quiz.questions : questions);
+        // Ensure compatibility with old data
+        const loadedQuestions = quiz.questions.length > 0 ? quiz.questions.map(q => ({
+          ...q,
+          type: q.type || 'MULTIPLE_CHOICE'
+        })) : questions;
+        setQuestions(loadedQuestions);
       } else {
         alert('Không tìm thấy bộ câu hỏi!');
         navigate('/teacher/dashboard');
@@ -60,6 +67,7 @@ export default function QuizEditor() {
       ...questions,
       {
         id: uuidv4(),
+        type: 'MULTIPLE_CHOICE',
         text: '',
         imageUrl: '',
         timeLimit: 30,
@@ -80,6 +88,39 @@ export default function QuizEditor() {
     setQuestions(newQuestions);
   };
 
+  const handleTypeChange = (index: number, newType: QuestionType) => {
+    const newQuestions = [...questions];
+    const currentQuestion = newQuestions[index];
+    
+    // Reset options based on type
+    let newOptions = [];
+    if (newType === 'TRUE_FALSE') {
+      newOptions = [
+        { id: uuidv4(), text: 'Đúng', isCorrect: true },
+        { id: uuidv4(), text: 'Sai', isCorrect: false },
+      ];
+    } else if (newType === 'SHORT_ANSWER') {
+      newOptions = [
+        { id: uuidv4(), text: '', isCorrect: true },
+      ];
+    } else {
+      // MULTIPLE_CHOICE
+      newOptions = [
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: false },
+      ];
+    }
+
+    newQuestions[index] = { 
+      ...currentQuestion, 
+      type: newType, 
+      options: newOptions 
+    };
+    setQuestions(newQuestions);
+  };
+
   const handleOptionChange = (qIndex: number, oIndex: number, field: 'text' | 'imageUrl', value: string) => {
     const newQuestions = [...questions];
     // @ts-ignore
@@ -89,10 +130,46 @@ export default function QuizEditor() {
 
   const handleCorrectOptionSelect = (qIndex: number, oIndex: number) => {
     const newQuestions = [...questions];
-    newQuestions[qIndex].options.forEach((opt, idx) => {
-      opt.isCorrect = idx === oIndex;
+    const type = newQuestions[qIndex].type;
+
+    if (type === 'MULTIPLE_CHOICE' || type === 'TRUE_FALSE') {
+      // Single correct answer logic for these types
+      newQuestions[qIndex].options.forEach((opt, idx) => {
+        opt.isCorrect = idx === oIndex;
+      });
+    } else {
+      // For SHORT_ANSWER, all added options are correct variations
+      // Logic handled in adding/removing options
+    }
+    setQuestions(newQuestions);
+  };
+
+  const handleImageUpload = async (file: File, callback: (base64: string) => void) => {
+    try {
+      const base64 = await compressImage(file);
+      callback(base64);
+    } catch (error) {
+      console.error("Error processing image", error);
+      alert("Lỗi xử lý ảnh. Vui lòng thử lại.");
+    }
+  };
+
+  const handleAddShortAnswerOption = (qIndex: number) => {
+    const newQuestions = [...questions];
+    newQuestions[qIndex].options.push({
+      id: uuidv4(),
+      text: '',
+      isCorrect: true
     });
     setQuestions(newQuestions);
+  };
+
+  const handleRemoveOption = (qIndex: number, oIndex: number) => {
+    const newQuestions = [...questions];
+    if (newQuestions[qIndex].options.length > 1) {
+      newQuestions[qIndex].options.splice(oIndex, 1);
+      setQuestions(newQuestions);
+    }
   };
 
   const handleDeleteQuestion = (index: number) => {
@@ -111,13 +188,22 @@ export default function QuizEditor() {
     }
     // Validate questions
     for (let i = 0; i < questions.length; i++) {
-      if (!questions[i].text.trim() && !questions[i].imageUrl) {
+      const q = questions[i];
+      if (!q.text.trim() && !q.imageUrl) {
         alert(`Câu hỏi số ${i + 1} chưa có nội dung (văn bản hoặc hình ảnh)`);
         return;
       }
-      if (!questions[i].options.some(o => o.isCorrect)) {
-        alert(`Câu hỏi số ${i + 1} chưa chọn đáp án đúng`);
-        return;
+      
+      if (q.type === 'SHORT_ANSWER') {
+        if (q.options.length === 0 || !q.options.some(o => o.text.trim())) {
+          alert(`Câu hỏi số ${i + 1} (Trả lời ngắn) chưa có đáp án đúng nào`);
+          return;
+        }
+      } else {
+        if (!q.options.some(o => o.isCorrect)) {
+          alert(`Câu hỏi số ${i + 1} chưa chọn đáp án đúng`);
+          return;
+        }
       }
     }
 
@@ -192,7 +278,18 @@ export default function QuizEditor() {
         {questions.map((q, qIndex) => (
           <div key={q.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative">
             <div className="flex justify-between items-start mb-4">
-              <div className="text-sm text-gray-400 font-bold">Câu {qIndex + 1}</div>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-400 font-bold">Câu {qIndex + 1}</div>
+                <select
+                  value={q.type}
+                  onChange={(e) => handleTypeChange(qIndex, e.target.value as QuestionType)}
+                  className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
+                >
+                  <option value="MULTIPLE_CHOICE">Trắc nghiệm</option>
+                  <option value="TRUE_FALSE">Đúng / Sai</option>
+                  <option value="SHORT_ANSWER">Trả lời ngắn</option>
+                </select>
+              </div>
               <button
                 onClick={() => handleDeleteQuestion(qIndex)}
                 className="text-red-400 hover:text-red-600 transition-colors p-1"
@@ -218,15 +315,31 @@ export default function QuizEditor() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <ImageIcon size={16} /> Link Hình ảnh (Tùy chọn)
+                  <ImageIcon size={16} /> Hình ảnh (Tùy chọn)
                 </label>
-                <input
-                  type="text"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
-                  value={q.imageUrl || ''}
-                  onChange={(e) => handleQuestionChange(qIndex, 'imageUrl', e.target.value)}
-                  placeholder="https://example.com/image.png"
-                />
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <Upload size={16} />
+                    Chọn ảnh từ máy
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file, (base64) => handleQuestionChange(qIndex, 'imageUrl', base64));
+                      }}
+                    />
+                  </label>
+                  {q.imageUrl && (
+                    <button
+                      onClick={() => handleQuestionChange(qIndex, 'imageUrl', '')}
+                      className="text-red-500 text-sm hover:underline"
+                    >
+                      Xóa ảnh
+                    </button>
+                  )}
+                </div>
                 {q.imageUrl && (
                   <div className="mt-2">
                     <img src={q.imageUrl} alt="Preview" className="h-32 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
@@ -244,50 +357,102 @@ export default function QuizEditor() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {q.options.map((opt, oIndex) => (
-                <div key={opt.id} className="flex flex-col gap-2 p-3 border rounded-md bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`correct-${q.id}`}
-                      checked={opt.isCorrect}
-                      onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                    />
+            {/* Render Options based on Type */}
+            {q.type === 'SHORT_ANSWER' ? (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Các đáp án chấp nhận được:</label>
+                {q.options.map((opt, oIndex) => (
+                  <div key={opt.id} className="flex items-center gap-2">
                     <input
                       type="text"
-                      className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 bg-green-50' : 'border-gray-300'}`}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
                       value={opt.text}
                       onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
-                      placeholder={`Đáp án ${oIndex + 1}`}
+                      placeholder="Nhập đáp án đúng..."
                     />
+                    <button
+                      onClick={() => handleRemoveOption(qIndex, oIndex)}
+                      className="text-gray-400 hover:text-red-500"
+                      disabled={q.options.length <= 1}
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
-                  
-                  <div className="flex items-center gap-2 pl-6">
-                    <ImageIcon size={14} className="text-gray-400" />
-                    <input
-                      type="text"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 text-xs border p-1"
-                      value={opt.imageUrl || ''}
-                      onChange={(e) => handleOptionChange(qIndex, oIndex, 'imageUrl', e.target.value)}
-                      placeholder="Link ảnh đáp án (tùy chọn)"
-                    />
-                  </div>
-                  {opt.imageUrl && (
-                     <div className="pl-6">
-                        <img src={opt.imageUrl} alt="Option Preview" className="h-16 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                     </div>
-                  )}
-
-                  {opt.text && (opt.text.includes('$') || opt.text.includes('\\')) && (
-                    <div className="pl-6 text-xs text-gray-600">
-                      <MathText text={opt.text} />
+                ))}
+                <button
+                  onClick={() => handleAddShortAnswerOption(qIndex)}
+                  className="text-indigo-600 text-sm font-medium flex items-center gap-1 hover:underline"
+                >
+                  <Plus size={16} /> Thêm đáp án chấp nhận
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  * Học sinh trả lời đúng một trong các đáp án trên sẽ được tính điểm (không phân biệt hoa thường).
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {q.options.map((opt, oIndex) => (
+                  <div key={opt.id} className={`flex flex-col gap-2 p-3 border rounded-md ${opt.isCorrect ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name={`correct-${q.id}`}
+                        checked={opt.isCorrect}
+                        onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <input
+                        type="text"
+                        className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
+                        value={opt.text}
+                        onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                        placeholder={q.type === 'TRUE_FALSE' ? (oIndex === 0 ? 'Đúng' : 'Sai') : `Đáp án ${oIndex + 1}`}
+                        readOnly={q.type === 'TRUE_FALSE'} // True/False text is fixed
+                      />
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    
+                    {q.type === 'MULTIPLE_CHOICE' && (
+                      <>
+                        <div className="flex items-center gap-2 pl-6">
+                          <ImageIcon size={14} className="text-gray-400" />
+                          <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
+                            Chọn ảnh
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                              }}
+                            />
+                          </label>
+                          {opt.imageUrl && (
+                            <button
+                              onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
+                              className="text-xs text-red-500 hover:underline ml-2"
+                            >
+                              Xóa
+                            </button>
+                          )}
+                        </div>
+                        {opt.imageUrl && (
+                           <div className="pl-6">
+                              <img src={opt.imageUrl} alt="Option Preview" className="h-16 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                           </div>
+                        )}
+                      </>
+                    )}
+
+                    {opt.text && (opt.text.includes('$') || opt.text.includes('\\')) && (
+                      <div className="pl-6 text-xs text-gray-600">
+                        <MathText text={opt.text} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 flex items-center gap-4 text-sm">
               <div>

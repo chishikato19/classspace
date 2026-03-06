@@ -43,8 +43,11 @@ export interface ClassGroup {
   teacherId: string; // ID giáo viên quản lý (nếu có)
 }
 
+export type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
+
 export interface Question {
   id: string;
+  type: QuestionType;
   text: string;
   imageUrl?: string;
   options: {

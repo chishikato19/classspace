@@ -126,38 +126,51 @@ export default function GameHostDashboard() {
             </h2>
             
             <div className="grid grid-cols-2 gap-4">
-              {currentQuestion.options.map((opt, idx) => (
-                <div 
-                  key={opt.id}
-                  className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex flex-col gap-4 ${
-                    idx === 0 ? 'bg-red-50 border-red-200 text-red-700' :
-                    idx === 1 ? 'bg-blue-50 border-blue-200 text-blue-700' :
-                    idx === 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-                    'bg-green-50 border-green-200 text-green-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
-                      idx === 0 ? 'bg-red-500' :
-                      idx === 1 ? 'bg-blue-500' :
-                      idx === 2 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    }`}>
-                      {String.fromCharCode(65 + idx)}
+              {currentQuestion.type === 'SHORT_ANSWER' ? (
+                 <div className="col-span-2 bg-white p-6 rounded-2xl border-4 border-indigo-200 text-center shadow-sm">
+                    <p className="text-gray-500 font-bold mb-4 uppercase tracking-wide text-sm">Đáp án chấp nhận</p>
+                    <div className="flex flex-wrap gap-3 justify-center">
+                       {currentQuestion.options.map(opt => (
+                          <span key={opt.id} className="bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xl border-2 border-green-200 shadow-sm">
+                             {opt.text}
+                          </span>
+                       ))}
                     </div>
-                    <MathText text={opt.text} />
+                 </div>
+              ) : (
+                currentQuestion.options.map((opt, idx) => (
+                  <div 
+                    key={opt.id}
+                    className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex flex-col gap-4 ${
+                      idx === 0 ? 'bg-red-50 border-red-200 text-red-700' :
+                      idx === 1 ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                      idx === 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+                      'bg-green-50 border-green-200 text-green-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
+                        idx === 0 ? 'bg-red-500' :
+                        idx === 1 ? 'bg-blue-500' :
+                        idx === 2 ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}>
+                        {String.fromCharCode(65 + idx)}
+                      </div>
+                      <MathText text={opt.text} />
+                    </div>
+                    {opt.imageUrl && (
+                      <img 
+                        src={opt.imageUrl} 
+                        alt="Option" 
+                        className="w-full h-48 object-cover rounded-lg border border-gray-300 bg-white"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    )}
                   </div>
-                  {opt.imageUrl && (
-                    <img 
-                      src={opt.imageUrl} 
-                      alt="Option" 
-                      className="w-full h-48 object-cover rounded-lg border border-gray-300 bg-white"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
-                    />
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

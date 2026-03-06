@@ -84,7 +84,13 @@ export default function LocalBattleArena() {
   // Load Quiz
   useEffect(() => {
     if (quizId) {
-      quizService.getQuizById(quizId).then(setQuiz);
+      quizService.getQuizById(quizId).then(q => {
+        if (q) {
+          // Filter out SHORT_ANSWER questions as they are not supported in Local Battle
+          const filteredQuestions = q.questions.filter(quest => quest.type !== 'SHORT_ANSWER');
+          setQuiz({ ...q, questions: filteredQuestions });
+        }
+      });
     }
   }, [quizId]);
 
