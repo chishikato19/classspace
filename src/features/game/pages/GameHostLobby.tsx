@@ -93,11 +93,24 @@ export default function GameHostLobby() {
                   >
                     Giáo viên điều khiển
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setGameMode('BATTLE')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                      gameMode === 'BATTLE'
+                        ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Đấu trường sinh tồn
+                  </button>
                 </div>
                 <p className="text-xs text-gray-500 italic">
                   {gameMode === 'STUDENT_PACED' 
                     ? 'Học sinh tự hoàn thành bài thi theo tốc độ cá nhân.' 
-                    : 'Cả lớp cùng làm một câu hỏi. Giáo viên bấm nút để sang câu tiếp theo.'}
+                    : gameMode === 'TEACHER_PACED'
+                    ? 'Cả lớp cùng làm một câu hỏi. Giáo viên bấm nút để sang câu tiếp theo.'
+                    : 'Chế độ chiến đấu nhiều người chơi. Sử dụng vật phẩm để tấn công đối thủ!'}
                 </p>
               </div>
 
@@ -159,6 +172,60 @@ export default function GameHostLobby() {
                   onChange={(e) => setSettings({...settings, streakBonus: e.target.checked})}
                 />
               </label>
+
+              {/* Battle Mode Settings */}
+              {mode === 'BATTLE' && (
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200 mt-4">
+                  <h3 className="text-sm font-bold text-red-800 mb-3 uppercase tracking-wider">Cài đặt Đấu trường</h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Chế độ chơi</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setSettings({ ...settings, pacing: 'STUDENT' })}
+                          className={`p-2 rounded border text-sm text-left transition-colors ${
+                            settings.pacing !== 'TEACHER'
+                              ? 'bg-red-600 text-white border-red-600'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="font-bold">Tốc độ (Tự do)</div>
+                          <div className="text-xs opacity-80">Học sinh tự làm bài</div>
+                        </button>
+                        <button
+                          onClick={() => setSettings({ ...settings, pacing: 'TEACHER' })}
+                          className={`p-2 rounded border text-sm text-left transition-colors ${
+                            settings.pacing === 'TEACHER'
+                              ? 'bg-red-600 text-white border-red-600'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="font-bold">Đồng loạt</div>
+                          <div className="text-xs opacity-80">GV điều khiển</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phí hồi sinh (Điểm)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={settings.reviveCost || 1000}
+                        onChange={(e) => setSettings({ ...settings, reviveCost: parseInt(e.target.value) || 0 })}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Điểm bị trừ khi học sinh chọn hồi sinh (lấy lại 50% HP).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <button

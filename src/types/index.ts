@@ -70,7 +70,7 @@ export interface Quiz {
 }
 
 export type GameStatus = 'WAITING' | 'STARTING' | 'QUESTION' | 'LEADERBOARD' | 'PLAYING' | 'FINISHED' | 'EXPIRED';
-export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK';
+export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK' | 'BATTLE';
 
 export interface GameSettings {
   shuffleQuestions: boolean;
@@ -83,6 +83,9 @@ export interface GameSettings {
   maxAttempts: number; // 0 = unlimited
   requirePasscode: boolean;
   allowRetry: boolean; // Cho phép làm lại ngay sau khi sai (chế độ luyện tập)
+  // Battle Mode settings
+  pacing?: 'STUDENT' | 'TEACHER'; // Tốc độ (Học sinh tự làm) hoặc Đồng loạt (Giáo viên điều khiển)
+  reviveCost?: number; // Điểm phí để hồi sinh
 }
 
 export interface HomeworkConfig {
@@ -119,4 +122,13 @@ export interface Player {
     pointsAwarded: number;
   }>;
   avatarConfig?: AvatarConfig;
+  // Battle Mode Specifics
+  hp?: number;
+  maxHp?: number;
+  items?: string[];
+  statusEffects?: {
+    type: 'FROZEN' | 'BLINDED' | 'CONFUSED' | 'PARALYZED' | 'POISONED';
+    expiresAt: number; // timestamp
+    sourceId?: string; // who attacked
+  }[];
 }

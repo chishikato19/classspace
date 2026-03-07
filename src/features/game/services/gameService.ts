@@ -102,22 +102,143 @@ export const gameService = {
   // Bắt đầu game
   startGame: async (sessionId: string): Promise<void> => {
     const sessionRef = doc(db, 'sessions', sessionId);
-    const sessionDoc = await getDoc(sessionRef);
-    const sessionData = sessionDoc.data() as GameSession;
+    
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw "Session not found";
+      
+      const sessionData = sessionDoc.data() as GameSession;
+      const updates: any = {
+        startedAt: Date.now()
+      };
 
-    if (sessionData.mode === 'TEACHER_PACED') {
-      await updateDoc(sessionRef, {
-        status: 'QUESTION',
-        currentQuestionIndex: 0,
-        questionStartTime: Date.now(),
-        startedAt: Date.now()
-      });
-    } else {
-      await updateDoc(sessionRef, {
-        status: 'PLAYING',
-        startedAt: Date.now()
-      });
-    }
+      if (sessionData.mode === 'TEACHER_PACED') {
+        updates.status = 'QUESTION';
+        updates.currentQuestionIndex = 0;
+        updates.questionStartTime = Date.now();
+      } else if (sessionData.mode === 'BATTLE') {
+        updates.status = 'PLAYING';
+        // Initialize Battle Stats for all players
+        const players = sessionData.players || [];
+        const initializedPlayers = players.map(p => ({
+          ...p,
+          hp: 100,
+          maxHp: 100,
+          items: [], // Start empty or with 1 item? Let's start empty.
+          statusEffects: []
+        }));
+        updates.players = initializedPlayers;
+      } else {
+        updates.status = 'PLAYING';
+      }
+
+      transaction.update(sessionRef, updates);
+    });
+  },
+
+  // Battle Mode: Use Item
+  useBattleItem: async (sessionId: string, sourcePlayerId: string, targetPlayerId: string, itemType: string) => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw "Session not found";
+
+      const data = sessionDoc.data();
+      const players = data.players as Player[];
+      
+      const sourceIndex = players.findIndex(p => p.id === sourcePlayerId);
+      const targetIndex = players.findIndex(p => p.id === targetPlayerId);
+      
+      if (sourceIndex === -1 || targetIndex === -1) throw "Player not found";
+
+      const sourcePlayer = players[sourceIndex];
+      const targetPlayer = players[targetIndex];
+
+      // Remove item from source
+      if (!sourcePlayer.items?.includes(itemType)) throw "Item not found";
+      const itemIndex = sourcePlayer.items.indexOf(itemType);
+      sourcePlayer.items.splice(itemIndex, 1);
+
+      // Apply effect to target
+      const now = Date.now();
+      if (!targetPlayer.statusEffects) targetPlayer.statusEffects = [];
+
+      let duration = 5000; // Default 5s
+      let effectType = '';
+
+      switch (itemType) {
+        case 'ATTACK':
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 20);
+          break;
+        case 'HEAL':
+          targetPlayer.hp = Math.min(targetPlayer.maxHp || 100, (targetPlayer.hp || 100) + 20);
+          break;
+        case 'LIGHTNING':
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 10);
+          effectType = 'PARALYZED';
+          duration = 5000;
+          break;
+        case 'POISON':
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 5);
+          effectType = 'POISONED';
+          duration = 10000;
+          break;
+        case 'BLIND':
+          effectType = 'BLINDED';
+          duration = 5000;
+          break;
+        case 'FREEZE':
+          effectType = 'FROZEN';
+          duration = 5000;
+          break;
+      }
+
+      if (effectType) {
+        targetPlayer.statusEffects.push({
+          type: effectType as any,
+          expiresAt: now + duration,
+          sourceId: sourcePlayerId // Store who attacked
+        });
+      }
+
+      // Update players
+      players[sourceIndex] = sourcePlayer;
+      players[targetIndex] = targetPlayer;
+
+      transaction.update(sessionRef, { players });
+    });
+  },
+
+  // Hồi sinh người chơi (Battle Mode)
+  revivePlayer: async (sessionId: string, playerId: string) => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw "Session not found";
+
+      const data = sessionDoc.data() as GameSession;
+      const players = [...(data.players || [])];
+      const playerIndex = players.findIndex(p => p.id === playerId);
+      
+      if (playerIndex === -1) throw "Player not found";
+      
+      const player = players[playerIndex];
+      const cost = data.settings?.reviveCost || 1000; // Mặc định 1000 điểm
+
+      // Trừ điểm (chấp nhận âm)
+      player.score -= cost;
+      
+      // Hồi 50% máu
+      player.hp = (player.maxHp || 100) * 0.5;
+      
+      // Xóa hiệu ứng xấu
+      player.statusEffects = [];
+
+      players[playerIndex] = player;
+      transaction.update(sessionRef, { players });
+    });
   },
 
   // Chuyển sang câu hỏi tiếp theo
@@ -197,6 +318,16 @@ export const gameService = {
         
         points = basePoints + streakBonus;
         player.streak += 1;
+
+        // BATTLE MODE: Grant Item
+        if (data.mode === 'BATTLE') {
+           const items = ['ATTACK', 'HEAL', 'LIGHTNING', 'POISON', 'BLIND', 'FREEZE'];
+           const randomItem = items[Math.floor(Math.random() * items.length)];
+           if (!player.items) player.items = [];
+           if (player.items.length < 3) { // Max 3 items
+             player.items.push(randomItem);
+           }
+        }
       } else {
         player.streak = 0;
       }

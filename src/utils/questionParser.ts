@@ -1,0 +1,133 @@
+import { Question, QuestionType } from '../../types';
+
+export const parseQuestionsFromText = (text: string): Question[] => {
+  const questions: Question[] = [];
+  
+  // 1. Split Questions and Answers block
+  // Assuming answers block starts with "Trả lời" or "Đáp án"
+  const answerBlockRegex = /(?:Trả lời|Đáp án)[:\.\n]/i;
+  const parts = text.split(answerBlockRegex);
+  
+  const questionContent = parts[0];
+  const answerContent = parts.length > 1 ? parts.slice(1).join(' ') : '';
+
+  // 2. Parse Answers Map
+  const answerMap = new Map<number, string>();
+  if (answerContent) {
+    // Matches "1. A", "1 A", "1: A", "1) A", "1. Đúng", "1. True"
+    // Also handles multi-line or comma separated: "1. A, 2. B"
+    const answerRegex = /(\d+)[\.\s:\)]+([^\d\n,]+)/g;
+    let match;
+    while ((match = answerRegex.exec(answerContent)) !== null) {
+      const qIndex = parseInt(match[1]);
+      const ans = match[2].trim();
+      answerMap.set(qIndex, ans);
+    }
+  }
+
+  // 3. Parse Questions
+  // Regex to find start of a question: "Câu 1:", "Bài 1:", "1.", "Câu 1."
+  // We use a lookahead to split by question start, keeping the delimiter
+  const questionSplitRegex = /(?=(?:^|\n)(?:Câu|Bài|Question)\s*\d+[:\.]?|(?=(?:^|\n)\d+[\.:]))/i;
+  
+  const rawQuestions = questionContent
+    .split(questionSplitRegex)
+    .map(q => q.trim())
+    .filter(q => q.length > 0);
+
+  rawQuestions.forEach((rawQ, index) => {
+    // Extract Question Number (optional, for mapping answers)
+    const qNumMatch = rawQ.match(/(?:Câu|Bài|Question)?\s*(\d+)[:\.]?/i);
+    const qNum = qNumMatch ? parseInt(qNumMatch[1]) : index + 1;
+    
+    // Remove the "Câu 1:" prefix to get text
+    let qText = rawQ.replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
+    
+    // Extract Options
+    // Options usually start with A. B. C. D. or a) b) c) d)
+    const options: { id: string; text: string; isCorrect: boolean }[] = [];
+    let type: QuestionType = 'SHORT_ANSWER'; // Default
+
+    // Split by options
+    // Regex matches "A.", "A)", "a.", "a)" at start of line or after space
+    const optionSplitRegex = /(?:^|\n|\s+)([A-D a-d])[\.\)]/g;
+    
+    // Check if options exist
+    const optionMatches = Array.from(rawQ.matchAll(optionSplitRegex));
+    
+    if (optionMatches.length >= 2) {
+      type = 'MULTIPLE_CHOICE';
+      
+      // We need to split the text by these indices
+      // First, the question text ends where the first option starts
+      const firstOptionIndex = optionMatches[0].index!;
+      // Re-extract question text without options
+      // Note: rawQ includes the "Câu 1:" prefix, but we already stripped it in qText. 
+      // We need to be careful. Let's work on rawQ for splitting, then clean up.
+      
+      // Actually, let's split rawQ by the option regex
+      const parts = rawQ.split(optionSplitRegex);
+      // parts[0] is Question Text (with prefix)
+      // parts[1] is "A", parts[2] is "Option A text", parts[3] is "B", parts[4] is "Option B text"...
+      
+      // Clean up question text again from parts[0]
+      qText = parts[0].replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
+      
+      for (let i = 1; i < parts.length; i += 2) {
+        const optLabel = parts[i].toUpperCase(); // A, B, C, D
+        const optText = parts[i+1].trim();
+        
+        // Check correctness from answer map
+        const correctAnswer = answerMap.get(qNum);
+        let isCorrect = false;
+        if (correctAnswer) {
+           // If answer is "A", "A.", "A)"
+           const cleanAns = correctAnswer.replace(/[\.\)]/g, '').trim().toUpperCase();
+           if (cleanAns === optLabel) isCorrect = true;
+        }
+
+        options.push({
+          id: crypto.randomUUID(),
+          text: optText,
+          isCorrect
+        });
+      }
+    } else {
+      // No options found. Check if True/False or Short Answer
+      const correctAnswer = answerMap.get(qNum);
+      
+      if (correctAnswer) {
+        const lowerAns = correctAnswer.toLowerCase();
+        if (['đúng', 'sai', 'true', 'false'].includes(lowerAns)) {
+          type = 'TRUE_FALSE';
+          const isTrue = lowerAns === 'đúng' || lowerAns === 'true';
+          
+          options.push({ id: crypto.randomUUID(), text: 'Đúng', isCorrect: isTrue });
+          options.push({ id: crypto.randomUUID(), text: 'Sai', isCorrect: !isTrue });
+        } else {
+          type = 'SHORT_ANSWER';
+          // For short answer, we usually store the correct answer in options list as a valid answer
+          options.push({
+             id: crypto.randomUUID(),
+             text: correctAnswer,
+             isCorrect: true
+          });
+        }
+      }
+    }
+
+    // Fallback: If Multiple Choice but no answer found in map, mark first as correct (or none)
+    // User can fix later.
+    
+    questions.push({
+      id: crypto.randomUUID(),
+      type,
+      text: qText,
+      options,
+      timeLimit: 30,
+      points: 100
+    });
+  });
+
+  return questions;
+};

@@ -1,0 +1,304 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { GameSession, Player, Question, Quiz } from '../../../types';
+import { gameService } from '../services/gameService';
+import { quizService } from '../../quiz/services/quizService';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart } from 'lucide-react';
+import { soundService } from '../services/soundService';
+import { MathText } from '../../../components/MathText';
+
+export default function BattlePlayerScreen() {
+  const { sessionId } = useParams();
+  const navigate = useNavigate();
+  const [session, setSession] = useState<GameSession | null>(null);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [targetSelection, setTargetSelection] = useState<string | null>(null); // Item type being used
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [questionStartTime, setQuestionStartTime] = useState<number>(0);
+
+  useEffect(() => {
+    const playerId = localStorage.getItem('currentPlayerId');
+    if (!sessionId || !playerId) return;
+
+    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
+      setSession(data);
+      const p = data.players?.find(p => p.id === playerId);
+      setPlayer(p || null);
+
+      if (!quiz && data.quizId) {
+        const quizData = await quizService.getQuizById(data.quizId);
+        if (quizData) {
+          setQuiz(quizData);
+          // Simple shuffle for battle mode
+          const questions = [...quizData.questions].sort(() => Math.random() - 0.5);
+          setShuffledQuestions(questions);
+          setQuestionStartTime(Date.now());
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [sessionId, quiz]);
+
+  const handleAnswer = async (optionId: string) => {
+    if (isSubmitted || !quiz || !session || !player || shuffledQuestions.length === 0) return;
+    
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    const correctOption = currentQuestion.options.find(o => o.isCorrect);
+    const isAnswerCorrect = correctOption?.id === optionId;
+
+    setIsSubmitted(true);
+    setIsCorrect(isAnswerCorrect);
+    
+    if (isAnswerCorrect) {
+      soundService.play('correct');
+    } else {
+      soundService.play('wrong');
+    }
+
+    const timeTaken = (Date.now() - questionStartTime) / 1000;
+
+    // Submit answer
+    await gameService.submitAnswer(session.id, player.id, currentQuestion.id, {
+      optionId,
+      isCorrect: isAnswerCorrect,
+      timeTaken,
+      timeLimit: currentQuestion.timeLimit,
+      points: currentQuestion.points
+    });
+
+    // Move to next question
+    if (pacing === 'STUDENT') {
+      setTimeout(() => {
+        if (currentQuestionIndex < shuffledQuestions.length - 1) {
+          setCurrentQuestionIndex(prev => prev + 1);
+          setIsSubmitted(false);
+          setQuestionStartTime(Date.now());
+        } else {
+          // Finished all questions? Maybe loop or end?
+          // For Battle, maybe loop questions? Or just end.
+          // Let's just end for now.
+        }
+      }, 2000);
+    }
+  };
+
+  // Sync with teacher pacing
+  useEffect(() => {
+    if (session?.settings?.pacing === 'TEACHER' && session.currentQuestionIndex !== undefined) {
+      if (session.currentQuestionIndex !== currentQuestionIndex) {
+        setCurrentQuestionIndex(session.currentQuestionIndex);
+        setIsSubmitted(false);
+        setQuestionStartTime(Date.now());
+      }
+    }
+  }, [session?.currentQuestionIndex, session?.settings?.pacing]);
+
+  const handleUseItem = (itemType: string) => {
+    setTargetSelection(itemType);
+  };
+
+  const handleAttack = async (targetId: string) => {
+    if (!session || !player || !targetSelection) return;
+    try {
+      await gameService.useBattleItem(session.id, player.id, targetId, targetSelection);
+      setTargetSelection(null);
+      soundService.play('item'); // Reuse item sound
+    } catch (error) {
+      console.error("Failed to use item", error);
+    }
+  };
+
+  if (!session || !player) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+
+  const hp = player.hp ?? 100;
+  const maxHp = player.maxHp ?? 100;
+  const isDead = hp <= 0;
+  const pacing = session.settings?.pacing || 'STUDENT';
+  const reviveCost = session.settings?.reviveCost || 1000;
+
+  // Check active effects
+  const now = Date.now();
+  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > now);
+  const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
+  const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
+  const isBlinded = activeEffects.some(e => e.type === 'BLINDED');
+
+  const handleRevive = async () => {
+    if (!session || !player) return;
+    try {
+      await gameService.revivePlayer(session.id, player.id);
+    } catch (error) {
+      console.error("Revive failed", error);
+    }
+  };
+
+  if (isDead) {
+    return (
+      <div className="min-h-screen bg-red-900 text-white flex flex-col items-center justify-center p-8 text-center animate-in fade-in">
+        <Skull className="w-24 h-24 mb-4 animate-pulse text-red-300" />
+        <h1 className="text-4xl font-black mb-2">BẠN ĐÃ BỊ HẠ!</h1>
+        <p className="text-xl opacity-80 mb-8">Bạn đã hết máu chiến đấu.</p>
+        
+        <div className="bg-black/40 p-6 rounded-2xl border border-red-500/50 max-w-sm w-full">
+          <p className="text-gray-300 mb-4">Đổi <span className="text-yellow-400 font-bold">{reviveCost} điểm</span> để hồi sinh với 50% HP?</p>
+          <button 
+            onClick={handleRevive}
+            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-xl text-xl shadow-lg transform active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <Heart className="w-6 h-6 fill-black" />
+            HỒI SINH NGAY
+          </button>
+          <p className="text-xs text-gray-400 mt-3">Điểm hiện tại của bạn: <span className={player.score < reviveCost ? "text-red-400" : "text-green-400"}>{player.score}</span></p>
+        </div>
+      </div>
+    );
+  }
+
+  if (targetSelection) {
+    // Target Selection Screen
+    const targets = session.players?.filter(p => p.id !== player.id && (p.hp || 0) > 0) || [];
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-4">
+        <h2 className="text-2xl font-bold mb-6 text-center text-yellow-400 flex items-center justify-center gap-2">
+          <Target /> CHỌN MỤC TIÊU
+        </h2>
+        <div className="grid grid-cols-2 gap-4">
+          {targets.map(target => (
+            <button
+              key={target.id}
+              onClick={() => handleAttack(target.id)}
+              className="bg-gray-800 p-4 rounded-xl border-2 border-gray-700 hover:border-red-500 active:scale-95 transition-all flex flex-col items-center"
+            >
+              <StudentAvatar student={{ name: target.name, avatarConfig: target.avatarConfig } as any} size={60} />
+              <span className="font-bold mt-2 truncate w-full text-center">{target.name}</span>
+              <div className="w-full bg-gray-700 h-2 rounded-full mt-2 overflow-hidden">
+                <div className="bg-red-500 h-full" style={{ width: `${((target.hp || 0) / (target.maxHp || 100)) * 100}%` }}></div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <button 
+          onClick={() => setTargetSelection(null)}
+          className="w-full mt-8 bg-gray-700 py-4 rounded-xl font-bold"
+        >
+          Hủy bỏ
+        </button>
+      </div>
+    );
+  }
+
+  const currentQuestion = shuffledQuestions[currentQuestionIndex];
+
+  return (
+    <div className={`min-h-screen bg-gray-900 text-white flex flex-col ${isParalyzed ? 'animate-shake' : ''}`}>
+      {/* Status Bar */}
+      <div className="bg-gray-800 p-4 flex items-center justify-between shadow-lg z-10">
+        <div className="flex items-center gap-3">
+          <StudentAvatar student={{ name: player.name, avatarConfig: player.avatarConfig } as any} size={40} />
+          <div>
+            <div className="font-bold">{player.name}</div>
+            <div className="w-32 bg-gray-700 h-3 rounded-full overflow-hidden relative">
+              <div 
+                className={`h-full transition-all duration-500 ${hp > 50 ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${(hp / maxHp) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+        <div className="font-mono font-bold text-yellow-400 text-xl">{player.score}</div>
+      </div>
+
+      {/* Effect Overlays */}
+      {isParalyzed && (
+        <div className="absolute inset-0 bg-yellow-500/20 z-50 flex flex-col items-center justify-center pointer-events-none">
+          <Zap className="w-32 h-32 text-yellow-400 animate-bounce" />
+          <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-yellow-400">
+             BỊ TÊ LIỆT BỞI {session?.players?.find(p => p.id === activeEffects.find(e => e.type === 'PARALYZED')?.sourceId)?.name || 'KẺ THÙ'}!
+          </div>
+        </div>
+      )}
+      {isFrozen && (
+        <div className="absolute inset-0 bg-blue-500/20 z-50 flex flex-col items-center justify-center pointer-events-none">
+          <Snowflake className="w-32 h-32 text-blue-400 animate-pulse" />
+          <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-blue-400">
+             BỊ ĐÓNG BĂNG BỞI {session?.players?.find(p => p.id === activeEffects.find(e => e.type === 'FROZEN')?.sourceId)?.name || 'KẺ THÙ'}!
+          </div>
+        </div>
+      )}
+
+      {/* Main Area: Question or Waiting */}
+      <div className="flex-1 p-4 flex flex-col justify-center relative">
+        {isSubmitted && (
+             <div className={`absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in zoom-in`}>
+                <div className={`text-4xl font-black px-8 py-4 rounded-2xl shadow-2xl ${isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                   {isCorrect ? 'CHÍNH XÁC!' : 'SAI RỒI!'}
+                </div>
+             </div>
+        )}
+
+        {currentQuestion ? (
+           <>
+              <div className="bg-gray-800 p-4 rounded-xl mb-4 text-center min-h-[100px] flex items-center justify-center border-2 border-gray-700">
+                 <h2 className="text-xl font-bold"><MathText text={currentQuestion.text} /></h2>
+              </div>
+              
+              {/* Controls (A, B, C, D) */}
+              <div className="grid grid-cols-2 gap-4 mb-8 flex-1">
+                 {currentQuestion.options.map((opt, idx) => (
+                   <button
+                     key={opt.id}
+                     onClick={() => handleAnswer(opt.id)}
+                     disabled={isParalyzed || isFrozen || isSubmitted}
+                     className={`rounded-2xl font-bold text-lg p-4 shadow-lg active:scale-95 transition-transform flex flex-col items-center justify-center gap-2 ${
+                       idx === 0 ? 'bg-red-600 hover:bg-red-500' : 
+                       idx === 1 ? 'bg-blue-600 hover:bg-blue-500' : 
+                       idx === 2 ? 'bg-yellow-600 hover:bg-yellow-500' : 
+                       'bg-green-600 hover:bg-green-500'
+                     } ${isParalyzed || isFrozen || isSubmitted ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                   >
+                     {opt.imageUrl && <img src={opt.imageUrl} className="h-16 object-contain rounded bg-white" />}
+                     <MathText text={opt.text} />
+                   </button>
+                 ))}
+              </div>
+           </>
+        ) : (
+           <div className="text-center opacity-50">Đang tải câu hỏi...</div>
+        )}
+
+        {/* Items */}
+        {player.items && player.items.length > 0 && (
+          <div className="mt-auto">
+            <h3 className="text-sm font-bold text-gray-400 mb-2 uppercase">Vật phẩm ({player.items.length}/3)</h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {player.items.map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleUseItem(item)}
+                  disabled={isParalyzed || isFrozen}
+                  className="w-16 h-16 bg-gray-800 rounded-xl border-2 border-gray-600 flex items-center justify-center shrink-0 hover:border-yellow-500 active:scale-95 transition-all relative group"
+                >
+                  {item === 'LIGHTNING' && <Zap className="text-yellow-400" />}
+                  {item === 'POISON' && <Skull className="text-green-400" />}
+                  {item === 'FREEZE' && <Snowflake className="text-blue-400" />}
+                  {item === 'BLIND' && <EyeOff className="text-purple-400" />}
+                  {item === 'ATTACK' && <Sword className="text-red-500" />}
+                  {item === 'HEAL' && <Heart className="text-pink-500" />}
+                  
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    {item}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

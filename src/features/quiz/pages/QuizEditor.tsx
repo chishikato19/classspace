@@ -4,9 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { Question, QuestionType } from '../../../types';
 import { quizService } from '../services/quizService';
 import { auth } from '../../../config/firebase';
-import { Trash2, Eye, Image as ImageIcon, Upload, Plus, X } from 'lucide-react';
+import { Trash2, Eye, Image as ImageIcon, Upload, Plus, X, FileText } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
 import { compressImage } from '../../../utils/fileUtils';
+import ImportQuestionsModal from '../components/ImportQuestionsModal';
 
 export default function QuizEditor() {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export default function QuizEditor() {
   ]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!quizId);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     if (quizId) {
@@ -243,14 +245,39 @@ export default function QuizEditor() {
     }
   };
 
+  const handleImportQuestions = (importedQuestions: Question[]) => {
+    // Append imported questions to current list
+    // If current list has only 1 empty question, replace it
+    if (questions.length === 1 && !questions[0].text && !questions[0].imageUrl) {
+      setQuestions(importedQuestions);
+    } else {
+      setQuestions([...questions, ...importedQuestions]);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-20">Đang tải...</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
+      <ImportQuestionsModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+        onImport={handleImportQuestions} 
+      />
+
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h1 className="text-2xl font-bold mb-6">{quizId ? 'Chỉnh sửa bộ câu hỏi' : 'Tạo bộ câu hỏi mới'}</h1>
+        <div className="flex justify-between items-start mb-6">
+          <h1 className="text-2xl font-bold">{quizId ? 'Chỉnh sửa bộ câu hỏi' : 'Tạo bộ câu hỏi mới'}</h1>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold hover:bg-indigo-100 transition-colors"
+          >
+            <FileText size={20} />
+            Nhập từ Word/Text
+          </button>
+        </div>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Tên bộ câu hỏi</label>

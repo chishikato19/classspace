@@ -1,0 +1,183 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { GameSession, Player } from '../../../types';
+import { gameService } from '../services/gameService';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert } from 'lucide-react';
+
+export default function BattleHostScreen() {
+  const { sessionId } = useParams();
+  const [session, setSession] = useState<GameSession | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+      setSession(data);
+    });
+    return () => unsubscribe();
+  }, [sessionId]);
+
+  if (!session) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+
+  const players = session.players || [];
+  const pacing = session?.settings?.pacing || 'STUDENT';
+
+  const handleNextQuestion = async () => {
+    if (!session) return;
+    const nextIndex = (session.currentQuestionIndex || 0) + 1;
+    await gameService.nextQuestion(session.id, nextIndex);
+  };
+
+  const handleEndGame = async () => {
+    if (!session) return;
+    await gameService.endGame(session.id);
+  };
+
+  // Find winner if game finished
+  const winner = session?.status === 'FINISHED' 
+    ? session.players?.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0] 
+    : null;
+
+  if (session?.status === 'FINISHED') {
+     return (
+        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-8">
+           <h1 className="text-6xl font-black text-yellow-400 mb-8 animate-bounce">CHIẾN THẮNG!</h1>
+           {winner ? (
+             <div className="bg-gray-800 p-8 rounded-3xl border-4 border-yellow-500 flex flex-col items-center shadow-2xl">
+                <StudentAvatar student={{ name: winner.name, avatarConfig: winner.avatarConfig } as any} size={120} />
+                <div className="text-4xl font-bold mt-4">{winner.name}</div>
+                <div className="text-2xl text-gray-400 mt-2">{winner.score} điểm</div>
+                <div className="text-green-400 font-bold mt-2">HP: {winner.hp}</div>
+             </div>
+           ) : (
+             <div className="text-2xl text-gray-400">Không có ai sống sót...</div>
+           )}
+           <button onClick={() => window.close()} className="mt-8 bg-gray-700 hover:bg-gray-600 px-8 py-4 rounded-xl font-bold">
+             Đóng
+           </button>
+        </div>
+     );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-black text-red-500 flex items-center gap-2">
+            <ShieldAlert /> ĐẤU TRƯỜNG SINH TỒN
+          </h1>
+          <div className="bg-gray-700 px-4 py-1 rounded-full text-sm font-mono">
+            {pacing === 'TEACHER' ? 'Chế độ: Đồng loạt' : 'Chế độ: Tự do'}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {pacing === 'TEACHER' && (
+             <button 
+               onClick={handleNextQuestion}
+               className="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold shadow-lg active:scale-95 transition-all"
+             >
+               Câu tiếp theo
+             </button>
+          )}
+          <button 
+            onClick={handleEndGame}
+            className="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-bold shadow-lg active:scale-95 transition-all"
+          >
+            Kết thúc
+          </button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {players.map(player => (
+          <BattlePlayerCard key={player.id} player={player} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BattlePlayerCard({ player }: { player: Player }) {
+  const hp = player.hp ?? 100;
+  const maxHp = player.maxHp ?? 100;
+  const hpPercent = (hp / maxHp) * 100;
+
+  // Check active effects
+  const now = Date.now();
+  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > now);
+
+  const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
+  const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
+  const isBlinded = activeEffects.some(e => e.type === 'BLINDED');
+  const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
+
+  return (
+    <div className={`relative bg-gray-800 rounded-2xl p-4 border-2 transition-all ${
+      isParalyzed ? 'border-yellow-400 animate-shake' : 
+      isFrozen ? 'border-blue-400' : 
+      isPoisoned ? 'border-green-500' : 
+      'border-gray-700'
+    }`}>
+      {/* Status Overlays */}
+      {isFrozen && (
+        <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center">
+          <Snowflake className="w-12 h-12 text-blue-200 animate-pulse" />
+        </div>
+      )}
+      {isParalyzed && (
+        <div className="absolute inset-0 bg-yellow-500/30 z-10 rounded-xl flex items-center justify-center">
+          <Zap className="w-12 h-12 text-yellow-200 animate-bounce" />
+        </div>
+      )}
+      {isBlinded && (
+        <div className="absolute top-2 right-2 z-20">
+          <EyeOff className="w-6 h-6 text-purple-400" />
+        </div>
+      )}
+
+      {/* Avatar & Name */}
+      <div className="flex flex-col items-center mb-4">
+        <div className="w-20 h-20 mb-2 relative">
+          <StudentAvatar 
+            student={{ name: player.name, avatarConfig: player.avatarConfig } as any} 
+            className="w-20 h-20 text-2xl" 
+          />
+          {player.streak > 2 && (
+            <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-bounce">
+              🔥 {player.streak}
+            </div>
+          )}
+        </div>
+        <h3 className="font-bold text-lg truncate w-full text-center">{player.name}</h3>
+        <div className="text-yellow-400 font-mono font-bold">{player.score} pts</div>
+      </div>
+
+      {/* HP Bar */}
+      <div className="w-full bg-gray-700 h-4 rounded-full overflow-hidden mb-2 relative">
+        <div 
+          className={`h-full transition-all duration-500 ${
+            hpPercent > 50 ? 'bg-green-500' : hpPercent > 20 ? 'bg-yellow-500' : 'bg-red-500'
+          }`}
+          style={{ width: `${hpPercent}%` }}
+        ></div>
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white shadow-black drop-shadow-md">
+          {hp}/{maxHp}
+        </span>
+      </div>
+
+      {/* Active Effects List */}
+      <div className="flex gap-1 justify-center h-6">
+        {activeEffects.map((effect, idx) => (
+          <div key={idx} className="bg-black/50 rounded px-1 flex items-center" title={`By: ${effect.sourceId}`}>
+            {effect.type === 'PARALYZED' && <Zap size={12} className="text-yellow-400" />}
+            {effect.type === 'FROZEN' && <Snowflake size={12} className="text-blue-400" />}
+            {effect.type === 'POISONED' && <Skull size={12} className="text-green-400" />}
+            {effect.type === 'BLINDED' && <EyeOff size={12} className="text-purple-400" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

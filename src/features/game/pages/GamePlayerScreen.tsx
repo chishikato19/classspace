@@ -6,6 +6,7 @@ import { gameService } from '../services/gameService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { MathText } from '../../../components/MathText';
 import { soundService } from '../services/soundService';
+import BattlePlayerScreen from './BattlePlayerScreen';
 
 export default function GamePlayerScreen() {
   const { sessionId } = useParams();
@@ -99,6 +100,10 @@ export default function GamePlayerScreen() {
 
     return () => unsubscribe();
   }, [sessionId, quiz, session?.currentQuestionIndex]);
+
+  if (session?.mode === 'BATTLE') {
+    return <BattlePlayerScreen />;
+  }
 
   // Handle answer submission
   const handleAnswer = async (optionId: string | null, textAnswer?: string) => {

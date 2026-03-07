@@ -7,6 +7,7 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { CheckCircle2, XCircle, Users, Clock, ArrowRight } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
 import { soundService } from '../services/soundService';
+import BattleHostScreen from './BattleHostScreen';
 
 export default function GameHostDashboard() {
   const { sessionId } = useParams();
@@ -66,6 +67,10 @@ export default function GameHostDashboard() {
       return () => clearInterval(interval);
     }
   }, [session?.status, session?.currentQuestionIndex, session?.questionStartTime, quiz]);
+
+  if (session?.mode === 'BATTLE') {
+    return <BattleHostScreen />;
+  }
 
   if (!session || !quiz) return <div className="flex h-screen items-center justify-center text-white bg-gray-900">Đang tải...</div>;
 
