@@ -4,6 +4,7 @@ import { GameMode, GameSession, GameSettings } from '../../../types';
 import { gameService } from '../services/gameService';
 import { auth } from '../../../config/firebase';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { classService, ClassData } from '../../random-selector/services/classService';
 
 export default function GameHostLobby() {
   const { quizId } = useParams();
@@ -20,13 +21,46 @@ export default function GameHostLobby() {
     streakBonus: true,
   });
   const [sessionTitle, setSessionTitle] = useState('');
+  
+  // New settings
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [nameInputType, setNameInputType] = useState<'MANUAL' | 'CLASS_LIST'>('MANUAL');
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [isGroupPlay, setIsGroupPlay] = useState(false);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      if (auth.currentUser) {
+        const data = await classService.getClassesByTeacher(auth.currentUser.uid);
+        setClasses(data);
+      }
+    };
+    fetchClasses();
+  }, []);
 
   const handleCreateSession = async () => {
     if (!quizId) return;
+    
+    if (nameInputType === 'CLASS_LIST' && !selectedClassId) {
+      alert('Vui lòng chọn lớp học!');
+      return;
+    }
+
     setLoading(true);
     try {
       // const hostId = auth?.currentUser?.uid || 'admin'; // Removed hostId param
-      const { id: sessionId } = await gameService.createSession(quizId, settings, gameMode, undefined, sessionTitle);
+      const { id: sessionId } = await gameService.createSession(
+        quizId, 
+        settings, 
+        gameMode, 
+        undefined, 
+        sessionTitle,
+        {
+          type: nameInputType,
+          classId: selectedClassId || undefined,
+          isGroupPlay
+        }
+      );
       
       // Lắng nghe thay đổi
       gameService.subscribeToSession(sessionId, (data) => {
@@ -113,6 +147,71 @@ export default function GameHostLobby() {
                     : 'Chế độ chiến đấu nhiều người chơi. Sử dụng vật phẩm để tấn công đối thủ!'}
                 </p>
               </div>
+
+              <div className="space-y-2 mt-4 border-t border-gray-200 pt-4">
+                <label className="block text-sm font-medium text-gray-700">Cài đặt người chơi</label>
+                
+                <div className="flex items-center gap-4 mb-2">
+                  <label className="flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500 mr-2"
+                      checked={isGroupPlay}
+                      onChange={(e) => setIsGroupPlay(e.target.checked)}
+                    />
+                    <span className="text-gray-700 font-medium">Chế độ chơi nhóm</span>
+                  </label>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600">Cách nhập tên:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNameInputType('MANUAL')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                        nameInputType === 'MANUAL'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Tự nhập tên {isGroupPlay ? 'nhóm' : ''}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNameInputType('CLASS_LIST')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                        nameInputType === 'CLASS_LIST'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Chọn từ danh sách lớp
+                    </button>
+                  </div>
+                </div>
+
+                {nameInputType === 'CLASS_LIST' && (
+                  <div className="mt-2 animate-fadeIn">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Chọn lớp học</label>
+                    <select
+                      value={selectedClassId}
+                      onChange={(e) => setSelectedClassId(e.target.value)}
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 bg-white"
+                    >
+                      <option value="">-- Chọn lớp --</option>
+                      {classes.map((cls) => (
+                        <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      ))}
+                    </select>
+                    {classes.length === 0 && (
+                      <p className="text-xs text-red-500 mt-1">Bạn chưa có lớp học nào. Vui lòng tạo lớp trước.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-200 pt-4"></div>
 
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="text-gray-700 font-medium">Đảo thứ tự câu hỏi</span>

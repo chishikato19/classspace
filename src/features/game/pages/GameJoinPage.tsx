@@ -42,16 +42,25 @@ export default function GameJoinPage() {
           }
         }
 
-        // If session enforces a class, go straight to student selection
-        if (foundSession.homeworkConfig?.classId) {
-          const studentList = await adminService.getStudentsByClass(foundSession.homeworkConfig.classId);
-          setStudents(studentList);
-          setStep('STUDENT');
+        // Determine next step based on session configuration
+        if (foundSession.nameInputType === 'CLASS_LIST') {
+          if (foundSession.selectedClassId) {
+             const studentList = await adminService.getStudentsByClass(foundSession.selectedClassId);
+             setStudents(studentList);
+             setStep('STUDENT');
+          } else if (foundSession.homeworkConfig?.classId) {
+             const studentList = await adminService.getStudentsByClass(foundSession.homeworkConfig.classId);
+             setStudents(studentList);
+             setStep('STUDENT');
+          } else {
+             // Fallback: Let student select class if no class is enforced
+             const classList = await adminService.getAllClasses();
+             setClasses(classList);
+             setStep('CLASS');
+          }
         } else {
-          // Fetch classes for the next step
-          const classList = await adminService.getAllClasses();
-          setClasses(classList);
-          setStep('CLASS');
+          // MANUAL input
+          setStep('NAME_INPUT');
         }
       } else {
         setError('Không tìm thấy phòng chơi với mã PIN này.');
@@ -81,21 +90,32 @@ export default function GameJoinPage() {
   };
 
   const toggleStudentSelection = (studentId: string) => {
-    setSelectedStudentIds(prev => 
-      prev.includes(studentId) 
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
-    );
+    if (session?.isGroupPlay) {
+      setSelectedStudentIds(prev => 
+        prev.includes(studentId) 
+          ? prev.filter(id => id !== studentId)
+          : [...prev, studentId]
+      );
+    } else {
+      setSelectedStudentIds(prev => 
+        prev.includes(studentId) ? [] : [studentId]
+      );
+    }
   };
 
   const handleStudentSubmit = () => {
     if (selectedStudentIds.length === 0) return;
 
-    // Check if passcode is required
-    if (session?.settings?.requirePasscode) {
-      setStep('PASSCODE');
+    if (session?.isGroupPlay) {
+      // If group play, we need a group name
+      setStep('NAME_INPUT');
     } else {
-      handleJoin();
+      // Individual
+      if (session?.settings?.requirePasscode) {
+        setStep('PASSCODE');
+      } else {
+        handleJoin();
+      }
     }
   };
 
@@ -147,26 +167,34 @@ export default function GameJoinPage() {
 
       if (step === 'NAME_INPUT') {
         displayName = playerName;
+        
+        // If coming from Class List selection in Group Mode
+        if (session.nameInputType === 'CLASS_LIST' && session.isGroupPlay) {
+           studentIds = selectedStudentIds;
+        }
+
         avatarConfig = {
           style: DEFAULT_AVATAR_STYLE as AvatarStyle,
           seed: displayName,
           backgroundColor: 'transparent'
         };
       } else {
-        // STUDENT selection
+        // STUDENT selection (Individual)
         const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
-        displayName = selectedStudents.map(s => s.name).join(', ');
-        studentIds = selectedStudentIds;
-
-        if (selectedStudents.length === 1) {
-          playerId = selectedStudents[0].id;
-          if (selectedStudents[0].avatarConfig) {
-             avatarConfig = selectedStudents[0].avatarConfig;
-          } else {
-             avatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
-          }
+        // For individual mode, we take the first student
+        if (selectedStudents.length > 0) {
+           displayName = selectedStudents[0].name;
+           studentIds = [selectedStudents[0].id];
+           playerId = selectedStudents[0].id;
+           
+           if (selectedStudents[0].avatarConfig) {
+              avatarConfig = selectedStudents[0].avatarConfig;
+           } else {
+              avatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
+           }
         } else {
-           avatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
+           // Should not happen
+           throw new Error('Chưa chọn học sinh');
         }
       }
 
@@ -203,8 +231,9 @@ export default function GameJoinPage() {
           <p className="mt-2 text-lg font-medium text-gray-600">
             {step === 'PIN' && 'Nhập mã PIN để tham gia'}
             {step === 'CLASS' && 'Chọn lớp của bạn'}
-            {step === 'STUDENT' && 'Chọn tên của bạn'}
+            {step === 'STUDENT' && (session?.isGroupPlay ? 'Chọn thành viên nhóm' : 'Chọn tên của bạn')}
             {step === 'PASSCODE' && 'Nhập mật khẩu cá nhân'}
+            {step === 'NAME_INPUT' && (session?.isGroupPlay ? 'Đặt tên nhóm' : 'Nhập tên hiển thị')}
           </p>
           {session?.mode === 'HOMEWORK' && (
              <div className="mt-2 text-sm text-orange-600 bg-orange-50 py-1 px-2 rounded-full inline-block">
@@ -283,14 +312,14 @@ export default function GameJoinPage() {
           <div className="mt-8 space-y-6">
             <div>
               <label htmlFor="playerName" className="block text-sm font-medium text-gray-700 mb-2">
-                Nhập tên hiển thị của bạn
+                {session?.isGroupPlay ? 'Nhập tên nhóm của bạn' : 'Nhập tên hiển thị của bạn'}
               </label>
               <input
                 type="text"
                 id="playerName"
                 required
                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border"
-                placeholder="Ví dụ: Nguyễn Văn A"
+                placeholder={session?.isGroupPlay ? "Ví dụ: Nhóm Siêu Nhân" : "Ví dụ: Nguyễn Văn A"}
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 disabled={loading}
@@ -303,12 +332,22 @@ export default function GameJoinPage() {
             >
               {loading ? 'ĐANG XỬ LÝ...' : 'VÀO THI'}
             </button>
-            <button
-              onClick={() => setStep('CLASS')}
-              className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
-            >
-              Quay lại chọn lớp
-            </button>
+            {session?.nameInputType === 'CLASS_LIST' && (
+              <button
+                onClick={() => setStep('STUDENT')}
+                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+              >
+                Quay lại chọn thành viên
+              </button>
+            )}
+            {session?.nameInputType !== 'CLASS_LIST' && (
+               <button
+                onClick={() => setStep('PIN')}
+                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+              >
+                Quay lại
+              </button>
+            )}
           </div>
         )}
 

@@ -3,6 +3,19 @@ import { Question, QuestionType } from '../../types';
 export const parseQuestionsFromText = (text: string): Question[] => {
   const questions: Question[] = [];
   
+  // Helper to extract image marker
+  const extractImage = (str: string): { text: string, imageUrl: string } => {
+    const imgRegex = /\[IMG:(data:image\/[^\]]+)\]/i;
+    const match = str.match(imgRegex);
+    if (match) {
+      return {
+        text: str.replace(imgRegex, '').trim(),
+        imageUrl: match[1]
+      };
+    }
+    return { text: str.trim(), imageUrl: '' };
+  };
+
   // 1. Split Questions and Answers block
   // Assuming answers block starts with "Trả lời" or "Đáp án"
   const answerBlockRegex = /(?:Trả lời|Đáp án)[:\.\n]/i;
@@ -41,11 +54,11 @@ export const parseQuestionsFromText = (text: string): Question[] => {
     const qNum = qNumMatch ? parseInt(qNumMatch[1]) : index + 1;
     
     // Remove the "Câu 1:" prefix to get text
-    let qText = rawQ.replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
+    let qTextRaw = rawQ.replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
     
     // Extract Options
     // Options usually start with A. B. C. D. or a) b) c) d)
-    const options: { id: string; text: string; isCorrect: boolean }[] = [];
+    const options: { id: string; text: string; isCorrect: boolean; imageUrl?: string }[] = [];
     let type: QuestionType = 'SHORT_ANSWER'; // Default
 
     // Split by options
@@ -59,24 +72,18 @@ export const parseQuestionsFromText = (text: string): Question[] => {
       type = 'MULTIPLE_CHOICE';
       
       // We need to split the text by these indices
-      // First, the question text ends where the first option starts
-      const firstOptionIndex = optionMatches[0].index!;
-      // Re-extract question text without options
-      // Note: rawQ includes the "Câu 1:" prefix, but we already stripped it in qText. 
-      // We need to be careful. Let's work on rawQ for splitting, then clean up.
-      
-      // Actually, let's split rawQ by the option regex
       const parts = rawQ.split(optionSplitRegex);
-      // parts[0] is Question Text (with prefix)
-      // parts[1] is "A", parts[2] is "Option A text", parts[3] is "B", parts[4] is "Option B text"...
       
       // Clean up question text again from parts[0]
-      qText = parts[0].replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
+      qTextRaw = parts[0].replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
       
       for (let i = 1; i < parts.length; i += 2) {
         const optLabel = parts[i].toUpperCase(); // A, B, C, D
-        const optText = parts[i+1].trim();
+        const optTextRaw = parts[i+1].trim();
         
+        // Extract image from option text if any
+        const { text: optText, imageUrl: optImageUrl } = extractImage(optTextRaw);
+
         // Check correctness from answer map
         const correctAnswer = answerMap.get(qNum);
         let isCorrect = false;
@@ -89,6 +96,7 @@ export const parseQuestionsFromText = (text: string): Question[] => {
         options.push({
           id: crypto.randomUUID(),
           text: optText,
+          imageUrl: optImageUrl,
           isCorrect
         });
       }
@@ -116,13 +124,14 @@ export const parseQuestionsFromText = (text: string): Question[] => {
       }
     }
 
-    // Fallback: If Multiple Choice but no answer found in map, mark first as correct (or none)
-    // User can fix later.
-    
+    // Extract image from question text
+    const { text: finalQText, imageUrl: qImageUrl } = extractImage(qTextRaw);
+
     questions.push({
       id: crypto.randomUUID(),
       type,
-      text: qText,
+      text: finalQText,
+      imageUrl: qImageUrl,
       options,
       timeLimit: 30,
       points: 100

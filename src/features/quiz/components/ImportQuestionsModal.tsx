@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Question } from '../../../types';
 import { parseQuestionsFromText } from '../../../utils/questionParser';
-import { X, FileText, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { X, FileText, CheckCircle, AlertCircle, ArrowRight, Upload } from 'lucide-react';
+import mammoth from 'mammoth';
 
 interface ImportQuestionsModalProps {
   isOpen: boolean;
@@ -13,8 +14,60 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
   const [text, setText] = useState('');
   const [parsedQuestions, setParsedQuestions] = useState<Question[]>([]);
   const [step, setStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      // Use convertToHtml to get images
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      
+      // Convert HTML to text with [IMG:...] markers
+      const div = document.createElement('div');
+      div.innerHTML = result.value;
+      
+      let extractedText = '';
+      const traverse = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          extractedText += node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          if (el.tagName === 'IMG') {
+            const src = (el as HTMLImageElement).src;
+            extractedText += `\n[IMG:${src}]\n`;
+          } else if (el.tagName === 'P' || el.tagName === 'DIV' || el.tagName === 'BR') {
+            extractedText += '\n';
+          }
+          
+          for (let i = 0; i < el.childNodes.length; i++) {
+            traverse(el.childNodes[i]);
+          }
+          
+          if (el.tagName === 'P' || el.tagName === 'DIV') {
+            extractedText += '\n';
+          }
+        }
+      };
+      
+      traverse(div);
+      
+      // Clean up multiple newlines
+      const cleanText = extractedText.replace(/\n{3,}/g, '\n\n').trim();
+      
+      setText(cleanText);
+    } catch (error) {
+      console.error("Error reading file:", error);
+      alert("Không thể đọc file Word. Vui lòng thử lại hoặc copy nội dung thủ công.");
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
 
   const handleAnalyze = () => {
     const questions = parseQuestionsFromText(text);
@@ -64,6 +117,21 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
                   <li>Ví dụ: <em>1. A, 2. Đúng, 3. Hà Nội</em></li>
                 </ul>
               </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Upload className="w-4 h-4" />
+                  {isProcessingFile ? 'Đang đọc file...' : 'Tải file Word (.docx)'}
+                  <input 
+                    type="file" 
+                    accept=".docx" 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                    disabled={isProcessingFile}
+                  />
+                </label>
+                <span className="text-xs text-gray-500">Hoặc dán nội dung vào bên dưới</span>
+              </div>
               
               <textarea
                 value={text}
@@ -108,14 +176,26 @@ Trả lời:
                         )}
                       </div>
                       <h3 className="font-bold text-gray-900 mb-3">{idx + 1}. {q.text}</h3>
+                      {q.imageUrl && (
+                        <div className="mb-3">
+                          <img src={q.imageUrl} alt="Question" className="max-h-32 rounded border border-gray-200" />
+                        </div>
+                      )}
                       
                       <div className="space-y-2">
                         {q.options.map((opt, i) => (
-                          <div key={i} className={`flex items-center gap-2 text-sm p-2 rounded-lg ${opt.isCorrect ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-gray-50 text-gray-600'}`}>
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${opt.isCorrect ? 'border-green-600 bg-green-600 text-white' : 'border-gray-400'}`}>
-                              {opt.isCorrect && <CheckCircle className="w-3 h-3" />}
+                          <div key={i} className={`flex flex-col gap-2 text-sm p-2 rounded-lg ${opt.isCorrect ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-gray-50 text-gray-600'}`}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${opt.isCorrect ? 'border-green-600 bg-green-600 text-white' : 'border-gray-400'}`}>
+                                {opt.isCorrect && <CheckCircle className="w-3 h-3" />}
+                              </div>
+                              {opt.text}
                             </div>
-                            {opt.text}
+                            {opt.imageUrl && (
+                              <div className="pl-6">
+                                <img src={opt.imageUrl} alt="Option" className="max-h-20 rounded border border-gray-200" />
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

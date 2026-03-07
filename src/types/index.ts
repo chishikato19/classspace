@@ -105,6 +105,9 @@ export interface GameSession {
   currentQuestionIndex: number; // Dùng cho chế độ Teacher-paced (nếu cần)
   settings: GameSettings;
   homeworkConfig?: HomeworkConfig;
+  nameInputType?: 'MANUAL' | 'CLASS_LIST';
+  selectedClassId?: string;
+  isGroupPlay?: boolean;
 }
 
 export interface Player {

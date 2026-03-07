@@ -6,7 +6,14 @@ const getSessionsRef = () => collection(db, 'sessions');
 
 export const gameService = {
   // Tạo phòng game mới
-  createSession: async (quizId: string, settings: any, mode: GameMode = 'STUDENT_PACED', homeworkConfig?: any, title?: string): Promise<{ id: string; pin: string }> => {
+  createSession: async (
+    quizId: string, 
+    settings: any, 
+    mode: GameMode = 'STUDENT_PACED', 
+    homeworkConfig?: any, 
+    title?: string,
+    nameInputConfig?: { type: 'MANUAL' | 'CLASS_LIST', classId?: string, isGroupPlay?: boolean }
+  ): Promise<{ id: string; pin: string }> => {
     // Sinh mã PIN 6 số ngẫu nhiên
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -24,7 +31,10 @@ export const gameService = {
       createdAt: Date.now(),
       players: [],
       currentQuestionIndex: 0,
-      settings
+      settings,
+      nameInputType: nameInputConfig?.type || 'MANUAL',
+      selectedClassId: nameInputConfig?.classId,
+      isGroupPlay: nameInputConfig?.isGroupPlay || false,
     };
 
     if (title) {
