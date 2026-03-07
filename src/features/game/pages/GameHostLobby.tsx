@@ -174,7 +174,7 @@ export default function GameHostLobby() {
               </label>
 
               {/* Battle Mode Settings */}
-              {mode === 'BATTLE' && (
+              {session?.mode === 'BATTLE' && (
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200 mt-4">
                   <h3 className="text-sm font-bold text-red-800 mb-3 uppercase tracking-wider">Cài đặt Đấu trường</h3>
                   
