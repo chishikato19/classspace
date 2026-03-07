@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff } from 'lucide-react';
+import { Save, Eye, EyeOff, Keyboard } from 'lucide-react';
 
 export default function Settings() {
   const [noDuplicate, setNoDuplicate] = useState(false);
   const [hideSelected, setHideSelected] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Local Battle Key Bindings
+  const [redKeys, setRedKeys] = useState({
+    up: 'w', left: 'a', down: 's', right: 'd',
+    item1: '1', item2: '2', item3: '3'
+  });
+  const [blueKeys, setBlueKeys] = useState({
+    up: 'ArrowUp', left: 'ArrowLeft', down: 'ArrowDown', right: 'ArrowRight',
+    item1: '7', item2: '8', item3: '9'
+  });
 
   useEffect(() => {
     const savedNoDuplicate = localStorage.getItem('randomSelector_noDuplicate');
@@ -15,11 +25,20 @@ export default function Settings() {
     if (savedHideSelected) {
       setHideSelected(JSON.parse(savedHideSelected));
     }
+
+    const savedRedKeys = localStorage.getItem('localBattle_redKeys');
+    if (savedRedKeys) setRedKeys(JSON.parse(savedRedKeys));
+    
+    const savedBlueKeys = localStorage.getItem('localBattle_blueKeys');
+    if (savedBlueKeys) setBlueKeys(JSON.parse(savedBlueKeys));
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('randomSelector_noDuplicate', JSON.stringify(noDuplicate));
     localStorage.setItem('randomSelector_hideSelected', JSON.stringify(hideSelected));
+    localStorage.setItem('localBattle_redKeys', JSON.stringify(redKeys));
+    localStorage.setItem('localBattle_blueKeys', JSON.stringify(blueKeys));
+    
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 2000);
   };
@@ -100,6 +119,68 @@ export default function Settings() {
               </div>
             </div>
           )}
+        </div>
+        
+        {/* Local Battle Key Bindings Settings */}
+        <div className="border-t border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Keyboard className="w-5 h-5 text-indigo-600" />
+              Cài đặt phím Đấu trường (Local Battle)
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Tùy chỉnh phím điều khiển cho hai đội</p>
+          </div>
+          
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Red Team Keys */}
+            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
+              <h3 className="text-lg font-bold text-red-600 mb-4">ĐỘI ĐỎ</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-red-800 mb-2">Phím di chuyển/chọn đáp án</label>
+                  <div className="grid grid-cols-3 gap-2 max-w-[150px]">
+                    <input type="text" maxLength={1} value={redKeys.up} onChange={e => setRedKeys(p => ({...p, up: e.target.value}))} className="col-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Lên" />
+                    <input type="text" maxLength={1} value={redKeys.left} onChange={e => setRedKeys(p => ({...p, left: e.target.value}))} className="col-start-1 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Trái" />
+                    <input type="text" maxLength={1} value={redKeys.down} onChange={e => setRedKeys(p => ({...p, down: e.target.value}))} className="col-start-2 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Xuống" />
+                    <input type="text" maxLength={1} value={redKeys.right} onChange={e => setRedKeys(p => ({...p, right: e.target.value}))} className="col-start-3 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Phải" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-red-800 mb-2">Phím sử dụng vật phẩm</label>
+                  <div className="flex gap-2">
+                    <input type="text" maxLength={1} value={redKeys.item1} onChange={e => setRedKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 1" />
+                    <input type="text" maxLength={1} value={redKeys.item2} onChange={e => setRedKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 2" />
+                    <input type="text" maxLength={1} value={redKeys.item3} onChange={e => setRedKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 3" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Blue Team Keys */}
+            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+              <h3 className="text-lg font-bold text-blue-600 mb-4">ĐỘI XANH</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-blue-800 mb-2">Phím di chuyển/chọn đáp án</label>
+                  <div className="grid grid-cols-3 gap-2 max-w-[150px]">
+                    <input type="text" maxLength={10} value={blueKeys.up} onChange={e => setBlueKeys(p => ({...p, up: e.target.value}))} className="col-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Lên (ArrowUp)" />
+                    <input type="text" maxLength={10} value={blueKeys.left} onChange={e => setBlueKeys(p => ({...p, left: e.target.value}))} className="col-start-1 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Trái (ArrowLeft)" />
+                    <input type="text" maxLength={10} value={blueKeys.down} onChange={e => setBlueKeys(p => ({...p, down: e.target.value}))} className="col-start-2 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Xuống (ArrowDown)" />
+                    <input type="text" maxLength={10} value={blueKeys.right} onChange={e => setBlueKeys(p => ({...p, right: e.target.value}))} className="col-start-3 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Phải (ArrowRight)" />
+                  </div>
+                  <p className="text-xs text-blue-500 mt-1">Gợi ý: ArrowUp, ArrowLeft...</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-blue-800 mb-2">Phím sử dụng vật phẩm</label>
+                  <div className="flex gap-2">
+                    <input type="text" maxLength={1} value={blueKeys.item1} onChange={e => setBlueKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 1" />
+                    <input type="text" maxLength={1} value={blueKeys.item2} onChange={e => setBlueKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 2" />
+                    <input type="text" maxLength={1} value={blueKeys.item3} onChange={e => setBlueKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 3" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div className="bg-gray-50 px-6 py-4 flex items-center justify-end">

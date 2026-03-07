@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Quiz, Question } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
-import { ArrowLeft, Trophy, Swords, Zap, Timer, AlertCircle, Shield, Snowflake, EyeOff, Magnet } from 'lucide-react';
+import { ArrowLeft, Trophy, Swords, Zap, Timer, AlertCircle, Shield, Snowflake, EyeOff, Magnet, Shuffle, Bomb, Droplets, Scissors, Heart, ArrowLeftRight } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
 import { soundService } from '../services/soundService';
 
 type GameMode = 'sync' | 'chaos';
-type ItemType = 'FREEZE' | 'SHIELD' | 'STEAL' | 'BLIND';
+type ItemType = 'FREEZE' | 'SHIELD' | 'STEAL' | 'BLIND' | 'CONFUSION' | 'TIME_BOMB' | 'INK_SPLAT' | 'HELP_5050' | 'DOUBLE_POINTS' | 'HEAL' | 'SWAP';
 
 interface PlayerState {
   name: string;
@@ -24,11 +24,20 @@ interface PlayerState {
   frozenUntil: number;
   isBlinded: boolean;
   blindedUntil: number;
+  isConfused: boolean;
+  confusedUntil: number;
+  hasTimeBomb: boolean;
+  timeBombUntil: number;
+  isInked: boolean;
+  inkedUntil: number;
+  isDoublePoints: boolean;
+  isHealed: boolean;
   showFeedback: boolean;
   isSelectingItem: boolean;
   selectionOptions: ItemType[];
   questionStartTime: number;
   wrongAttempts: number;
+  eliminatedOptions: string[]; // For 50/50
 }
 
 const ITEMS: { type: ItemType; name: string; icon: any; color: string; desc: string }[] = [
@@ -36,6 +45,13 @@ const ITEMS: { type: ItemType; name: string; icon: any; color: string; desc: str
   { type: 'SHIELD', name: 'Khiên', icon: Shield, color: 'green', desc: 'Chặn 1 lần tấn công' },
   { type: 'STEAL', name: 'Cướp điểm', icon: Magnet, color: 'yellow', desc: 'Cướp 200 điểm' },
   { type: 'BLIND', name: 'Che mắt', icon: EyeOff, color: 'purple', desc: 'Che đáp án 5s' },
+  { type: 'CONFUSION', name: 'Xáo trộn', icon: Shuffle, color: 'orange', desc: 'Đảo lộn đáp án' },
+  { type: 'TIME_BOMB', name: 'Bom nổ chậm', icon: Bomb, color: 'red', desc: 'Nổ sau 5s (-300đ)' },
+  { type: 'INK_SPLAT', name: 'Mực đen', icon: Droplets, color: 'gray', desc: 'Che một phần' },
+  { type: 'HELP_5050', name: '50/50', icon: Scissors, color: 'teal', desc: 'Loại 2 đáp án sai' },
+  { type: 'DOUBLE_POINTS', name: 'Nhân đôi', icon: Zap, color: 'yellow', desc: 'x2 điểm câu này' },
+  { type: 'HEAL', name: 'Hồi phục', icon: Heart, color: 'pink', desc: 'Không mất chuỗi' },
+  { type: 'SWAP', name: 'Hoán đổi', icon: ArrowLeftRight, color: 'indigo', desc: 'Đổi điểm đối thủ' },
 ];
 
 export default function LocalBattleArena() {
@@ -59,13 +75,21 @@ export default function LocalBattleArena() {
     up: 'ArrowUp', left: 'ArrowLeft', down: 'ArrowDown', right: 'ArrowRight',
     item1: '7', item2: '8', item3: '9'
   });
+
+  useEffect(() => {
+    const savedRedKeys = localStorage.getItem('localBattle_redKeys');
+    if (savedRedKeys) setRedKeys(JSON.parse(savedRedKeys));
+    
+    const savedBlueKeys = localStorage.getItem('localBattle_blueKeys');
+    if (savedBlueKeys) setBlueKeys(JSON.parse(savedBlueKeys));
+  }, []);
   
   // Player State
   const [redPlayer, setRedPlayer] = useState<PlayerState>({
-    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0
+    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: []
   });
   const [bluePlayer, setBluePlayer] = useState<PlayerState>({
-    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0
+    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: []
   });
 
   // Load Quiz
@@ -116,34 +140,50 @@ export default function LocalBattleArena() {
           const itemIndex = parseInt(redAction.replace('ITEM', '')) - 1;
           useItem('red', itemIndex);
         } else {
+          const answerIndex = parseInt(redAction);
+          
+          if (redPlayer.isSelectingItem) {
+            if (answerIndex < redPlayer.selectionOptions.length) {
+              selectItem('red', redPlayer.selectionOptions[answerIndex]);
+            }
+            return;
+          }
+
           if (redPlayer.isLocked && now < redPlayer.lockedUntil) return;
           if (redPlayer.isFrozen && now < redPlayer.frozenUntil) return;
-          if (redPlayer.lastAnswer || redPlayer.showFeedback || redPlayer.isSelectingItem) return;
+          if (redPlayer.lastAnswer || redPlayer.showFeedback) return;
           
           const currentQuestion = quiz?.questions[redPlayer.questionIndex];
           if (!currentQuestion) return;
 
-          const answerIndex = parseInt(redAction);
           const option = currentQuestion.options[answerIndex];
           if (option) handleAnswer('red', option.id, option.isCorrect);
         }
       }
 
       // Check Blue Input
-      const blueAction = blueKeyMap[e.key];
+      const blueAction = blueKeyMap[e.key] || blueKeyMap[keyLower];
       if (blueAction !== undefined) {
         if (blueAction.startsWith('ITEM')) {
           const itemIndex = parseInt(blueAction.replace('ITEM', '')) - 1;
           useItem('blue', itemIndex);
         } else {
+          const answerIndex = parseInt(blueAction);
+          
+          if (bluePlayer.isSelectingItem) {
+            if (answerIndex < bluePlayer.selectionOptions.length) {
+              selectItem('blue', bluePlayer.selectionOptions[answerIndex]);
+            }
+            return;
+          }
+
           if (bluePlayer.isLocked && now < bluePlayer.lockedUntil) return;
           if (bluePlayer.isFrozen && now < bluePlayer.frozenUntil) return;
-          if (bluePlayer.lastAnswer || bluePlayer.showFeedback || bluePlayer.isSelectingItem) return;
+          if (bluePlayer.lastAnswer || bluePlayer.showFeedback) return;
 
           const currentQuestion = quiz?.questions[bluePlayer.questionIndex];
           if (!currentQuestion) return;
 
-          const answerIndex = parseInt(blueAction);
           const option = currentQuestion.options[answerIndex];
           if (option) handleAnswer('blue', option.id, option.isCorrect);
         }
@@ -169,6 +209,24 @@ export default function LocalBattleArena() {
       // Unblind
       if (redPlayer.isBlinded && now >= redPlayer.blindedUntil) setRedPlayer(p => ({ ...p, isBlinded: false }));
       if (bluePlayer.isBlinded && now >= bluePlayer.blindedUntil) setBluePlayer(p => ({ ...p, isBlinded: false }));
+
+      // Unconfuse
+      if (redPlayer.isConfused && now >= redPlayer.confusedUntil) setRedPlayer(p => ({ ...p, isConfused: false }));
+      if (bluePlayer.isConfused && now >= bluePlayer.confusedUntil) setBluePlayer(p => ({ ...p, isConfused: false }));
+
+      // Unink
+      if (redPlayer.isInked && now >= redPlayer.inkedUntil) setRedPlayer(p => ({ ...p, isInked: false }));
+      if (bluePlayer.isInked && now >= bluePlayer.inkedUntil) setBluePlayer(p => ({ ...p, isInked: false }));
+
+      // Time Bomb Logic
+      if (redPlayer.hasTimeBomb && now >= redPlayer.timeBombUntil) {
+        setRedPlayer(p => ({ ...p, hasTimeBomb: false, score: Math.max(0, p.score - 300) }));
+        soundService.play('wrong'); // Explosion sound
+      }
+      if (bluePlayer.hasTimeBomb && now >= bluePlayer.timeBombUntil) {
+        setBluePlayer(p => ({ ...p, hasTimeBomb: false, score: Math.max(0, p.score - 300) }));
+        soundService.play('wrong'); // Explosion sound
+      }
 
     }, 100);
     return () => clearInterval(interval);
@@ -197,6 +255,20 @@ export default function LocalBattleArena() {
     if (itemToUse === 'SHIELD') {
       setPlayer(p => ({ ...p, hasShield: true }));
       soundService.play('item');
+    } else if (itemToUse === 'HELP_5050') {
+      const currentQuestion = quiz?.questions[player.questionIndex];
+      if (currentQuestion) {
+        const wrongOptions = currentQuestion.options.filter(o => !o.isCorrect).map(o => o.id);
+        const shuffledWrong = wrongOptions.sort(() => 0.5 - Math.random()).slice(0, 2);
+        setPlayer(p => ({ ...p, eliminatedOptions: shuffledWrong }));
+        soundService.play('item');
+      }
+    } else if (itemToUse === 'DOUBLE_POINTS') {
+      setPlayer(p => ({ ...p, isDoublePoints: true }));
+      soundService.play('item');
+    } else if (itemToUse === 'HEAL') {
+      setPlayer(p => ({ ...p, isHealed: true }));
+      soundService.play('item');
     } else {
       // Offensive items
       if (opponent.hasShield) {
@@ -211,6 +283,17 @@ export default function LocalBattleArena() {
           setPlayer(p => ({ ...p, score: p.score + 200 }));
         } else if (itemToUse === 'BLIND') {
           setOpponent(p => ({ ...p, isBlinded: true, blindedUntil: Date.now() + 5000 }));
+        } else if (itemToUse === 'CONFUSION') {
+          setOpponent(p => ({ ...p, isConfused: true, confusedUntil: Date.now() + 10000 })); // Lasts for 1 question effectively
+        } else if (itemToUse === 'TIME_BOMB') {
+          setOpponent(p => ({ ...p, hasTimeBomb: true, timeBombUntil: Date.now() + 5000 }));
+        } else if (itemToUse === 'INK_SPLAT') {
+          setOpponent(p => ({ ...p, isInked: true, inkedUntil: Date.now() + 5000 }));
+        } else if (itemToUse === 'SWAP') {
+          const playerScore = player.score;
+          const opponentScore = opponent.score;
+          setPlayer(p => ({ ...p, score: opponentScore }));
+          setOpponent(p => ({ ...p, score: playerScore }));
         }
       }
     }
@@ -249,13 +332,20 @@ export default function LocalBattleArena() {
         pointsEarned += bonus;
       }
 
+      if (player.isDoublePoints) {
+        pointsEarned *= 2;
+      }
+
       setter(p => ({ 
         ...p, 
         lastAnswer: answerId, 
         isCorrect: true, 
         score: p.score + pointsEarned, 
         streak: p.streak + 1, 
-        showFeedback: true 
+        showFeedback: true,
+        hasTimeBomb: false, // Defuse bomb on correct answer
+        isDoublePoints: false, // Reset double points
+        eliminatedOptions: [] // Reset 50/50
       }));
       
       // Update Balance
@@ -294,10 +384,13 @@ export default function LocalBattleArena() {
         ...p, 
         lastAnswer: answerId, 
         isCorrect: false, 
-        streak: 0,
+        streak: p.isHealed ? p.streak : 0, // Heal protects streak
         isLocked: true,
         lockedUntil: Date.now() + 3000,
-        wrongAttempts: p.wrongAttempts + 1
+        wrongAttempts: p.wrongAttempts + 1,
+        isHealed: false, // Consume heal
+        isDoublePoints: false, // Consume double points even if wrong
+        eliminatedOptions: [] // Reset 50/50
       }));
 
       setTimeout(() => {
@@ -335,7 +428,7 @@ export default function LocalBattleArena() {
     const player = isRed ? redPlayer : bluePlayer;
 
     if (player.questionIndex < quiz.questions.length - 1) {
-      setter(p => ({ ...p, questionIndex: p.questionIndex + 1, lastAnswer: null, isCorrect: null, showFeedback: false, isSelectingItem: false, questionStartTime: Date.now(), wrongAttempts: 0 }));
+      setter(p => ({ ...p, questionIndex: p.questionIndex + 1, lastAnswer: null, isCorrect: null, showFeedback: false, isSelectingItem: false, questionStartTime: Date.now(), wrongAttempts: 0, isConfused: false, isInked: false, eliminatedOptions: [] }));
     } else {
       setter(p => ({ ...p, showFeedback: true, lastAnswer: null, isCorrect: null, isSelectingItem: false }));
       
@@ -439,16 +532,7 @@ export default function LocalBattleArena() {
                 <div className="col-start-3 row-start-2 w-12 h-12 border-2 border-red-500 rounded flex items-center justify-center font-bold uppercase">{redKeys.right}</div>
               </div>
               <p className="text-sm text-red-300">Sử dụng các phím để chọn đáp án</p>
-              {itemsEnabled && (
-                <div className="mt-4">
-                  <h4 className="text-red-400 font-bold mb-2 text-sm">Cài đặt phím vật phẩm</h4>
-                  <div className="flex gap-2 justify-center">
-                    <input type="text" maxLength={1} value={redKeys.item1} onChange={e => setRedKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-red-500 rounded text-white uppercase" title="Vật phẩm 1" />
-                    <input type="text" maxLength={1} value={redKeys.item2} onChange={e => setRedKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-red-500 rounded text-white uppercase" title="Vật phẩm 2" />
-                    <input type="text" maxLength={1} value={redKeys.item3} onChange={e => setRedKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-red-500 rounded text-white uppercase" title="Vật phẩm 3" />
-                  </div>
-                </div>
-              )}
+              {itemsEnabled && <p className="text-sm text-yellow-300 mt-2">Sử dụng phím {redKeys.item1}, {redKeys.item2}, {redKeys.item3} để dùng vật phẩm</p>}
             </div>
 
             <div className="bg-blue-900/30 border-2 border-blue-500 rounded-2xl p-8">
@@ -460,16 +544,7 @@ export default function LocalBattleArena() {
                 <div className="col-start-3 row-start-2 w-12 h-12 border-2 border-blue-500 rounded flex items-center justify-center font-bold text-xl">{blueKeys.right === 'ArrowRight' ? '→' : blueKeys.right}</div>
               </div>
               <p className="text-sm text-blue-300">Sử dụng các phím để chọn đáp án</p>
-              {itemsEnabled && (
-                <div className="mt-4">
-                  <h4 className="text-blue-400 font-bold mb-2 text-sm">Cài đặt phím vật phẩm</h4>
-                  <div className="flex gap-2 justify-center">
-                    <input type="text" maxLength={1} value={blueKeys.item1} onChange={e => setBlueKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-blue-500 rounded text-white uppercase" title="Vật phẩm 1" />
-                    <input type="text" maxLength={1} value={blueKeys.item2} onChange={e => setBlueKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-blue-500 rounded text-white uppercase" title="Vật phẩm 2" />
-                    <input type="text" maxLength={1} value={blueKeys.item3} onChange={e => setBlueKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-gray-800 border border-blue-500 rounded text-white uppercase" title="Vật phẩm 3" />
-                  </div>
-                </div>
-              )}
+              {itemsEnabled && <p className="text-sm text-yellow-300 mt-2">Sử dụng phím {blueKeys.item1}, {blueKeys.item2}, {blueKeys.item3} để dùng vật phẩm</p>}
             </div>
           </div>
 
@@ -553,6 +628,17 @@ export default function LocalBattleArena() {
             </div>
           </div>
         )}
+        {player.hasTimeBomb && (
+          <div className="absolute top-4 right-4 z-20 animate-pulse">
+            <Bomb className="w-12 h-12 text-red-600 drop-shadow-lg" />
+            <div className="text-center font-bold text-red-500 text-sm">BOM!</div>
+          </div>
+        )}
+        {player.isInked && (
+           <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center opacity-80">
+             <Droplets className="w-64 h-64 text-gray-900 animate-ping" />
+           </div>
+        )}
 
         {/* Item Selection Overlay */}
         {player.isSelectingItem && (
@@ -561,18 +647,25 @@ export default function LocalBattleArena() {
             <div className="grid grid-cols-1 gap-3 w-full">
               {player.selectionOptions.map((itemType, idx) => {
                 const item = ITEMS.find(i => i.type === itemType)!;
+                const keyHint = isRed 
+                  ? (idx === 0 ? redKeys.up : idx === 1 ? redKeys.left : redKeys.down)
+                  : (idx === 0 ? (blueKeys.up === 'ArrowUp' ? '↑' : blueKeys.up) : idx === 1 ? (blueKeys.left === 'ArrowLeft' ? '←' : blueKeys.left) : (blueKeys.down === 'ArrowDown' ? '↓' : blueKeys.down));
+                
                 return (
                   <button
                     key={idx}
                     onClick={() => selectItem(team, itemType)}
-                    className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all hover:scale-105 active:scale-95 bg-gray-800 border-${item.color}-500`}
+                    className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all hover:scale-105 active:scale-95 bg-gray-800 border-${item.color}-500 relative`}
                   >
                     <div className={`p-2 rounded-lg bg-${item.color}-500/20 text-${item.color}-400`}>
                       <item.icon size={24} />
                     </div>
-                    <div className="text-left">
+                    <div className="text-left flex-1">
                       <div className={`font-bold text-${item.color}-400`}>{item.name}</div>
                       <div className="text-xs text-gray-400">{item.desc}</div>
+                    </div>
+                    <div className={`w-8 h-8 rounded border-2 border-${item.color}-500 flex items-center justify-center font-bold text-${item.color}-400 uppercase`}>
+                      {keyHint}
                     </div>
                   </button>
                 );
@@ -587,6 +680,16 @@ export default function LocalBattleArena() {
             {player.hasShield && (
               <div className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full border border-blue-500 flex items-center gap-2 font-bold">
                 <Shield size={16} /> Khiên
+              </div>
+            )}
+            {player.isDoublePoints && (
+              <div className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full border border-yellow-500 flex items-center gap-2 font-bold">
+                <Zap size={16} /> x2
+              </div>
+            )}
+            {player.isHealed && (
+              <div className="bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full border border-pink-500 flex items-center gap-2 font-bold">
+                <Heart size={16} /> Hồi phục
               </div>
             )}
           </div>
@@ -658,41 +761,53 @@ export default function LocalBattleArena() {
               )}
 
               <div className="grid grid-cols-1 gap-3 mt-auto">
-                {currentQuestion?.options.map((opt, idx) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      if (player.isLocked || player.isFrozen || player.lastAnswer || player.showFeedback || player.isSelectingItem) return;
-                      handleAnswer(team, opt.id, opt.isCorrect);
-                    }}
-                    disabled={player.isLocked || player.isFrozen || !!player.lastAnswer || player.showFeedback || player.isSelectingItem}
-                    className={`w-full p-4 rounded-xl border-2 font-bold text-lg flex items-center gap-4 transition-all active:scale-95 touch-manipulation ${
-                      player.lastAnswer === opt.id
-                        ? (player.isCorrect ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400')
-                        : (player.showFeedback && opt.isCorrect) 
-                          ? 'bg-green-900/50 border-green-500'
-                          : 'bg-gray-700 border-gray-600 hover:bg-gray-600'
-                    } ${player.isBlinded ? 'blur-sm text-transparent' : ''}`}
-                  >
-                    <div className="w-8 h-8 border-2 border-gray-500 rounded flex items-center justify-center text-sm shrink-0 text-white !blur-0">
-                      {isRed 
-                        ? (idx === 0 ? 'W' : idx === 1 ? 'A' : idx === 2 ? 'S' : 'D')
-                        : (idx === 0 ? '↑' : idx === 1 ? '←' : idx === 2 ? '↓' : '→')}
-                    </div>
-                    <div className="flex-1 flex items-center gap-2 overflow-hidden">
-                      {opt.imageUrl && (
-                        <img 
-                          src={opt.imageUrl} 
-                          alt="Option" 
-                          className="h-12 w-12 object-cover rounded border border-gray-500 bg-black"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => (e.currentTarget.style.display = 'none')}
-                        />
-                      )}
-                      <span className="text-left w-full truncate"><MathText text={opt.text} /></span>
-                    </div>
-                  </button>
-                ))}
+                {(() => {
+                  let options = currentQuestion?.options || [];
+                  if (player.isConfused) {
+                    // Shuffle options for display only (logic remains same by ID)
+                    options = [...options].sort(() => 0.5 - Math.random());
+                  }
+                  
+                  return options.map((opt, idx) => {
+                    const isEliminated = player.eliminatedOptions.includes(opt.id);
+                    
+                    return (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        if (player.isLocked || player.isFrozen || player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated) return;
+                        handleAnswer(team, opt.id, opt.isCorrect);
+                      }}
+                      disabled={player.isLocked || player.isFrozen || !!player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated}
+                      className={`w-full p-4 rounded-xl border-2 font-bold text-lg flex items-center gap-4 transition-all active:scale-95 touch-manipulation ${
+                        player.lastAnswer === opt.id
+                          ? (player.isCorrect ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400')
+                          : (player.showFeedback && opt.isCorrect) 
+                            ? 'bg-green-900/50 border-green-500'
+                            : 'bg-gray-700 border-gray-600 hover:bg-gray-600'
+                      } ${player.isBlinded ? 'blur-sm text-transparent' : ''} ${isEliminated ? 'opacity-20 grayscale cursor-not-allowed' : ''}`}
+                    >
+                      <div className="w-8 h-8 border-2 border-gray-500 rounded flex items-center justify-center text-sm shrink-0 text-white !blur-0">
+                        {isRed 
+                          ? (idx === 0 ? 'W' : idx === 1 ? 'A' : idx === 2 ? 'S' : 'D')
+                          : (idx === 0 ? '↑' : idx === 1 ? '←' : idx === 2 ? '↓' : '→')}
+                      </div>
+                      <div className="flex-1 flex items-center gap-2 overflow-hidden">
+                        {opt.imageUrl && (
+                          <img 
+                            src={opt.imageUrl} 
+                            alt="Option" 
+                            className="h-12 w-12 object-cover rounded border border-gray-500 bg-black"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                          />
+                        )}
+                        <span className="text-left w-full truncate"><MathText text={opt.text} /></span>
+                      </div>
+                    </button>
+                  );
+                  });
+                })()}
               </div>
             </>
           )}
@@ -719,11 +834,11 @@ export default function LocalBattleArena() {
           <div className="h-6 bg-gray-700 rounded-full overflow-hidden relative border-2 border-gray-600">
             <div 
               className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-red-600 to-red-400 transition-all duration-500 ease-out"
-              style={{ width: `${100 - balance}%` }}
+              style={{ width: `${balance}%` }}
             ></div>
             <div 
               className="absolute top-0 bottom-0 right-0 bg-gradient-to-l from-blue-600 to-blue-400 transition-all duration-500 ease-out"
-              style={{ width: `${balance}%` }}
+              style={{ width: `${100 - balance}%` }}
             ></div>
             
             {/* Center Marker */}
@@ -733,7 +848,7 @@ export default function LocalBattleArena() {
           {/* Tug Marker */}
           <div 
             className="absolute top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full shadow-xl border-4 border-gray-800 flex items-center justify-center transition-all duration-500 ease-out z-20"
-            style={{ left: `${100 - balance}%`, transform: 'translate(-50%, -50%)' }}
+            style={{ left: `${balance}%`, transform: 'translate(-50%, -50%)' }}
           >
             <Swords className="w-6 h-6 text-gray-800" />
           </div>
