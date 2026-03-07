@@ -84,12 +84,20 @@ export default function GamePlayerLobby() {
       </p>
       
       {session?.mode === 'HOMEWORK' && (
-        <button
-          onClick={handleStartHomework}
-          className="mt-8 bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg transform transition hover:scale-105 animate-bounce"
-        >
-          BẮT ĐẦU LÀM BÀI
-        </button>
+        <div className="flex flex-col gap-4 mt-8">
+          <button
+            onClick={handleStartHomework}
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg transform transition hover:scale-105 animate-bounce"
+          >
+            BẮT ĐẦU LÀM BÀI
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/50 font-bold py-3 px-8 rounded-xl text-lg transition-colors"
+          >
+            Thoát ra
+          </button>
+        </div>
       )}
       
       <div className="mt-12 bg-indigo-800 rounded-lg p-6 w-full max-w-sm text-center shadow-xl border border-indigo-500 flex flex-col items-center gap-4">
