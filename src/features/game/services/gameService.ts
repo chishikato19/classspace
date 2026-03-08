@@ -1,4 +1,4 @@
-import { addDoc, arrayUnion, collection, doc, getDoc, getDocs, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
 import { db, auth } from '../../../config/firebase';
 import { GameMode, GameSession, GameStatus, Player, Question } from '../../../types';
 import { timeService } from '../../../services/timeService';
@@ -302,6 +302,12 @@ export const gameService = {
       status: 'FINISHED',
       finishedAt: Date.now()
     });
+  },
+
+  // Xóa session
+  deleteSession: async (sessionId: string): Promise<void> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    await deleteDoc(sessionRef);
   },
 
   // Nộp câu trả lời (Quan trọng: Xử lý Transaction để cộng điểm chính xác)

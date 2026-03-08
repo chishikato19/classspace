@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { GameSession, Player } from '../../../types';
 import { gameService } from '../services/gameService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { Zap, Skull, Snowflake, EyeOff, ShieldAlert } from 'lucide-react';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { timeService } from '../../../services/timeService';
 
 export default function BattleHostScreen() {
   const { sessionId } = useParams();
+  const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
   const [currentTime, setCurrentTime] = useState(timeService.now());
 
@@ -74,6 +75,9 @@ export default function BattleHostScreen() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
         <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/teacher/dashboard')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
+             <ArrowLeft />
+          </button>
           <h1 className="text-2xl font-black text-red-500 flex items-center gap-2">
             <ShieldAlert /> ĐẤU TRƯỜNG SINH TỒN
           </h1>

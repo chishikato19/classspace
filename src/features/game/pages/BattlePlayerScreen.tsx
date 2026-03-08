@@ -4,7 +4,7 @@ import { GameSession, Player, Question, Quiz } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart } from 'lucide-react';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart, Home, Trophy } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { MathText } from '../../../components/MathText';
 import { timeService } from '../../../services/timeService';
@@ -22,6 +22,7 @@ export default function BattlePlayerScreen() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState(timeService.now());
+  const [hasFinished, setHasFinished] = useState(false);
 
   // Tick timer to refresh effects
   useEffect(() => {
@@ -90,9 +91,7 @@ export default function BattlePlayerScreen() {
           setIsSubmitted(false);
           setQuestionStartTime(timeService.now());
         } else {
-          // Finished all questions? Maybe loop or end?
-          // For Battle, maybe loop questions? Or just end.
-          // Let's just end for now.
+          setHasFinished(true);
         }
       }, 2000);
     }
@@ -167,6 +166,53 @@ export default function BattlePlayerScreen() {
           </button>
           <p className="text-xs text-gray-400 mt-3">Điểm hiện tại của bạn: <span className={player.score < reviveCost ? "text-red-400" : "text-green-400"}>{player.score}</span></p>
         </div>
+        <button onClick={() => navigate('/')} className="mt-8 text-white/50 hover:text-white flex items-center gap-2">
+          <Home size={20} /> Trở về trang chủ
+        </button>
+      </div>
+    );
+  }
+
+  if (hasFinished || session.status === 'FINISHED') {
+    const winner = session.players?.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
+    const isWinner = winner?.id === player.id;
+
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-8 text-center animate-in fade-in">
+        {session.status === 'FINISHED' ? (
+           <>
+             {isWinner ? (
+               <Trophy className="w-32 h-32 text-yellow-400 mb-6 animate-bounce" />
+             ) : (
+               <ShieldAlert className="w-24 h-24 text-gray-400 mb-6" />
+             )}
+             <h1 className="text-4xl font-black mb-4 text-yellow-400">
+               {isWinner ? 'CHIẾN THẮNG!' : 'KẾT THÚC TRẬN ĐẤU'}
+             </h1>
+             <div className="bg-gray-800 p-8 rounded-3xl border-4 border-yellow-500/50 flex flex-col items-center shadow-2xl mb-8">
+                <StudentAvatar student={{ name: player.name, avatarConfig: player.avatarConfig } as any} size={100} />
+                <div className="text-3xl font-bold mt-4">{player.score} điểm</div>
+                <div className="text-green-400 font-bold mt-2">HP còn lại: {player.hp}</div>
+             </div>
+           </>
+        ) : (
+           <>
+             <div className="w-24 h-24 rounded-full border-4 border-t-yellow-400 border-r-transparent border-b-yellow-400 border-l-transparent animate-spin mb-8"></div>
+             <h1 className="text-3xl font-bold mb-4">ĐÃ HOÀN THÀNH!</h1>
+             <p className="text-xl text-gray-400 mb-8">Đang chờ kết quả từ những người chơi khác...</p>
+             <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 max-w-sm w-full">
+                <div className="text-gray-400 text-sm mb-1">Điểm số hiện tại</div>
+                <div className="text-3xl font-mono font-bold text-yellow-400">{player.score}</div>
+             </div>
+           </>
+        )}
+        
+        <button 
+          onClick={() => navigate('/')}
+          className="mt-8 bg-gray-700 hover:bg-gray-600 px-8 py-4 rounded-xl font-bold flex items-center gap-2 transition-all"
+        >
+          <Home size={20} /> Trở về trang chủ
+        </button>
       </div>
     );
   }

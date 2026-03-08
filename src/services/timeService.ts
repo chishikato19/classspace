@@ -1,4 +1,4 @@
-import { doc, serverTimestamp, setDoc, getDoc, collection } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc, getDoc, collection, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 class TimeService {
@@ -10,7 +10,10 @@ class TimeService {
 
     try {
       // Create a temporary document with server timestamp
-      const tempRef = doc(collection(db, 'system'), 'time_sync');
+      // Use a random ID to avoid collisions
+      const randomId = Math.random().toString(36).substring(2, 15);
+      const tempRef = doc(collection(db, 'time_sync'), randomId);
+      
       await setDoc(tempRef, { timestamp: serverTimestamp() });
       
       // Read it back
@@ -23,6 +26,9 @@ class TimeService {
         this.synchronized = true;
         console.log(`[TimeService] Synchronized. Offset: ${this.offset}ms`);
       }
+      
+      // Cleanup
+      await deleteDoc(tempRef); 
     } catch (error) {
       console.error('[TimeService] Synchronization failed:', error);
     }

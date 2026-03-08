@@ -4,7 +4,8 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../../../config/firebase';
 import { GameSession, Quiz } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
-import { Clock, Users, ChevronRight, BarChart2, Activity } from 'lucide-react';
+import { gameService } from '../../game/services/gameService';
+import { Clock, Users, ChevronRight, BarChart2, Activity, Trash2, StopCircle } from 'lucide-react';
 
 export default function ReportsDashboard() {
   const navigate = useNavigate();
@@ -12,43 +13,43 @@ export default function ReportsDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSessions = async () => {
-      if (!auth.currentUser) return;
-      
-      try {
-        // Lấy danh sách các session do giáo viên này tạo
-        const q = query(
-          collection(db, 'sessions'),
-          where('hostId', '==', auth.currentUser.uid)
-        );
-        
-        const snapshot = await getDocs(q);
-        const sessionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
-        
-        // Sắp xếp trên client để tránh lỗi thiếu index trên Firebase
-        sessionData.sort((a, b) => b.createdAt - a.createdAt);
-        
-        // Lấy thông tin quiz (tiêu đề) cho mỗi session
-        const sessionsWithQuiz = await Promise.all(sessionData.map(async (session) => {
-          if (session.quizId) {
-            const quiz = await quizService.getQuizById(session.quizId);
-            const quizTitle = quiz?.title || 'Bộ câu hỏi không xác định';
-            // Nếu session có title riêng thì dùng, không thì dùng title của quiz
-            return { ...session, quizTitle: session.title || quizTitle };
-          }
-          return { ...session, quizTitle: session.title || 'Không có bộ câu hỏi' };
-        }));
-        
-        setSessions(sessionsWithQuiz);
-      } catch (error) {
-        console.error("Error fetching sessions:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchSessions();
   }, []);
+
+  const fetchSessions = async () => {
+    if (!auth.currentUser) return;
+    
+    try {
+      // Lấy danh sách các session do giáo viên này tạo
+      const q = query(
+        collection(db, 'sessions'),
+        where('hostId', '==', auth.currentUser.uid)
+      );
+      
+      const snapshot = await getDocs(q);
+      const sessionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
+      
+      // Sắp xếp trên client để tránh lỗi thiếu index trên Firebase
+      sessionData.sort((a, b) => b.createdAt - a.createdAt);
+      
+      // Lấy thông tin quiz (tiêu đề) cho mỗi session
+      const sessionsWithQuiz = await Promise.all(sessionData.map(async (session) => {
+        if (session.quizId) {
+          const quiz = await quizService.getQuizById(session.quizId);
+          const quizTitle = quiz?.title || 'Bộ câu hỏi không xác định';
+          // Nếu session có title riêng thì dùng, không thì dùng title của quiz
+          return { ...session, quizTitle: session.title || quizTitle };
+        }
+        return { ...session, quizTitle: session.title || 'Không có bộ câu hỏi' };
+      }));
+      
+      setSessions(sessionsWithQuiz);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleViewResults = (sessionId: string) => {
     navigate(`/game/results/${sessionId}`);
@@ -57,6 +58,32 @@ export default function ReportsDashboard() {
   const handleMonitorHomework = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     navigate(`/game/dashboard/${sessionId}`);
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Bạn có chắc chắn muốn xóa lượt thi này? Hành động này không thể hoàn tác.')) {
+      try {
+        await gameService.deleteSession(sessionId);
+        setSessions(prev => prev.filter(s => s.id !== sessionId));
+      } catch (error) {
+        console.error("Failed to delete session:", error);
+        alert("Không thể xóa lượt thi. Vui lòng thử lại.");
+      }
+    }
+  };
+
+  const handleEndSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Bạn có chắc chắn muốn kết thúc lượt thi này ngay lập tức?')) {
+      try {
+        await gameService.endGame(sessionId);
+        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'FINISHED' } : s));
+      } catch (error) {
+        console.error("Failed to end session:", error);
+        alert("Không thể kết thúc lượt thi. Vui lòng thử lại.");
+      }
+    }
   };
 
   if (loading) {
@@ -141,6 +168,25 @@ export default function ReportsDashboard() {
                       Theo dõi
                     </button>
                   )}
+
+                  {session.status !== 'FINISHED' && (
+                    <button
+                      onClick={(e) => handleEndSession(e, session.id)}
+                      className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                      title="Kết thúc lượt thi"
+                    >
+                      <StopCircle className="w-5 h-5" />
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={(e) => handleDeleteSession(e, session.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Xóa lượt thi"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+
                   <div className="flex items-center text-gray-400 font-medium group">
                     <span className="hidden sm:inline">Xem kết quả</span>
                     <ChevronRight className="w-5 h-5 ml-1 transform group-hover:translate-x-1 transition-transform" />
