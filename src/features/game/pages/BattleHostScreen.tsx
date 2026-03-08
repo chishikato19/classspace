@@ -4,16 +4,17 @@ import { GameSession, Player } from '../../../types';
 import { gameService } from '../services/gameService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { Zap, Skull, Snowflake, EyeOff, ShieldAlert } from 'lucide-react';
+import { timeService } from '../../../services/timeService';
 
 export default function BattleHostScreen() {
   const { sessionId } = useParams();
   const [session, setSession] = useState<GameSession | null>(null);
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(timeService.now());
 
   // Tick timer to refresh effects
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(Date.now());
+      setCurrentTime(timeService.now());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -176,13 +177,14 @@ const BattlePlayerCard: React.FC<{ player: Player, currentTime: number }> = ({ p
       </div>
 
       {/* Active Effects List */}
-      <div className="flex gap-1 justify-center h-6">
+      <div className="flex flex-wrap gap-1 justify-center min-h-[1.5rem] mt-2">
         {activeEffects.map((effect, idx) => (
-          <div key={idx} className="bg-black/50 rounded px-1 flex items-center" title={`By: ${effect.sourceId}`}>
-            {effect.type === 'PARALYZED' && <Zap size={12} className="text-yellow-400" />}
-            {effect.type === 'FROZEN' && <Snowflake size={12} className="text-blue-400" />}
-            {effect.type === 'POISONED' && <Skull size={12} className="text-green-400" />}
-            {effect.type === 'BLINDED' && <EyeOff size={12} className="text-purple-400" />}
+          <div key={idx} className="bg-black/50 rounded px-1.5 py-0.5 flex items-center gap-1 text-[10px] font-bold" title={`By: ${effect.sourceId}`}>
+            {effect.type === 'PARALYZED' && <Zap size={10} className="text-yellow-400" />}
+            {effect.type === 'FROZEN' && <Snowflake size={10} className="text-blue-400" />}
+            {effect.type === 'POISONED' && <Skull size={10} className="text-green-400" />}
+            {effect.type === 'BLINDED' && <EyeOff size={10} className="text-purple-400" />}
+            <span>{Math.max(0, Math.ceil((effect.expiresAt - currentTime) / 1000))}s</span>
           </div>
         ))}
       </div>

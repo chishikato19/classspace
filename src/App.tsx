@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import SetupRequired from './components/SetupRequired';
@@ -25,8 +26,15 @@ import { StudentDashboardWrapper } from './features/shop/pages/StudentDashboard'
 
 import ShopManager from './features/shop/pages/ShopManager';
 import Settings from './features/teacher/pages/Settings';
+import { timeService } from './services/timeService';
 
 export default function App() {
+  useEffect(() => {
+    if (isFirebaseConfigured) {
+      timeService.synchronize();
+    }
+  }, []);
+
   if (!isFirebaseConfigured) {
     return <SetupRequired />;
   }

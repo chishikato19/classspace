@@ -7,6 +7,7 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { MathText } from '../../../components/MathText';
+import { timeService } from '../../../services/timeService';
 
 export default function BattlePlayerScreen() {
   const { sessionId } = useParams();
@@ -20,12 +21,12 @@ export default function BattlePlayerScreen() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(timeService.now());
 
   // Tick timer to refresh effects
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(Date.now());
+      setCurrentTime(timeService.now());
     }, 200); // Update every 200ms for smoother countdowns and faster effect detection
     return () => clearInterval(timer);
   }, []);
@@ -46,7 +47,7 @@ export default function BattlePlayerScreen() {
           // Simple shuffle for battle mode
           const questions = [...quizData.questions].sort(() => Math.random() - 0.5);
           setShuffledQuestions(questions);
-          setQuestionStartTime(Date.now());
+          setQuestionStartTime(timeService.now());
         }
       }
     });
@@ -69,8 +70,8 @@ export default function BattlePlayerScreen() {
     } else {
       soundService.play('wrong');
     }
-
-    const timeTaken = (Date.now() - questionStartTime) / 1000;
+    
+    const timeTaken = (timeService.now() - questionStartTime) / 1000;
 
     // Submit answer
     await gameService.submitAnswer(session.id, player.id, currentQuestion.id, {
@@ -87,7 +88,7 @@ export default function BattlePlayerScreen() {
         if (currentQuestionIndex < shuffledQuestions.length - 1) {
           setCurrentQuestionIndex(prev => prev + 1);
           setIsSubmitted(false);
-          setQuestionStartTime(Date.now());
+          setQuestionStartTime(timeService.now());
         } else {
           // Finished all questions? Maybe loop or end?
           // For Battle, maybe loop questions? Or just end.
@@ -103,7 +104,7 @@ export default function BattlePlayerScreen() {
       if (session.currentQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestionIndex(session.currentQuestionIndex);
         setIsSubmitted(false);
-        setQuestionStartTime(Date.now());
+        setQuestionStartTime(timeService.now());
       }
     }
   }, [session?.currentQuestionIndex, session?.settings?.pacing]);
@@ -249,7 +250,7 @@ export default function BattlePlayerScreen() {
       {isPoisoned && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
            <div className="flex items-center gap-2 bg-green-900/80 text-green-400 px-4 py-2 rounded-full border border-green-500 animate-bounce">
-              <Skull size={16} /> <span className="font-bold">BỊ TRÚNG ĐỘC! ({Math.ceil(((activeEffects.find(e => e.type === 'POISONED')?.expiresAt || currentTime) - currentTime) / 1000)}s)</span>
+              <Skull size={16} /> <span className="font-bold">BỊ TRÚNG ĐỘC! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'POISONED')?.expiresAt || currentTime) - currentTime) / 1000))}s)</span>
            </div>
         </div>
       )}
@@ -259,8 +260,8 @@ export default function BattlePlayerScreen() {
         {isBlinded && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
             <EyeOff className="w-32 h-32 text-purple-500 opacity-50" />
-            <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl border-2 border-purple-500">
-               BỊ MÙ TẠM THỜI! ({Math.ceil(((activeEffects.find(e => e.type === 'BLINDED')?.expiresAt || currentTime) - currentTime) / 1000)}s)
+            <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-purple-500">
+               BỊ MÙ TẠM THỜI! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'BLINDED')?.expiresAt || currentTime) - currentTime) / 1000))}s)
             </div>
           </div>
         )}

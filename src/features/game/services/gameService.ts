@@ -1,6 +1,7 @@
 import { addDoc, arrayUnion, collection, doc, getDoc, getDocs, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
 import { db, auth } from '../../../config/firebase';
 import { GameMode, GameSession, GameStatus, Player, Question } from '../../../types';
+import { timeService } from '../../../services/timeService';
 
 const getSessionsRef = () => collection(db, 'sessions');
 
@@ -181,8 +182,11 @@ export const gameService = {
       sourcePlayer.items.splice(itemIndex, 1);
 
       // Apply effect to target
-      const now = Date.now();
+      const now = timeService.now();
       if (!targetPlayer.statusEffects) targetPlayer.statusEffects = [];
+      
+      // Cleanup expired effects to keep document small
+      targetPlayer.statusEffects = targetPlayer.statusEffects.filter(e => e.expiresAt > now);
 
       const baseDuration = (data.settings?.effectDuration || 10) * 1000;
       let duration = baseDuration;
@@ -319,8 +323,10 @@ export const gameService = {
       
       // BATTLE MODE: Check for status effects
       if (data.mode === 'BATTLE' && player.statusEffects) {
-        const now = Date.now();
-        const activeEffects = player.statusEffects.filter(e => e.expiresAt > now);
+        const now = timeService.now();
+        // Cleanup expired effects
+        player.statusEffects = player.statusEffects.filter(e => e.expiresAt > now);
+        const activeEffects = player.statusEffects;
         
         const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
         const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
