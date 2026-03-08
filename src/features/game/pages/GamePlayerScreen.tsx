@@ -28,10 +28,11 @@ export default function GamePlayerScreen() {
 
   // Load session and quiz data
   useEffect(() => {
-    const name = localStorage.getItem('currentPlayerName');
+    const name = sessionStorage.getItem('currentPlayerName');
     if (name) setPlayerName(name);
+    const playerId = sessionStorage.getItem('currentPlayerId');
 
-    const avatarJson = localStorage.getItem('currentPlayerAvatar');
+    const avatarJson = sessionStorage.getItem('currentPlayerAvatar');
     if (avatarJson) {
       try {
         setAvatarConfig(JSON.parse(avatarJson));

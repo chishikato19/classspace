@@ -312,17 +312,15 @@ export const gameService = {
         streakBonus: true
       };
 
-      if (answerData.isCorrect) {
+      if (answerData.isCorrect === true) {
         // Tính điểm cơ bản
-        let basePoints = settings.equalPoints ? 1000 : answerData.points;
+        let basePoints = settings.equalPoints ? 1000 : (answerData.points || 0);
         
         // Tính điểm theo thời gian (nếu được bật và không phải chế độ điểm bằng nhau)
         if (settings.timeBasedPoints && !settings.equalPoints) {
-          // Giả sử answerData.timeTaken là số giây đã trôi qua, answerData.timeLimit là tổng thời gian
           const timeLimit = answerData.timeLimit || 30;
           const timeTaken = answerData.timeTaken || 0;
           const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
-          // Điểm tối thiểu là 50% số điểm, điểm tối đa là 100%
           basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
         }
 
@@ -332,11 +330,19 @@ export const gameService = {
         points = basePoints + streakBonus;
         player.streak += 1;
 
-        // BATTLE MODE: Grant Item
+        // BATTLE MODE: Grant Item (Only on correct answer)
         if (data.mode === 'BATTLE') {
-           const items = ['ATTACK', 'HEAL', 'LIGHTNING', 'POISON', 'BLIND', 'FREEZE'];
-           const randomItem = items[Math.floor(Math.random() * items.length)];
-           if (!player.items) player.items = [];
+           const itemPool = ['ATTACK', 'HEAL', 'LIGHTNING', 'POISON', 'BLIND', 'FREEZE'];
+           const randomItem = itemPool[Math.floor(Math.random() * itemPool.length)];
+           
+           // Ensure items array exists and is unique to this player
+           if (!player.items) {
+             player.items = [];
+           } else {
+             // Create a copy to avoid any potential reference sharing
+             player.items = [...player.items];
+           }
+           
            if (player.items.length < 3) { // Max 3 items
              player.items.push(randomItem);
            }

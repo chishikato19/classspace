@@ -15,10 +15,10 @@ export default function GamePlayerLobby() {
   const [showEditor, setShowEditor] = useState(false);
 
   useEffect(() => {
-    const name = localStorage.getItem('currentPlayerName');
+    const name = sessionStorage.getItem('currentPlayerName');
     if (name) setPlayerName(name);
 
-    const avatarJson = localStorage.getItem('currentPlayerAvatar');
+    const avatarJson = sessionStorage.getItem('currentPlayerAvatar');
     if (avatarJson) {
       try {
         setAvatarConfig(JSON.parse(avatarJson));
@@ -50,12 +50,12 @@ export default function GamePlayerLobby() {
 
   const handleSaveAvatar = async (newConfig: AvatarConfig) => {
     setAvatarConfig(newConfig);
-    localStorage.setItem('currentPlayerAvatar', JSON.stringify(newConfig));
+    sessionStorage.setItem('currentPlayerAvatar', JSON.stringify(newConfig));
     setShowEditor(false);
 
     // Update avatar in Firestore
     if (sessionId) {
-      const playerId = localStorage.getItem('currentPlayerId');
+      const playerId = sessionStorage.getItem('currentPlayerId');
       if (playerId) {
         try {
           await gameService.updatePlayerAvatar(sessionId, playerId, newConfig);

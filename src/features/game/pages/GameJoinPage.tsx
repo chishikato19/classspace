@@ -199,9 +199,9 @@ export default function GameJoinPage() {
         }
       }
 
-      localStorage.setItem('currentPlayerId', playerId);
-      localStorage.setItem('currentPlayerName', displayName);
-      localStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
+      sessionStorage.setItem('currentPlayerId', playerId);
+      sessionStorage.setItem('currentPlayerName', displayName);
+      sessionStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
 
       await gameService.joinSession(session.id, {
         id: playerId,

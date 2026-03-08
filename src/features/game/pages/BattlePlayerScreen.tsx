@@ -22,7 +22,7 @@ export default function BattlePlayerScreen() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
 
   useEffect(() => {
-    const playerId = localStorage.getItem('currentPlayerId');
+    const playerId = sessionStorage.getItem('currentPlayerId');
     if (!sessionId || !playerId) return;
 
     const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
