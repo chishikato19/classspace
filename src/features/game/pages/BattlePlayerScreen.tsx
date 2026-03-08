@@ -247,7 +247,7 @@ export default function BattlePlayerScreen() {
       {isPoisoned && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
            <div className="flex items-center gap-2 bg-green-900/80 text-green-400 px-4 py-2 rounded-full border border-green-500 animate-bounce">
-              <Skull size={16} /> <span className="font-bold">BỊ TRÚNG ĐỘC!</span>
+              <Skull size={16} /> <span className="font-bold">BỊ TRÚNG ĐỘC! ({Math.ceil(((activeEffects.find(e => e.type === 'POISONED')?.expiresAt || currentTime) - currentTime) / 1000)}s)</span>
            </div>
         </div>
       )}
@@ -258,7 +258,7 @@ export default function BattlePlayerScreen() {
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
             <EyeOff className="w-32 h-32 text-purple-500 opacity-50" />
             <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl border-2 border-purple-500">
-               BỊ MÙ TẠM THỜI!
+               BỊ MÙ TẠM THỜI! ({Math.ceil(((activeEffects.find(e => e.type === 'BLINDED')?.expiresAt || currentTime) - currentTime) / 1000)}s)
             </div>
           </div>
         )}
