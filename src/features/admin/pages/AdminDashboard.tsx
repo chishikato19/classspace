@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/adminService';
 import { ClassGroup, Student } from '../../../types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { auth } from '../../../config/firebase';
+import { sortVietnameseNames } from '../../../utils/stringUtils';
 
 export default function AdminDashboard() {
   const [classes, setClasses] = useState<ClassGroup[]>([]);
@@ -35,8 +36,6 @@ export default function AdminDashboard() {
   const loadClasses = async (teacherId?: string) => {
     const uid = teacherId || auth.currentUser?.uid;
     if (!uid) return;
-    // We need to update adminService.getAllClasses to getClassesByTeacher
-    // For now, let's just fetch all and filter, or update adminService
     const data = await adminService.getClassesByTeacher(uid);
     setClasses(data);
   };
@@ -121,6 +120,45 @@ export default function AdminDashboard() {
       alert("Lỗi khi xóa học sinh.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSortStudents = async () => {
+    if (!selectedClass || students.length === 0) return;
+    setLoading(true);
+    try {
+      const sortedStudents = [...students].sort((a, b) => sortVietnameseNames(a.name, b.name));
+      const updatedStudents = sortedStudents.map((s, index) => ({ ...s, order: index }));
+      setStudents(updatedStudents);
+      await adminService.updateStudentsOrder(updatedStudents);
+    } catch (error) {
+      console.error("Error sorting students:", error);
+      alert("Lỗi khi sắp xếp học sinh.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMoveStudent = async (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === students.length - 1) return;
+
+    const newStudents = [...students];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    const temp = newStudents[index];
+    newStudents[index] = newStudents[targetIndex];
+    newStudents[targetIndex] = temp;
+    
+    const updatedStudents = newStudents.map((s, i) => ({ ...s, order: i }));
+    setStudents(updatedStudents);
+    
+    try {
+      await adminService.updateStudentsOrder(updatedStudents);
+    } catch (error) {
+      console.error("Error updating student order:", error);
+      // Revert if failed
+      if (selectedClass) loadStudents(selectedClass.id);
     }
   };
 
@@ -227,8 +265,20 @@ export default function AdminDashboard() {
                 </form>
 
                 <div className="mt-6 border-t border-gray-100 pt-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-medium text-gray-700">Danh sách học sinh ({students.length})</h4>
+                    {students.length > 1 && (
+                      <button
+                        onClick={handleSortStudents}
+                        disabled={loading}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 transition-colors disabled:opacity-50"
+                      >
+                        Sắp xếp A-Z
+                      </button>
+                    )}
+                  </div>
                   <ul className="divide-y divide-gray-100">
-                    {students.map((student) => (
+                    {students.map((student, index) => (
                       <li key={student.id} className="flex justify-between gap-x-6 py-3 items-center">
                         <div className="flex min-w-0 gap-x-4 items-center flex-1">
                           <StudentAvatar student={student} size={40} />
@@ -237,13 +287,32 @@ export default function AdminDashboard() {
                             <p className="mt-1 truncate text-xs leading-5 text-gray-500">Điểm tích lũy: {student.wallet_points}</p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteStudent(student.id)}
-                          className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-colors"
-                          title="Xóa học sinh"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleMoveStudent(index, 'up')}
+                            disabled={index === 0 || loading}
+                            className="text-gray-400 hover:text-indigo-600 p-1 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-30"
+                            title="Lên"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveStudent(index, 'down')}
+                            disabled={index === students.length - 1 || loading}
+                            className="text-gray-400 hover:text-indigo-600 p-1 rounded-full hover:bg-gray-50 transition-colors disabled:opacity-30"
+                            title="Xuống"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(student.id)}
+                            disabled={loading}
+                            className="text-red-500 hover:text-red-700 p-1 ml-2 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"
+                            title="Xóa học sinh"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </li>
                     ))}
                     {students.length === 0 && (

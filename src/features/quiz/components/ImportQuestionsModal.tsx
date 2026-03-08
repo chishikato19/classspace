@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Question } from '../../../types';
 import { parseQuestionsFromText } from '../../../utils/questionParser';
 import { X, FileText, CheckCircle, AlertCircle, ArrowRight, Upload } from 'lucide-react';

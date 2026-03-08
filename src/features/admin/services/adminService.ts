@@ -90,6 +90,23 @@ export const adminService = {
   getStudentsByClass: async (classId: string): Promise<Student[]> => {
     const q = query(getStudentsRef(), where('classId', '==', classId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+    const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+    return students.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order;
+      }
+      // Fallback: sort by name if no order
+      return a.name.localeCompare(b.name);
+    });
+  },
+
+  // Cập nhật thứ tự học sinh
+  updateStudentsOrder: async (students: Student[]): Promise<void> => {
+    const batch = writeBatch(db);
+    students.forEach((student, index) => {
+      const ref = doc(db, 'students', student.id);
+      batch.update(ref, { order: index });
+    });
+    await batch.commit();
   }
 };

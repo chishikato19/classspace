@@ -183,6 +183,20 @@ export default function QuizEditor() {
     setQuestions(newQuestions);
   };
 
+  const handleMoveQuestion = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === questions.length - 1) return;
+
+    const newQuestions = [...questions];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    const temp = newQuestions[index];
+    newQuestions[index] = newQuestions[targetIndex];
+    newQuestions[targetIndex] = temp;
+    
+    setQuestions(newQuestions);
+  };
+
   const handleSave = async () => {
     if (!title.trim()) {
       alert('Vui lòng nhập tên bộ câu hỏi');
@@ -317,13 +331,31 @@ export default function QuizEditor() {
                   <option value="SHORT_ANSWER">Trả lời ngắn</option>
                 </select>
               </div>
-              <button
-                onClick={() => handleDeleteQuestion(qIndex)}
-                className="text-red-400 hover:text-red-600 transition-colors p-1"
-                title="Xóa câu hỏi"
-              >
-                <Trash2 size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleMoveQuestion(qIndex, 'up')}
+                  disabled={qIndex === 0}
+                  className="text-gray-400 hover:text-indigo-600 transition-colors p-1 disabled:opacity-30 disabled:hover:text-gray-400"
+                  title="Di chuyển lên"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                </button>
+                <button
+                  onClick={() => handleMoveQuestion(qIndex, 'down')}
+                  disabled={qIndex === questions.length - 1}
+                  className="text-gray-400 hover:text-indigo-600 transition-colors p-1 disabled:opacity-30 disabled:hover:text-gray-400"
+                  title="Di chuyển xuống"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <button
+                  onClick={() => handleDeleteQuestion(qIndex)}
+                  className="text-red-400 hover:text-red-600 transition-colors p-1 ml-2"
+                  title="Xóa câu hỏi"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
             
             <div className="mb-4 space-y-3">

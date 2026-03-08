@@ -1,4 +1,4 @@
-import { Question, QuestionType } from '../../types';
+import { Question, QuestionType } from '../types';
 
 export const parseQuestionsFromText = (text: string): Question[] => {
   const questions: Question[] = [];

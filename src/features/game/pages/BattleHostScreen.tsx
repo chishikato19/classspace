@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GameSession, Player } from '../../../types';
 import { gameService } from '../services/gameService';
@@ -99,7 +99,7 @@ export default function BattleHostScreen() {
   );
 }
 
-function BattlePlayerCard({ player }: { player: Player }) {
+const BattlePlayerCard: React.FC<{ player: Player }> = ({ player }) => {
   const hp = player.hp ?? 100;
   const maxHp = player.maxHp ?? 100;
   const hpPercent = (hp / maxHp) * 100;
@@ -180,4 +180,4 @@ function BattlePlayerCard({ player }: { player: Player }) {
       </div>
     </div>
   );
-}
+};

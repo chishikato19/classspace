@@ -14,6 +14,7 @@ export interface StudentData {
   classId: string;
   wallet_points?: number;
   avatarConfig?: AvatarConfig;
+  order?: number;
 }
 
 export const classService = {
@@ -43,7 +44,13 @@ export const classService = {
   getStudentsByClass: async (classId: string): Promise<StudentData[]> => {
     const q = query(collection(db, 'students'), where('classId', '==', classId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentData));
+    const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentData));
+    return students.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order;
+      }
+      return a.name.localeCompare(b.name);
+    });
   },
 
   updateStudentPoints: async (studentId: string, points: number): Promise<void> => {

@@ -35,6 +35,7 @@ export interface Student {
   avatarConfig?: AvatarConfig;
   inventory?: Inventory;
   passcode?: string; // Mật khẩu cá nhân để chống gian lận
+  order?: number; // Thứ tự sắp xếp
 }
 
 export interface ClassGroup {
@@ -108,6 +109,7 @@ export interface GameSession {
   nameInputType?: 'MANUAL' | 'CLASS_LIST';
   selectedClassId?: string;
   isGroupPlay?: boolean;
+  players?: Player[]; // Danh sách người chơi
 }
 
 export interface Player {

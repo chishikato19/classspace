@@ -33,9 +33,12 @@ export const gameService = {
       currentQuestionIndex: 0,
       settings,
       nameInputType: nameInputConfig?.type || 'MANUAL',
-      selectedClassId: nameInputConfig?.classId,
       isGroupPlay: nameInputConfig?.isGroupPlay || false,
     };
+
+    if (nameInputConfig?.classId) {
+      sessionData.selectedClassId = nameInputConfig.classId;
+    }
 
     if (title) {
       sessionData.title = title;
