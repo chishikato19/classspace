@@ -165,8 +165,15 @@ export const gameService = {
       
       if (sourceIndex === -1 || targetIndex === -1) throw "Player not found";
 
-      const sourcePlayer = players[sourceIndex];
-      const targetPlayer = players[targetIndex];
+      const sourcePlayer = { ...players[sourceIndex] };
+      
+      // Handle self-targeting or separate targets
+      let targetPlayer: Player;
+      if (sourcePlayerId === targetPlayerId) {
+        targetPlayer = sourcePlayer;
+      } else {
+        targetPlayer = { ...players[targetIndex] };
+      }
 
       // Remove item from source
       if (!sourcePlayer.items?.includes(itemType)) throw "Item not found";
@@ -182,42 +189,48 @@ export const gameService = {
 
       switch (itemType) {
         case 'ATTACK':
-          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 20);
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 25); // Increased damage
           break;
         case 'HEAL':
-          targetPlayer.hp = Math.min(targetPlayer.maxHp || 100, (targetPlayer.hp || 100) + 20);
+          targetPlayer.hp = Math.min(targetPlayer.maxHp || 100, (targetPlayer.hp || 100) + 35); // Increased heal
+          // Healing also clears poison
+          targetPlayer.statusEffects = targetPlayer.statusEffects.filter(e => e.type !== 'POISONED');
           break;
         case 'LIGHTNING':
-          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 10);
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 15);
           effectType = 'PARALYZED';
-          duration = 5000;
+          duration = 4000; // Slightly shorter but impactful
           break;
         case 'POISON':
-          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 5);
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 10);
           effectType = 'POISONED';
-          duration = 10000;
+          duration = 15000; // Long duration
           break;
         case 'BLIND':
           effectType = 'BLINDED';
-          duration = 5000;
+          duration = 8000; // Long duration
           break;
         case 'FREEZE':
           effectType = 'FROZEN';
-          duration = 5000;
+          duration = 4000;
           break;
       }
 
       if (effectType) {
+        // Remove existing effect of same type if any to refresh duration
+        targetPlayer.statusEffects = targetPlayer.statusEffects.filter(e => e.type !== effectType);
         targetPlayer.statusEffects.push({
           type: effectType as any,
           expiresAt: now + duration,
-          sourceId: sourcePlayerId // Store who attacked
+          sourceId: sourcePlayerId
         });
       }
 
-      // Update players
+      // Update players array
       players[sourceIndex] = sourcePlayer;
-      players[targetIndex] = targetPlayer;
+      if (sourcePlayerId !== targetPlayerId) {
+        players[targetIndex] = targetPlayer;
+      }
 
       transaction.update(sessionRef, { players });
     });
@@ -302,8 +315,17 @@ export const gameService = {
       if (playerIndex === -1) throw "Player not found";
 
       // Cập nhật thông tin người chơi
-      const player = players[playerIndex];
+      const player = { ...players[playerIndex] };
       
+      // BATTLE MODE: Check for poison damage
+      if (data.mode === 'BATTLE' && player.statusEffects) {
+        const now = Date.now();
+        const isPoisoned = player.statusEffects.some(e => e.type === 'POISONED' && e.expiresAt > now);
+        if (isPoisoned) {
+          player.hp = Math.max(0, (player.hp || 100) - 10); // Take 10 damage if poisoned when submitting
+        }
+      }
+
       // Logic tính điểm
       let points = 0;
       const settings = data.settings || {

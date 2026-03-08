@@ -20,6 +20,15 @@ export default function BattlePlayerScreen() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Tick timer to refresh effects
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const playerId = sessionStorage.getItem('currentPlayerId');
@@ -122,11 +131,11 @@ export default function BattlePlayerScreen() {
   const reviveCost = session.settings?.reviveCost || 1000;
 
   // Check active effects
-  const now = Date.now();
-  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > now);
+  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > currentTime);
   const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
   const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
   const isBlinded = activeEffects.some(e => e.type === 'BLINDED');
+  const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
 
   const handleRevive = async () => {
     if (!session || !player) return;
@@ -161,7 +170,12 @@ export default function BattlePlayerScreen() {
 
   if (targetSelection) {
     // Target Selection Screen
-    const targets = session.players?.filter(p => p.id !== player.id && (p.hp || 0) > 0) || [];
+    // For HEAL, include self
+    const targets = session.players?.filter(p => {
+      if (targetSelection === 'HEAL') return (p.hp || 0) > 0; // Can heal self or others
+      return p.id !== player.id && (p.hp || 0) > 0; // Others only for offensive items
+    }) || [];
+    
     return (
       <div className="min-h-screen bg-gray-900 text-white p-4">
         <h2 className="text-2xl font-bold mb-6 text-center text-yellow-400 flex items-center justify-center gap-2">
@@ -215,24 +229,39 @@ export default function BattlePlayerScreen() {
 
       {/* Effect Overlays */}
       {isParalyzed && (
-        <div className="absolute inset-0 bg-yellow-500/20 z-50 flex flex-col items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-yellow-500/20 z-50 flex flex-col items-center justify-center pointer-events-none backdrop-blur-[1px]">
           <Zap className="w-32 h-32 text-yellow-400 animate-bounce" />
           <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-yellow-400">
-             BỊ TÊ LIỆT BỞI {session?.players?.find(p => p.id === activeEffects.find(e => e.type === 'PARALYZED')?.sourceId)?.name || 'KẺ THÙ'}!
+             BỊ TÊ LIỆT! ({Math.ceil(((activeEffects.find(e => e.type === 'PARALYZED')?.expiresAt || currentTime) - currentTime) / 1000)}s)
           </div>
         </div>
       )}
       {isFrozen && (
-        <div className="absolute inset-0 bg-blue-500/20 z-50 flex flex-col items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-blue-500/20 z-50 flex flex-col items-center justify-center pointer-events-none backdrop-blur-[2px]">
           <Snowflake className="w-32 h-32 text-blue-400 animate-pulse" />
           <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-blue-400">
-             BỊ ĐÓNG BĂNG BỞI {session?.players?.find(p => p.id === activeEffects.find(e => e.type === 'FROZEN')?.sourceId)?.name || 'KẺ THÙ'}!
+             BỊ ĐÓNG BĂNG! ({Math.ceil(((activeEffects.find(e => e.type === 'FROZEN')?.expiresAt || currentTime) - currentTime) / 1000)}s)
           </div>
+        </div>
+      )}
+      {isPoisoned && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+           <div className="flex items-center gap-2 bg-green-900/80 text-green-400 px-4 py-2 rounded-full border border-green-500 animate-bounce">
+              <Skull size={16} /> <span className="font-bold">BỊ TRÚNG ĐỘC!</span>
+           </div>
         </div>
       )}
 
       {/* Main Area: Question or Waiting */}
-      <div className="flex-1 p-4 flex flex-col justify-center relative">
+      <div className={`flex-1 p-4 flex flex-col justify-center relative ${isBlinded ? 'blur-xl grayscale' : ''}`}>
+        {isBlinded && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
+            <EyeOff className="w-32 h-32 text-purple-500 opacity-50" />
+            <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl border-2 border-purple-500">
+               BỊ MÙ TẠM THỜI!
+            </div>
+          </div>
+        )}
         {isSubmitted && (
              <div className={`absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in zoom-in`}>
                 <div className={`text-4xl font-black px-8 py-4 rounded-2xl shadow-2xl ${isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>

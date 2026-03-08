@@ -8,6 +8,15 @@ import { Zap, Skull, Snowflake, EyeOff, ShieldAlert } from 'lucide-react';
 export default function BattleHostScreen() {
   const { sessionId } = useParams();
   const [session, setSession] = useState<GameSession | null>(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Tick timer to refresh effects
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -92,21 +101,20 @@ export default function BattleHostScreen() {
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {players.map(player => (
-          <BattlePlayerCard key={player.id} player={player} />
+          <BattlePlayerCard key={player.id} player={player} currentTime={currentTime} />
         ))}
       </div>
     </div>
   );
 }
 
-const BattlePlayerCard: React.FC<{ player: Player }> = ({ player }) => {
+const BattlePlayerCard: React.FC<{ player: Player, currentTime: number }> = ({ player, currentTime }) => {
   const hp = player.hp ?? 100;
   const maxHp = player.maxHp ?? 100;
   const hpPercent = (hp / maxHp) * 100;
 
   // Check active effects
-  const now = Date.now();
-  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > now);
+  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > currentTime);
 
   const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
   const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
