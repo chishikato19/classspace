@@ -54,7 +54,8 @@ export default function GameJoinPage() {
              setStep('STUDENT');
           } else {
              // Fallback: Let student select class if no class is enforced
-             const classList = await adminService.getAllClasses();
+             // Only fetch classes belonging to the host
+             const classList = await adminService.getClassesByTeacher(foundSession.hostId);
              setClasses(classList);
              setStep('CLASS');
           }

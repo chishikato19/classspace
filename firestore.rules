@@ -100,7 +100,7 @@ service cloud.firestore {
     // ===============================================================
 
     match /classes/{classId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Students need to see class list to join
       allow create: if isAuthenticated() && isValidClass(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
       allow update: if isAuthenticated() && isValidClass(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());

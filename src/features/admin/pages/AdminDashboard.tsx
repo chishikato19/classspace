@@ -3,6 +3,7 @@ import { adminService } from '../services/adminService';
 import { ClassGroup, Student } from '../../../types';
 import { Trash2 } from 'lucide-react';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { auth } from '../../../config/firebase';
 
 export default function AdminDashboard() {
   const [classes, setClasses] = useState<ClassGroup[]>([]);
@@ -14,7 +15,14 @@ export default function AdminDashboard() {
 
   // Load danh sách lớp khi vào trang
   useEffect(() => {
-    loadClasses();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadClasses(user.uid);
+      } else {
+        setClasses([]);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   // Load danh sách học sinh khi chọn lớp
@@ -24,8 +32,12 @@ export default function AdminDashboard() {
     }
   }, [selectedClass]);
 
-  const loadClasses = async () => {
-    const data = await adminService.getAllClasses();
+  const loadClasses = async (teacherId?: string) => {
+    const uid = teacherId || auth.currentUser?.uid;
+    if (!uid) return;
+    // We need to update adminService.getAllClasses to getClassesByTeacher
+    // For now, let's just fetch all and filter, or update adminService
+    const data = await adminService.getClassesByTeacher(uid);
     setClasses(data);
   };
 
@@ -38,11 +50,17 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!newClassName.trim()) return;
     
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      alert("Bạn cần đăng nhập để tạo lớp.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await adminService.createClass(newClassName, 'admin'); // Tạm thời để teacherId là admin
+      await adminService.createClass(newClassName, currentUser.uid);
       setNewClassName('');
-      await loadClasses(); // Refresh list
+      await loadClasses(currentUser.uid); // Refresh list
     } catch (error) {
       console.error("Error creating class:", error);
       alert("Lỗi khi tạo lớp. Kiểm tra console.");

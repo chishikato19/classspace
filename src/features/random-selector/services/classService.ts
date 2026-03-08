@@ -23,9 +23,21 @@ export const classService = {
   },
 
   getClassesByTeacher: async (teacherId: string): Promise<ClassData[]> => {
-    const q = query(collection(db, 'classes'), where('teacherId', '==', teacherId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassData));
+    // Fetch classes for the specific teacher
+    const q1 = query(collection(db, 'classes'), where('teacherId', '==', teacherId));
+    const snapshot1 = await getDocs(q1);
+    const classes1 = snapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassData));
+
+    // Fetch classes created with the legacy 'admin' teacherId
+    const q2 = query(collection(db, 'classes'), where('teacherId', '==', 'admin'));
+    const snapshot2 = await getDocs(q2);
+    const classes2 = snapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassData));
+
+    // Combine and remove duplicates
+    const allClasses = [...classes1, ...classes2];
+    const uniqueClasses = Array.from(new Map(allClasses.map(c => [c.id, c])).values());
+    
+    return uniqueClasses;
   },
 
   getStudentsByClass: async (classId: string): Promise<StudentData[]> => {

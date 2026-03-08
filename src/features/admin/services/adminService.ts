@@ -14,6 +14,20 @@ export const adminService = {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassGroup));
   },
 
+  // Lấy danh sách lớp theo giáo viên
+  getClassesByTeacher: async (teacherId: string): Promise<ClassGroup[]> => {
+    const q1 = query(getClassesRef(), where('teacherId', '==', teacherId));
+    const snapshot1 = await getDocs(q1);
+    const classes1 = snapshot1.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassGroup));
+
+    const q2 = query(getClassesRef(), where('teacherId', '==', 'admin'));
+    const snapshot2 = await getDocs(q2);
+    const classes2 = snapshot2.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassGroup));
+
+    const allClasses = [...classes1, ...classes2];
+    return Array.from(new Map(allClasses.map(c => [c.id, c])).values());
+  },
+
   // Tạo lớp mới
   createClass: async (name: string, teacherId: string): Promise<string> => {
     const docRef = await addDoc(getClassesRef(), {

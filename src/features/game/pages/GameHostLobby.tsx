@@ -29,13 +29,18 @@ export default function GameHostLobby() {
   const [isGroupPlay, setIsGroupPlay] = useState(false);
 
   useEffect(() => {
-    const fetchClasses = async () => {
-      if (auth.currentUser) {
-        const data = await classService.getClassesByTeacher(auth.currentUser.uid);
-        setClasses(data);
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const data = await classService.getClassesByTeacher(user.uid);
+          setClasses(data);
+        } catch (error) {
+          console.error("Error fetching classes:", error);
+        }
       }
-    };
-    fetchClasses();
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   const handleCreateSession = async () => {
@@ -197,7 +202,7 @@ export default function GameHostLobby() {
                     <select
                       value={selectedClassId}
                       onChange={(e) => setSelectedClassId(e.target.value)}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 bg-white"
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 bg-white border"
                     >
                       <option value="">-- Chọn lớp --</option>
                       {classes.map((cls) => (
