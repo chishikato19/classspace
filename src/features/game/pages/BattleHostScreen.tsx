@@ -63,8 +63,8 @@ export default function BattleHostScreen() {
            ) : (
              <div className="text-2xl text-gray-400">Không có ai sống sót...</div>
            )}
-           <button onClick={() => window.close()} className="mt-8 bg-gray-700 hover:bg-gray-600 px-8 py-4 rounded-xl font-bold">
-             Đóng
+           <button onClick={() => navigate('/teacher/dashboard')} className="mt-8 bg-gray-700 hover:bg-gray-600 px-8 py-4 rounded-xl font-bold flex items-center gap-2">
+             <ArrowLeft size={20} /> Quay lại Dashboard
            </button>
         </div>
      );
