@@ -26,7 +26,7 @@ export default function BattlePlayerScreen() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(Date.now());
-    }, 1000);
+    }, 200); // Update every 200ms for smoother countdowns and faster effect detection
     return () => clearInterval(timer);
   }, []);
 
@@ -55,6 +55,7 @@ export default function BattlePlayerScreen() {
 
   const handleAnswer = async (optionId: string) => {
     if (isSubmitted || !quiz || !session || !player || shuffledQuestions.length === 0) return;
+    if (isFrozen || isParalyzed) return; // Block answering if frozen or paralyzed
     
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
     const correctOption = currentQuestion.options.find(o => o.isCorrect);
@@ -108,6 +109,7 @@ export default function BattlePlayerScreen() {
   }, [session?.currentQuestionIndex, session?.settings?.pacing]);
 
   const handleUseItem = (itemType: string) => {
+    if (isFrozen || isParalyzed) return; // Block using items if frozen or paralyzed
     setTargetSelection(itemType);
   };
 
@@ -229,18 +231,18 @@ export default function BattlePlayerScreen() {
 
       {/* Effect Overlays */}
       {isParalyzed && (
-        <div className="absolute inset-0 bg-yellow-500/20 z-50 flex flex-col items-center justify-center pointer-events-none backdrop-blur-[1px]">
+        <div className="absolute inset-0 bg-yellow-500/20 z-50 flex flex-col items-center justify-center backdrop-blur-[1px]">
           <Zap className="w-32 h-32 text-yellow-400 animate-bounce" />
           <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-yellow-400">
-             BỊ TÊ LIỆT! ({Math.ceil(((activeEffects.find(e => e.type === 'PARALYZED')?.expiresAt || currentTime) - currentTime) / 1000)}s)
+             BỊ TÊ LIỆT! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'PARALYZED')?.expiresAt || currentTime) - currentTime) / 1000))}s)
           </div>
         </div>
       )}
       {isFrozen && (
-        <div className="absolute inset-0 bg-blue-500/20 z-50 flex flex-col items-center justify-center pointer-events-none backdrop-blur-[2px]">
+        <div className="absolute inset-0 bg-blue-500/20 z-50 flex flex-col items-center justify-center backdrop-blur-[2px]">
           <Snowflake className="w-32 h-32 text-blue-400 animate-pulse" />
           <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-blue-400">
-             BỊ ĐÓNG BĂNG! ({Math.ceil(((activeEffects.find(e => e.type === 'FROZEN')?.expiresAt || currentTime) - currentTime) / 1000)}s)
+             BỊ ĐÓNG BĂNG! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'FROZEN')?.expiresAt || currentTime) - currentTime) / 1000))}s)
           </div>
         </div>
       )}
@@ -319,7 +321,7 @@ export default function BattlePlayerScreen() {
                   {item === 'ATTACK' && <Sword className="text-red-500" />}
                   {item === 'HEAL' && <Heart className="text-pink-500" />}
                   
-                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  <span className={`absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none ${isBlinded ? 'hidden' : ''}`}>
                     {item}
                   </span>
                 </button>

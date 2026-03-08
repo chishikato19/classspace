@@ -317,10 +317,19 @@ export const gameService = {
       // Cập nhật thông tin người chơi
       const player = { ...players[playerIndex] };
       
-      // BATTLE MODE: Check for poison damage
+      // BATTLE MODE: Check for status effects
       if (data.mode === 'BATTLE' && player.statusEffects) {
         const now = Date.now();
-        const isPoisoned = player.statusEffects.some(e => e.type === 'POISONED' && e.expiresAt > now);
+        const activeEffects = player.statusEffects.filter(e => e.expiresAt > now);
+        
+        const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
+        const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
+        
+        if (isFrozen || isParalyzed) {
+          throw new Error("Bạn đang bị đóng băng hoặc tê liệt, không thể trả lời!");
+        }
+
+        const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
         if (isPoisoned) {
           player.hp = Math.max(0, (player.hp || 100) - 10); // Take 10 damage if poisoned when submitting
         }
