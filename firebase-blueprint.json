@@ -62,7 +62,13 @@
         "players": { "type": "array", "description": "List of players in the session" },
         "createdAt": { "type": "number", "description": "Timestamp of creation" },
         "mode": { "type": "string", "description": "LIVE or HOMEWORK" },
-        "homeworkConfig": { "type": "object", "description": "Configuration for homework mode" }
+        "homeworkConfig": { "type": "object", "description": "Configuration for homework mode" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "effectDuration": { "type": "number", "description": "Duration of item effects in seconds" }
+          }
+        }
       },
       "required": ["pin", "quizId", "hostId", "status", "players", "createdAt"]
     }

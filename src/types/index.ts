@@ -87,6 +87,7 @@ export interface GameSettings {
   // Battle Mode settings
   pacing?: 'STUDENT' | 'TEACHER'; // Tốc độ (Học sinh tự làm) hoặc Đồng loạt (Giáo viên điều khiển)
   reviveCost?: number; // Điểm phí để hồi sinh
+  effectDuration?: number; // Thời gian tác dụng của vật phẩm (giây)
 }
 
 export interface HomeworkConfig {

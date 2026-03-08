@@ -19,6 +19,7 @@ export default function GameHostLobby() {
     equalPoints: false,
     timeBasedPoints: true,
     streakBonus: true,
+    effectDuration: 10, // Default 10s as requested
   });
   const [sessionTitle, setSessionTitle] = useState('');
   
@@ -325,6 +326,23 @@ export default function GameHostLobby() {
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Điểm bị trừ khi học sinh chọn hồi sinh (lấy lại 50% HP).
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Thời gian tác dụng vật phẩm (giây)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={settings.effectDuration || 10}
+                        onChange={(e) => setSettings({ ...settings, effectDuration: parseInt(e.target.value) || 1 })}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Thời gian các hiệu ứng như Tê liệt, Đóng băng, Mù... kéo dài.
                       </p>
                     </div>
                   </div>

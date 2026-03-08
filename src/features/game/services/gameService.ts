@@ -184,35 +184,35 @@ export const gameService = {
       const now = Date.now();
       if (!targetPlayer.statusEffects) targetPlayer.statusEffects = [];
 
-      let duration = 5000; // Default 5s
+      const baseDuration = (data.settings?.effectDuration || 10) * 1000;
+      let duration = baseDuration;
       let effectType = '';
 
       switch (itemType) {
         case 'ATTACK':
-          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 25); // Increased damage
+          targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 25);
           break;
         case 'HEAL':
-          targetPlayer.hp = Math.min(targetPlayer.maxHp || 100, (targetPlayer.hp || 100) + 35); // Increased heal
-          // Healing also clears poison
+          targetPlayer.hp = Math.min(targetPlayer.maxHp || 100, (targetPlayer.hp || 100) + 35);
           targetPlayer.statusEffects = targetPlayer.statusEffects.filter(e => e.type !== 'POISONED');
           break;
         case 'LIGHTNING':
           targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 15);
           effectType = 'PARALYZED';
-          duration = 4000; // Slightly shorter but impactful
+          duration = baseDuration;
           break;
         case 'POISON':
           targetPlayer.hp = Math.max(0, (targetPlayer.hp || 100) - 10);
           effectType = 'POISONED';
-          duration = 15000; // Long duration
+          duration = baseDuration * 1.5; // Poison lasts 50% longer
           break;
         case 'BLIND':
           effectType = 'BLINDED';
-          duration = 8000; // Long duration
+          duration = baseDuration * 1.2; // Blind lasts 20% longer
           break;
         case 'FREEZE':
           effectType = 'FROZEN';
-          duration = 4000;
+          duration = baseDuration;
           break;
       }
 
