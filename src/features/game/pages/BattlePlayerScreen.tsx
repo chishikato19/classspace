@@ -67,7 +67,7 @@ export default function BattlePlayerScreen() {
         if (quizData) {
           setQuiz(quizData);
           // Simple shuffle for battle mode
-          const questions = [...quizData.questions].sort(() => Math.random() - 0.5);
+          const questions = [...(quizData.questions || [])].sort(() => Math.random() - 0.5);
           setShuffledQuestions(questions);
           setQuestionStartTime(timeService.now());
         }
@@ -81,7 +81,8 @@ export default function BattlePlayerScreen() {
     if (isFrozen) return; // Block answering if frozen
     
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
-    const correctOption = currentQuestion.options.find(o => o.isCorrect);
+    if (!currentQuestion) return;
+    const correctOption = (currentQuestion.options || []).find(o => o.isCorrect);
     const isAnswerCorrect = correctOption?.id === optionId;
 
     setIsSubmitted(true);
@@ -197,7 +198,7 @@ export default function BattlePlayerScreen() {
   }
 
   if (hasFinished || session.status === 'FINISHED') {
-    const winner = session.players?.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
+    const winner = (session.players || []).filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
     const isWinner = winner?.id === player.id;
 
     return (
@@ -243,10 +244,10 @@ export default function BattlePlayerScreen() {
   if (targetSelection) {
     // Target Selection Screen
     // For HEAL, include self
-    const targets = session.players?.filter(p => {
+    const targets = (session.players || []).filter(p => {
       if (targetSelection === 'HEAL') return (p.hp || 0) > 0; // Can heal self or others
       return p.id !== player.id && (p.hp || 0) > 0; // Others only for offensive items
-    }) || [];
+    });
     
     return (
       <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -284,14 +285,14 @@ export default function BattlePlayerScreen() {
     if (!currentQuestion) return [];
     if (isParalyzed) {
       const seed = Math.floor(currentTime / 1000);
-      const shuffled = [...currentQuestion.options];
+      const shuffled = [...(currentQuestion.options || [])];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = (seed * (i + 1)) % (i + 1);
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       return shuffled;
     }
-    return currentQuestion.options;
+    return currentQuestion.options || [];
   }, [currentQuestion, isParalyzed, Math.floor(currentTime / 1000)]);
 
   return (

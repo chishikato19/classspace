@@ -66,7 +66,7 @@ export default function GamePlayerScreen() {
         if (quizData) {
           setQuiz(quizData);
           
-          let questions = [...quizData.questions];
+          let questions = [...(quizData.questions || [])];
           const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
           
           // Fisher-Yates shuffle function
@@ -88,7 +88,7 @@ export default function GamePlayerScreen() {
             if (settings.shuffleAnswers) {
               questions = questions.map(q => ({
                 ...q,
-                options: shuffleArray(q.options)
+                options: shuffleArray(q.options || [])
               }));
             }
           }
@@ -116,13 +116,13 @@ export default function GamePlayerScreen() {
     if (currentQuestion.type === 'SHORT_ANSWER') {
       if (!textAnswer || !textAnswer.trim()) return;
       // Check against all correct options (case-insensitive)
-      isAnswerCorrect = currentQuestion.options.some(
+      isAnswerCorrect = (currentQuestion.options || []).some(
         opt => opt.text.trim().toLowerCase() === textAnswer.trim().toLowerCase()
       );
     } else {
       if (!optionId) return;
       setSelectedOptionId(optionId);
-      const correctOption = currentQuestion.options.find(o => o.isCorrect);
+      const correctOption = (currentQuestion.options || []).find(o => o.isCorrect);
       isAnswerCorrect = correctOption?.id === optionId;
     }
 
@@ -309,7 +309,7 @@ export default function GamePlayerScreen() {
                <div className="mt-6 text-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   <p className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-2">Đáp án chấp nhận:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                     {currentQuestion.options.map(opt => (
+                     {currentQuestion.options?.map(opt => (
                         <span key={opt.id} className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
                            {opt.text}
                         </span>
@@ -320,7 +320,7 @@ export default function GamePlayerScreen() {
           </div>
         ) : (
           <div className={`grid ${currentQuestion.type === 'TRUE_FALSE' ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} gap-4`}>
-            {currentQuestion.options.map((option, index) => {
+            {currentQuestion.options?.map((option, index) => {
               let bgClass = "bg-white hover:bg-gray-50 border-2 border-gray-200";
               
               if (isSubmitted) {
