@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { GameSession, Player } from '../../../types';
 import { gameService } from '../services/gameService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, ArrowLeft, Maximize, Minimize } from 'lucide-react';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { timeService } from '../../../services/timeService';
 
 export default function BattleHostScreen() {
@@ -11,27 +11,6 @@ export default function BattleHostScreen() {
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
   const [currentTime, setCurrentTime] = useState(timeService.now());
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-  };
 
   // Tick timer to refresh effects
   useEffect(() => {
@@ -108,13 +87,6 @@ export default function BattleHostScreen() {
         </div>
         
         <div className="flex items-center gap-4">
-          <button 
-            onClick={toggleFullscreen} 
-            className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-300"
-            title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
-          >
-            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-          </button>
           {pacing === 'TEACHER' && (
              <button 
                onClick={handleNextQuestion}
