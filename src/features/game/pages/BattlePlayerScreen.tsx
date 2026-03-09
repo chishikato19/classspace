@@ -4,7 +4,7 @@ import { GameSession, Player, Question, Quiz } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart, Home, Trophy } from 'lucide-react';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart, Home, Trophy, Maximize, Minimize } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { MathText } from '../../../components/MathText';
 import { timeService } from '../../../services/timeService';
@@ -23,6 +23,27 @@ export default function BattlePlayerScreen() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState(timeService.now());
   const [hasFinished, setHasFinished] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   // Tick timer to refresh effects
   useEffect(() => {
@@ -273,7 +294,16 @@ export default function BattlePlayerScreen() {
             </div>
           </div>
         </div>
-        <div className="font-mono font-bold text-yellow-400 text-xl">{player.score}</div>
+        <div className="flex items-center gap-4">
+          <div className="font-mono font-bold text-yellow-400 text-xl">{player.score}</div>
+          <button 
+            onClick={toggleFullscreen} 
+            className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-300"
+            title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Effect Overlays */}
