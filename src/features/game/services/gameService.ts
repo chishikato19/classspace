@@ -218,6 +218,11 @@ export const gameService = {
           effectType = 'FROZEN';
           duration = baseDuration;
           break;
+        case 'SWAP':
+          const tempScore = sourcePlayer.score;
+          sourcePlayer.score = targetPlayer.score;
+          targetPlayer.score = tempScore;
+          break;
       }
 
       if (effectType) {
@@ -335,10 +340,9 @@ export const gameService = {
         const activeEffects = player.statusEffects;
         
         const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
-        const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
         
-        if (isFrozen || isParalyzed) {
-          throw new Error("Bạn đang bị đóng băng hoặc tê liệt, không thể trả lời!");
+        if (isFrozen) {
+          throw new Error("Bạn đang bị đóng băng, không thể trả lời!");
         }
 
         const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
@@ -376,6 +380,9 @@ export const gameService = {
         // BATTLE MODE: Grant Item (Only on correct answer)
         if (data.mode === 'BATTLE') {
            const itemPool = ['ATTACK', 'HEAL', 'LIGHTNING', 'POISON', 'BLIND', 'FREEZE'];
+           if (answerData.isFirstHalf) {
+             itemPool.push('SWAP');
+           }
            const randomItem = itemPool[Math.floor(Math.random() * itemPool.length)];
            
            // Ensure items array exists and is unique to this player
