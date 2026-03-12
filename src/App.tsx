@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import SetupRequired from './components/SetupRequired';
 import { isFirebaseConfigured } from './config/firebase';
@@ -40,7 +40,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<GameJoinPage />} />
@@ -70,6 +70,6 @@ export default function App() {
           {/* Add more routes here later */}
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
