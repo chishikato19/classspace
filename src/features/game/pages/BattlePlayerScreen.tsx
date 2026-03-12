@@ -25,6 +25,27 @@ export default function BattlePlayerScreen() {
   const [hasFinished, setHasFinished] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const currentQuestion = shuffledQuestions[currentQuestionIndex];
+  const activeEffects = player ? (player.statusEffects || []).filter(e => e.expiresAt > currentTime) : [];
+  const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
+  const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
+  const isBlinded = activeEffects.some(e => e.type === 'BLINDED');
+  const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
+
+  const displayOptions = useMemo(() => {
+    if (!currentQuestion) return [];
+    if (isParalyzed) {
+      const seed = Math.floor(currentTime / 1000);
+      const shuffled = [...(currentQuestion.options || [])];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = (seed * (i + 1)) % (i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+    return currentQuestion.options || [];
+  }, [currentQuestion, isParalyzed, Math.floor(currentTime / 1000)]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -156,13 +177,6 @@ export default function BattlePlayerScreen() {
   const pacing = session.settings?.pacing || 'STUDENT';
   const reviveCost = session.settings?.reviveCost || 1000;
 
-  // Check active effects
-  const activeEffects = (player.statusEffects || []).filter(e => e.expiresAt > currentTime);
-  const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
-  const isFrozen = activeEffects.some(e => e.type === 'FROZEN');
-  const isBlinded = activeEffects.some(e => e.type === 'BLINDED');
-  const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
-
   const handleRevive = async () => {
     if (!session || !player) return;
     try {
@@ -278,22 +292,6 @@ export default function BattlePlayerScreen() {
       </div>
     );
   }
-
-  const currentQuestion = shuffledQuestions[currentQuestionIndex];
-
-  const displayOptions = useMemo(() => {
-    if (!currentQuestion) return [];
-    if (isParalyzed) {
-      const seed = Math.floor(currentTime / 1000);
-      const shuffled = [...(currentQuestion.options || [])];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = (seed * (i + 1)) % (i + 1);
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      return shuffled;
-    }
-    return currentQuestion.options || [];
-  }, [currentQuestion, isParalyzed, Math.floor(currentTime / 1000)]);
 
   return (
     <div className={`min-h-screen bg-gray-900 text-white flex flex-col`}>
