@@ -17,11 +17,18 @@
 //   - avatarConfig: map (optional)
 //   - inventory: map (optional)
 //
+// Collection: folders
+// Fields:
+//   - name: string (required)
+//   - teacherId: string (required)
+//   - createdAt: number (required)
+//
 // Collection: quizzes
 // Fields:
 //   - title: string (required)
 //   - description: string (optional)
 //   - teacherId: string (required)
+//   - folderId: string (optional)
 //   - questions: list (required)
 //   - createdAt: number (required)
 //
@@ -79,6 +86,12 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
+    function isValidFolder(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.teacherId is string &&
+             data.createdAt is number;
+    }
+
     function isValidQuiz(data) {
       return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.teacherId is string &&
@@ -111,6 +124,13 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidStudent(request.resource.data);
       allow update: if isAuthenticated() && isValidStudent(request.resource.data);
       allow delete: if isAuthenticated();
+    }
+
+    match /folders/{folderId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+      allow create: if isAuthenticated() && isValidFolder(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidFolder(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
     }
 
     match /quizzes/{quizId} {

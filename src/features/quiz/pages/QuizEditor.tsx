@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { Question, QuestionType } from '../../../types';
 import { quizService } from '../services/quizService';
@@ -12,6 +12,8 @@ import ImportQuestionsModal from '../components/ImportQuestionsModal';
 export default function QuizEditor() {
   const navigate = useNavigate();
   const { quizId } = useParams();
+  const [searchParams] = useSearchParams();
+  const folderId = searchParams.get('folderId');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([
@@ -242,6 +244,7 @@ export default function QuizEditor() {
           title,
           description,
           teacherId: currentUser.uid,
+          folderId: folderId || undefined,
           questions,
           createdAt: Date.now(),
         });
@@ -330,6 +333,17 @@ export default function QuizEditor() {
                   <option value="TRUE_FALSE">Đúng / Sai</option>
                   <option value="SHORT_ANSWER">Trả lời ngắn</option>
                 </select>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Thời gian (giây):</label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="600"
+                    value={q.timeLimit || 30}
+                    onChange={(e) => handleQuestionChange(qIndex, 'timeLimit', parseInt(e.target.value) || 30)}
+                    className="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button

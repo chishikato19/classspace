@@ -37,6 +37,17 @@
       },
       "required": ["name", "classId", "wallet_points", "createdAt"]
     },
+    "Folder": {
+      "title": "Folder",
+      "description": "A folder to organize quizzes",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the folder" },
+        "teacherId": { "type": "string", "description": "UID of the teacher who owns this folder" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["name", "teacherId", "createdAt"]
+    },
     "Quiz": {
       "title": "Quiz",
       "description": "A set of questions created by a teacher",
@@ -45,6 +56,7 @@
         "title": { "type": "string", "description": "Title of the quiz" },
         "description": { "type": "string", "description": "Description of the quiz" },
         "teacherId": { "type": "string", "description": "UID of the teacher who owns this quiz" },
+        "folderId": { "type": "string", "description": "ID of the folder this quiz belongs to" },
         "questions": { "type": "array", "description": "List of questions" },
         "createdAt": { "type": "number", "description": "Timestamp of creation" }
       },
@@ -76,6 +88,7 @@
   "firestore": {
     "/classes": { "schema": "Class", "description": "Collection of classes" },
     "/students": { "schema": "Student", "description": "Collection of students" },
+    "/folders": { "schema": "Folder", "description": "Collection of folders" },
     "/quizzes": { "schema": "Quiz", "description": "Collection of quizzes" },
     "/sessions": { "schema": "GameSession", "description": "Collection of game sessions" }
   }

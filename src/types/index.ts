@@ -44,6 +44,13 @@ export interface ClassGroup {
   teacherId: string; // ID giáo viên quản lý (nếu có)
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  teacherId: string;
+  createdAt: number;
+}
+
 export type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
 
 export interface Question {
@@ -66,6 +73,7 @@ export interface Quiz {
   title: string;
   description?: string;
   teacherId: string;
+  folderId?: string;
   questions: Question[];
   createdAt: number;
 }

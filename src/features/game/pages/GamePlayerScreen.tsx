@@ -25,6 +25,7 @@ export default function GamePlayerScreen() {
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(undefined);
   const [playerName, setPlayerName] = useState('');
   const [shortAnswerText, setShortAnswerText] = useState('');
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   // Load session and quiz data
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function GamePlayerScreen() {
           setSelectedOptionId(null);
           setIsCorrect(false);
           setQuestionStartTime(Date.now());
+          setTimeLeft(shuffledQuestions[data.currentQuestionIndex]?.timeLimit || 30);
         }
         
         // Sync current question index
@@ -95,12 +97,36 @@ export default function GamePlayerScreen() {
           
           setShuffledQuestions(questions);
           setQuestionStartTime(Date.now());
+          setTimeLeft(questions[data.currentQuestionIndex || 0]?.timeLimit || 30);
         }
       }
     });
 
     return () => unsubscribe();
   }, [sessionId, quiz, session?.currentQuestionIndex]);
+
+  // Timer logic
+  useEffect(() => {
+    if (!session || isSubmitted || finished || session.status === 'FINISHED' || session.status === 'WAITING' || session.status === 'STARTING' || session.status === 'LEADERBOARD') return;
+    
+    if (shuffledQuestions.length === 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Auto submit when time is up
+          if (!isSubmitted) {
+            handleAnswer(null);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [session?.status, isSubmitted, finished, currentQuestionIndex, shuffledQuestions]);
 
   if (session?.mode === 'BATTLE') {
     return <BattlePlayerScreen />;
@@ -180,6 +206,7 @@ export default function GamePlayerScreen() {
           setShortAnswerText('');
           setIsCorrect(false);
           setQuestionStartTime(Date.now());
+          setTimeLeft(shuffledQuestions[currentQuestionIndex + 1]?.timeLimit || 30);
         } else {
           setFinished(true);
         }
@@ -262,9 +289,22 @@ export default function GamePlayerScreen() {
           </div>
           <div className="text-sm font-medium text-gray-500">Streak: 🔥 {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? streak : '?'}</div>
         </div>
-        <div className="font-bold text-xl text-indigo-600">
-          {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? `${score} điểm` : '---'}
+        <div className="flex items-center gap-6">
+          <div className={`text-2xl font-black ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-700'}`}>
+            ⏱ {timeLeft}s
+          </div>
+          <div className="font-bold text-xl text-indigo-600">
+            {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? `${score} điểm` : '---'}
+          </div>
         </div>
+      </div>
+
+      {/* Timer Progress Bar */}
+      <div className="w-full bg-gray-200 h-2">
+        <div 
+          className={`h-full transition-all duration-1000 linear ${timeLeft <= 5 ? 'bg-red-500' : 'bg-indigo-500'}`}
+          style={{ width: `${(timeLeft / (currentQuestion.timeLimit || 30)) * 100}%` }}
+        ></div>
       </div>
 
       {/* Question Area */}

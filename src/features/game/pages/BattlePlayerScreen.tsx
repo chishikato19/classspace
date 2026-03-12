@@ -21,6 +21,7 @@ export default function BattlePlayerScreen() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState(timeService.now());
   const [hasFinished, setHasFinished] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -74,6 +75,29 @@ export default function BattlePlayerScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // Question countdown timer
+  useEffect(() => {
+    if (!session || isSubmitted || hasFinished || session.status === 'FINISHED' || session.status === 'WAITING' || session.status === 'STARTING' || session.status === 'LEADERBOARD') return;
+    
+    if (shuffledQuestions.length === 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Auto submit when time is up
+          if (!isSubmitted) {
+            handleAnswer(null);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [session?.status, isSubmitted, hasFinished, currentQuestionIndex, shuffledQuestions]);
+
   useEffect(() => {
     const playerId = sessionStorage.getItem('currentPlayerId');
     if (!sessionId || !playerId) return;
@@ -91,20 +115,25 @@ export default function BattlePlayerScreen() {
           const questions = [...(quizData.questions || [])].sort(() => Math.random() - 0.5);
           setShuffledQuestions(questions);
           setQuestionStartTime(timeService.now());
+          setTimeLeft(questions[0]?.timeLimit || 30);
         }
       }
     });
     return () => unsubscribe();
   }, [sessionId, quiz]);
 
-  const handleAnswer = async (optionId: string) => {
+  const handleAnswer = async (optionId: string | null) => {
     if (isSubmitted || !quiz || !session || !player || shuffledQuestions.length === 0) return;
     if (isFrozen) return; // Block answering if frozen
     
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
     if (!currentQuestion) return;
-    const correctOption = (currentQuestion.options || []).find(o => o.isCorrect);
-    const isAnswerCorrect = correctOption?.id === optionId;
+    
+    let isAnswerCorrect = false;
+    if (optionId) {
+      const correctOption = (currentQuestion.options || []).find(o => o.isCorrect);
+      isAnswerCorrect = correctOption?.id === optionId;
+    }
 
     setIsSubmitted(true);
     setIsCorrect(isAnswerCorrect);
@@ -135,6 +164,7 @@ export default function BattlePlayerScreen() {
           setCurrentQuestionIndex(prev => prev + 1);
           setIsSubmitted(false);
           setQuestionStartTime(timeService.now());
+          setTimeLeft(shuffledQuestions[currentQuestionIndex + 1]?.timeLimit || 30);
         } else {
           setHasFinished(true);
         }
@@ -149,9 +179,10 @@ export default function BattlePlayerScreen() {
         setCurrentQuestionIndex(session.currentQuestionIndex);
         setIsSubmitted(false);
         setQuestionStartTime(timeService.now());
+        setTimeLeft(shuffledQuestions[session.currentQuestionIndex]?.timeLimit || 30);
       }
     }
-  }, [session?.currentQuestionIndex, session?.settings?.pacing]);
+  }, [session?.currentQuestionIndex, session?.settings?.pacing, shuffledQuestions]);
 
   const handleUseItem = (itemType: string) => {
     if (isFrozen) return; // Block using items if frozen
@@ -310,6 +341,9 @@ export default function BattlePlayerScreen() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <div className={`font-mono font-bold text-xl ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-300'}`}>
+            ⏱ {timeLeft}s
+          </div>
           <div className="font-mono font-bold text-yellow-400 text-xl">{player.score}</div>
           <button 
             onClick={toggleFullscreen} 
@@ -319,6 +353,14 @@ export default function BattlePlayerScreen() {
             {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
           </button>
         </div>
+      </div>
+
+      {/* Timer Progress Bar */}
+      <div className="w-full bg-gray-700 h-1">
+        <div 
+          className={`h-full transition-all duration-1000 linear ${timeLeft <= 5 ? 'bg-red-500' : 'bg-yellow-400'}`}
+          style={{ width: `${(timeLeft / (currentQuestion?.timeLimit || 30)) * 100}%` }}
+        ></div>
       </div>
 
       {/* Effect Overlays */}

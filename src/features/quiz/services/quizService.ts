@@ -1,8 +1,9 @@
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { Quiz } from '../../../types';
+import { Quiz, Folder } from '../../../types';
 
 const getQuizzesRef = () => collection(db, 'quizzes');
+const getFoldersRef = () => collection(db, 'folders');
 
 export const quizService = {
   // Tạo bộ câu hỏi mới
@@ -50,5 +51,36 @@ export const quizService = {
       return { id: snapshot.id, ...snapshot.data() } as Quiz;
     }
     return null;
+  },
+
+  // --- Folder Management ---
+  createFolder: async (folder: Omit<Folder, 'id'>): Promise<string> => {
+    const docRef = await addDoc(getFoldersRef(), folder);
+    return docRef.id;
+  },
+
+  updateFolder: async (folderId: string, folderData: Partial<Folder>): Promise<void> => {
+    const docRef = doc(db, 'folders', folderId);
+    await updateDoc(docRef, folderData);
+  },
+
+  deleteFolder: async (folderId: string): Promise<void> => {
+    const docRef = doc(db, 'folders', folderId);
+    await deleteDoc(docRef);
+  },
+
+  getFoldersByTeacher: async (teacherId: string): Promise<Folder[]> => {
+    try {
+      const q = query(
+        getFoldersRef(), 
+        where('teacherId', '==', teacherId)
+      );
+      const snapshot = await getDocs(q);
+      const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+      return results.sort((a, b) => b.createdAt - a.createdAt);
+    } catch (error: any) {
+      console.error("Error fetching folders:", error);
+      throw error;
+    }
   }
 };
