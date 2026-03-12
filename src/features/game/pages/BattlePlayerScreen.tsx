@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GameSession, Player, Question, Quiz } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart, Home, Trophy } from 'lucide-react';
+import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, Target, Sword, Heart, Home, Trophy, Maximize, Minimize, ArrowLeftRight } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { MathText } from '../../../components/MathText';
 import { timeService } from '../../../services/timeService';
@@ -23,6 +23,27 @@ export default function BattlePlayerScreen() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState(timeService.now());
   const [hasFinished, setHasFinished] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   // Tick timer to refresh effects
   useEffect(() => {
@@ -46,7 +67,7 @@ export default function BattlePlayerScreen() {
         if (quizData) {
           setQuiz(quizData);
           // Simple shuffle for battle mode
-          const questions = [...quizData.questions].sort(() => Math.random() - 0.5);
+          const questions = [...(quizData.questions || [])].sort(() => Math.random() - 0.5);
           setShuffledQuestions(questions);
           setQuestionStartTime(timeService.now());
         }
@@ -57,10 +78,11 @@ export default function BattlePlayerScreen() {
 
   const handleAnswer = async (optionId: string) => {
     if (isSubmitted || !quiz || !session || !player || shuffledQuestions.length === 0) return;
-    if (isFrozen || isParalyzed) return; // Block answering if frozen or paralyzed
+    if (isFrozen) return; // Block answering if frozen
     
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
-    const correctOption = currentQuestion.options.find(o => o.isCorrect);
+    if (!currentQuestion) return;
+    const correctOption = (currentQuestion.options || []).find(o => o.isCorrect);
     const isAnswerCorrect = correctOption?.id === optionId;
 
     setIsSubmitted(true);
@@ -73,6 +95,7 @@ export default function BattlePlayerScreen() {
     }
     
     const timeTaken = (timeService.now() - questionStartTime) / 1000;
+    const isFirstHalf = currentQuestionIndex < shuffledQuestions.length / 2;
 
     // Submit answer
     await gameService.submitAnswer(session.id, player.id, currentQuestion.id, {
@@ -80,7 +103,8 @@ export default function BattlePlayerScreen() {
       isCorrect: isAnswerCorrect,
       timeTaken,
       timeLimit: currentQuestion.timeLimit,
-      points: currentQuestion.points
+      points: currentQuestion.points,
+      isFirstHalf
     });
 
     // Move to next question
@@ -109,7 +133,7 @@ export default function BattlePlayerScreen() {
   }, [session?.currentQuestionIndex, session?.settings?.pacing]);
 
   const handleUseItem = (itemType: string) => {
-    if (isFrozen || isParalyzed) return; // Block using items if frozen or paralyzed
+    if (isFrozen) return; // Block using items if frozen
     setTargetSelection(itemType);
   };
 
@@ -174,7 +198,7 @@ export default function BattlePlayerScreen() {
   }
 
   if (hasFinished || session.status === 'FINISHED') {
-    const winner = session.players?.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
+    const winner = (session.players || []).filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
     const isWinner = winner?.id === player.id;
 
     return (
@@ -220,10 +244,10 @@ export default function BattlePlayerScreen() {
   if (targetSelection) {
     // Target Selection Screen
     // For HEAL, include self
-    const targets = session.players?.filter(p => {
+    const targets = (session.players || []).filter(p => {
       if (targetSelection === 'HEAL') return (p.hp || 0) > 0; // Can heal self or others
       return p.id !== player.id && (p.hp || 0) > 0; // Others only for offensive items
-    }) || [];
+    });
     
     return (
       <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -257,8 +281,22 @@ export default function BattlePlayerScreen() {
 
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
 
+  const displayOptions = useMemo(() => {
+    if (!currentQuestion) return [];
+    if (isParalyzed) {
+      const seed = Math.floor(currentTime / 1000);
+      const shuffled = [...(currentQuestion.options || [])];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = (seed * (i + 1)) % (i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+    return currentQuestion.options || [];
+  }, [currentQuestion, isParalyzed, Math.floor(currentTime / 1000)]);
+
   return (
-    <div className={`min-h-screen bg-gray-900 text-white flex flex-col ${isParalyzed ? 'animate-shake' : ''}`}>
+    <div className={`min-h-screen bg-gray-900 text-white flex flex-col`}>
       {/* Status Bar */}
       <div className="bg-gray-800 p-4 flex items-center justify-between shadow-lg z-10">
         <div className="flex items-center gap-3">
@@ -273,16 +311,24 @@ export default function BattlePlayerScreen() {
             </div>
           </div>
         </div>
-        <div className="font-mono font-bold text-yellow-400 text-xl">{player.score}</div>
+        <div className="flex items-center gap-4">
+          <div className="font-mono font-bold text-yellow-400 text-xl">{player.score}</div>
+          <button 
+            onClick={toggleFullscreen} 
+            className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-300"
+            title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Effect Overlays */}
       {isParalyzed && (
-        <div className="absolute inset-0 bg-yellow-500/20 z-50 flex flex-col items-center justify-center backdrop-blur-[1px]">
-          <Zap className="w-32 h-32 text-yellow-400 animate-bounce" />
-          <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-yellow-400">
-             BỊ TÊ LIỆT! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'PARALYZED')?.expiresAt || currentTime) - currentTime) / 1000))}s)
-          </div>
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+           <div className="flex items-center gap-2 bg-yellow-900/80 text-yellow-400 px-4 py-2 rounded-full border border-yellow-500 animate-bounce shadow-lg shadow-yellow-500/50">
+              <Zap size={16} /> <span className="font-bold">ĐÁP ÁN BỊ XÁO TRỘN! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'PARALYZED')?.expiresAt || currentTime) - currentTime) / 1000))}s)</span>
+           </div>
         </div>
       )}
       {isFrozen && (
@@ -302,12 +348,12 @@ export default function BattlePlayerScreen() {
       )}
 
       {/* Main Area: Question or Waiting */}
-      <div className={`flex-1 p-4 flex flex-col justify-center relative ${isBlinded ? 'blur-xl grayscale' : ''}`}>
+      <div className={`flex-1 p-4 flex flex-col justify-center relative`}>
         {isBlinded && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
-            <EyeOff className="w-32 h-32 text-purple-500 opacity-50" />
-            <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl animate-pulse border-2 border-purple-500">
-               BỊ MÙ TẠM THỜI! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'BLINDED')?.expiresAt || currentTime) - currentTime) / 1000))}s)
+          <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none transition-colors duration-75 ${Math.floor(currentTime / 400) % 2 === 0 ? 'bg-black/95' : 'bg-black/50'}`}>
+            <EyeOff className="w-32 h-32 text-purple-500 opacity-80" />
+            <div className="bg-black/80 text-white px-6 py-3 rounded-xl mt-4 font-bold text-xl border-2 border-purple-500">
+               MỰC CHE KHUẤT! ({Math.max(0, Math.ceil(((activeEffects.find(e => e.type === 'BLINDED')?.expiresAt || currentTime) - currentTime) / 1000))}s)
             </div>
           </div>
         )}
@@ -327,17 +373,17 @@ export default function BattlePlayerScreen() {
               
               {/* Controls (A, B, C, D) */}
               <div className="grid grid-cols-2 gap-4 mb-8 flex-1">
-                 {currentQuestion.options.map((opt, idx) => (
+                 {displayOptions.map((opt, idx) => (
                    <button
                      key={opt.id}
                      onClick={() => handleAnswer(opt.id)}
-                     disabled={isParalyzed || isFrozen || isSubmitted}
+                     disabled={isFrozen || isSubmitted}
                      className={`rounded-2xl font-bold text-lg p-4 shadow-lg active:scale-95 transition-transform flex flex-col items-center justify-center gap-2 ${
                        idx === 0 ? 'bg-red-600 hover:bg-red-500' : 
                        idx === 1 ? 'bg-blue-600 hover:bg-blue-500' : 
                        idx === 2 ? 'bg-yellow-600 hover:bg-yellow-500' : 
                        'bg-green-600 hover:bg-green-500'
-                     } ${isParalyzed || isFrozen || isSubmitted ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                     } ${isFrozen || isSubmitted ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                    >
                      {opt.imageUrl && <img src={opt.imageUrl} className="h-16 object-contain rounded bg-white" />}
                      <MathText text={opt.text} />
@@ -367,6 +413,7 @@ export default function BattlePlayerScreen() {
                   {item === 'BLIND' && <EyeOff className="text-purple-400" />}
                   {item === 'ATTACK' && <Sword className="text-red-500" />}
                   {item === 'HEAL' && <Heart className="text-pink-500" />}
+                  {item === 'SWAP' && <ArrowLeftRight className="text-orange-400" />}
                   
                   <span className={`absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none ${isBlinded ? 'hidden' : ''}`}>
                     {item}

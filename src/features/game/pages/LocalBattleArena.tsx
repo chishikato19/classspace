@@ -38,6 +38,7 @@ interface PlayerState {
   questionStartTime: number;
   wrongAttempts: number;
   eliminatedOptions: string[]; // For 50/50
+  pendingAnswer: { id: string; isCorrect: boolean } | null;
 }
 
 const ITEMS: { type: ItemType; name: string; icon: any; color: string; desc: string }[] = [
@@ -86,10 +87,10 @@ export default function LocalBattleArena() {
   
   // Player State
   const [redPlayer, setRedPlayer] = useState<PlayerState>({
-    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: []
+    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: [], pendingAnswer: null
   });
   const [bluePlayer, setBluePlayer] = useState<PlayerState>({
-    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: []
+    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: [], pendingAnswer: null
   });
 
   // Load Quiz
@@ -303,9 +304,26 @@ export default function LocalBattleArena() {
     const isRed = team === 'red';
     const setter = isRed ? setRedPlayer : setBluePlayer;
     const player = isRed ? redPlayer : bluePlayer;
+    const opponent = isRed ? bluePlayer : redPlayer;
     const currentQuestion = quiz?.questions[player.questionIndex];
     if (!currentQuestion) return;
 
+    if (gameMode === 'sync') {
+      // SYNC MODE: Wait for both players
+      setter(p => ({ ...p, pendingAnswer: { id: answerId, isCorrect } }));
+      
+      // Check if opponent has already answered
+      if (opponent.pendingAnswer) {
+        // Both have answered! Process results for both
+        processSyncResults(
+          isRed ? { id: answerId, isCorrect } : opponent.pendingAnswer,
+          isRed ? opponent.pendingAnswer : { id: answerId, isCorrect }
+        );
+      }
+      return;
+    }
+
+    // CHAOS MODE: Process immediately (existing logic)
     if (isCorrect) {
       // Correct Answer
       soundService.play('correct');
@@ -315,16 +333,12 @@ export default function LocalBattleArena() {
       const timeLimit = currentQuestion.timeLimit || 30;
       const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
 
-      if (gameMode === 'chaos') {
-        // Base points based on time (50% to 100% of question points)
-        let basePoints = Math.round((currentQuestion.points || 100) * (0.5 + 0.5 * timeRatio));
-        
-        // Penalty for wrong attempts (e.g., -20% per wrong attempt)
-        const penaltyMultiplier = Math.max(0.2, 1 - (player.wrongAttempts * 0.2));
-        pointsEarned = Math.round(basePoints * penaltyMultiplier);
-      } else {
-        pointsEarned = currentQuestion.points || 100;
-      }
+      // Base points based on time (50% to 100% of question points)
+      let basePoints = Math.round((currentQuestion.points || 100) * (0.5 + 0.5 * timeRatio));
+      
+      // Penalty for wrong attempts (e.g., -20% per wrong attempt)
+      const penaltyMultiplier = Math.max(0.2, 1 - (player.wrongAttempts * 0.2));
+      pointsEarned = Math.round(basePoints * penaltyMultiplier);
 
       if (timeBonusEnabled) {
         // Add up to 20% bonus for speed
@@ -356,25 +370,9 @@ export default function LocalBattleArena() {
       });
 
       if (itemsEnabled) {
-        // Show Item Selection
         setter(p => ({ ...p, isSelectingItem: true, selectionOptions: getRandomOptions() }));
-        
-        // In Sync mode, we still need to advance eventually if they don't pick? 
-        // Let's force a timeout in Sync mode to keep game moving, but long enough to pick.
-        if (gameMode === 'sync') {
-           setTimeout(() => nextQuestion(team), 5000); // 5s to pick
-           const otherSetter = isRed ? setBluePlayer : setRedPlayer;
-           otherSetter(p => ({ ...p, showFeedback: true }));
-           setTimeout(() => nextQuestion(isRed ? 'blue' : 'red'), 5000);
-        }
       } else {
-        // No items, just advance
-        setTimeout(() => nextQuestion(team), gameMode === 'sync' ? 2000 : 1000);
-        if (gameMode === 'sync') {
-          const otherSetter = isRed ? setBluePlayer : setRedPlayer;
-          otherSetter(p => ({ ...p, showFeedback: true }));
-          setTimeout(() => nextQuestion(isRed ? 'blue' : 'red'), 2000);
-        }
+        setTimeout(() => nextQuestion(team), 1000);
       }
 
     } else {
@@ -384,18 +382,110 @@ export default function LocalBattleArena() {
         ...p, 
         lastAnswer: answerId, 
         isCorrect: false, 
-        streak: p.isHealed ? p.streak : 0, // Heal protects streak
+        streak: p.isHealed ? p.streak : 0, 
         isLocked: true,
         lockedUntil: Date.now() + 3000,
         wrongAttempts: p.wrongAttempts + 1,
-        isHealed: false, // Consume heal
-        isDoublePoints: false, // Consume double points even if wrong
-        eliminatedOptions: [] // Reset 50/50
+        isHealed: false,
+        isDoublePoints: false,
+        eliminatedOptions: []
       }));
 
       setTimeout(() => {
         setter(p => ({ ...p, lastAnswer: null, isCorrect: null }));
       }, 1000);
+    }
+  };
+
+  const processSyncResults = (redAns: { id: string; isCorrect: boolean }, blueAns: { id: string; isCorrect: boolean }) => {
+    const currentQuestion = quiz?.questions[redPlayer.questionIndex];
+    if (!currentQuestion) return;
+
+    const now = Date.now();
+    
+    // Calculate Red Points
+    let redPoints = 0;
+    if (redAns.isCorrect) {
+      redPoints = currentQuestion.points || 100;
+      if (timeBonusEnabled) {
+        const timeTaken = (now - redPlayer.questionStartTime) / 1000;
+        const timeLimit = currentQuestion.timeLimit || 30;
+        const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+        redPoints += Math.round(redPoints * 0.2 * timeRatio);
+      }
+      if (redPlayer.isDoublePoints) redPoints *= 2;
+    }
+
+    // Calculate Blue Points
+    let bluePoints = 0;
+    if (blueAns.isCorrect) {
+      bluePoints = currentQuestion.points || 100;
+      if (timeBonusEnabled) {
+        const timeTaken = (now - bluePlayer.questionStartTime) / 1000;
+        const timeLimit = currentQuestion.timeLimit || 30;
+        const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+        bluePoints += Math.round(bluePoints * 0.2 * timeRatio);
+      }
+      if (bluePlayer.isDoublePoints) bluePoints *= 2;
+    }
+
+    // Play sounds
+    if (redAns.isCorrect || blueAns.isCorrect) {
+      soundService.play('correct');
+    } else {
+      soundService.play('wrong');
+    }
+
+    // Update States
+    setRedPlayer(p => ({
+      ...p,
+      lastAnswer: redAns.id,
+      isCorrect: redAns.isCorrect,
+      score: p.score + redPoints,
+      streak: redAns.isCorrect ? p.streak + 1 : (p.isHealed ? p.streak : 0),
+      showFeedback: true,
+      hasTimeBomb: redAns.isCorrect ? false : p.hasTimeBomb,
+      isDoublePoints: false,
+      isHealed: false,
+      eliminatedOptions: []
+    }));
+
+    setBluePlayer(p => ({
+      ...p,
+      lastAnswer: blueAns.id,
+      isCorrect: blueAns.isCorrect,
+      score: p.score + bluePoints,
+      streak: blueAns.isCorrect ? p.streak + 1 : (p.isHealed ? p.streak : 0),
+      showFeedback: true,
+      hasTimeBomb: blueAns.isCorrect ? false : p.hasTimeBomb,
+      isDoublePoints: false,
+      isHealed: false,
+      eliminatedOptions: []
+    }));
+
+    // Update Balance
+    setBalance(prev => {
+      let newBalance = prev;
+      if (redAns.isCorrect) newBalance -= 10;
+      if (blueAns.isCorrect) newBalance += 10;
+      return Math.max(0, Math.min(100, newBalance));
+    });
+
+    // Handle Items and Next Question
+    if (itemsEnabled) {
+      if (redAns.isCorrect) setRedPlayer(p => ({ ...p, isSelectingItem: true, selectionOptions: getRandomOptions() }));
+      if (blueAns.isCorrect) setBluePlayer(p => ({ ...p, isSelectingItem: true, selectionOptions: getRandomOptions() }));
+      
+      // In sync mode, we advance after a delay regardless of item selection to keep it moving
+      setTimeout(() => {
+        nextQuestion('red');
+        nextQuestion('blue');
+      }, 5000);
+    } else {
+      setTimeout(() => {
+        nextQuestion('red');
+        nextQuestion('blue');
+      }, 3000);
     }
   };
 
@@ -428,9 +518,9 @@ export default function LocalBattleArena() {
     const player = isRed ? redPlayer : bluePlayer;
 
     if (player.questionIndex < quiz.questions.length - 1) {
-      setter(p => ({ ...p, questionIndex: p.questionIndex + 1, lastAnswer: null, isCorrect: null, showFeedback: false, isSelectingItem: false, questionStartTime: Date.now(), wrongAttempts: 0, isConfused: false, isInked: false, eliminatedOptions: [] }));
+      setter(p => ({ ...p, questionIndex: p.questionIndex + 1, lastAnswer: null, isCorrect: null, showFeedback: false, isSelectingItem: false, questionStartTime: Date.now(), wrongAttempts: 0, isConfused: false, isInked: false, eliminatedOptions: [], pendingAnswer: null }));
     } else {
-      setter(p => ({ ...p, showFeedback: true, lastAnswer: null, isCorrect: null, isSelectingItem: false }));
+      setter(p => ({ ...p, showFeedback: true, lastAnswer: null, isCorrect: null, isSelectingItem: false, pendingAnswer: null }));
       
       // Check finish
       setRedPlayer(r => {
@@ -612,6 +702,15 @@ export default function LocalBattleArena() {
       <div className={`flex-1 flex flex-col p-6 transition-colors duration-300 h-full relative ${player.isLocked ? 'opacity-50 grayscale' : ''} ${player.isFrozen ? 'bg-blue-900/40 border-4 border-blue-300' : ''}`}>
         
         {/* Status Overlays */}
+        {player.pendingAnswer && !player.showFeedback && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-xl m-6">
+            <div className="text-center text-white font-bold text-xl animate-pulse">
+              <Timer className="w-12 h-12 mx-auto mb-2 text-yellow-400" />
+              ĐÃ TRẢ LỜI!<br/>
+              <span className="text-sm font-normal text-gray-300">Đang chờ đối thủ...</span>
+            </div>
+          </div>
+        )}
         {player.isLocked && !player.isFrozen && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-xl m-6">
             <div className="text-center animate-pulse text-red-500 font-bold text-2xl">
