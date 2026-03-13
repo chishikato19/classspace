@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Quiz, Folder } from '../../../types';
+import { Quiz, Folder, GameSession } from '../../../types';
 import { quizService } from '../services/quizService';
+import { gameService } from '../../game/services/gameService';
 import { auth } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { HomeworkModal } from '../components/HomeworkModal';
-import { Play, Clock, Trash2, Swords, Folder as FolderIcon, FolderPlus, ArrowLeft, MoveRight } from 'lucide-react';
+import { Play, Clock, Trash2, Swords, Folder as FolderIcon, FolderPlus, ArrowLeft, MoveRight, Camera } from 'lucide-react';
 
 export default function QuizDashboard() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function QuizDashboard() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activePlickersSession, setActivePlickersSession] = useState<GameSession | null>(null);
   
   // Modals State
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
@@ -46,6 +48,19 @@ export default function QuizDashboard() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         loadData(user.uid);
+        
+        // Lắng nghe các phiên Plickers đang hoạt động
+        const unsubscribeSessions = gameService.subscribeToActivePlickersSessions(user.uid, (activeSession) => {
+          setActivePlickersSession(activeSession);
+          
+          // Tự động chuyển hướng nếu là thiết bị di động
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (isMobile && activeSession) {
+            navigate(`/game/scanner/${activeSession.id}`);
+          }
+        });
+        
+        return () => unsubscribeSessions();
       } else {
         setLoading(false);
       }
@@ -133,6 +148,26 @@ export default function QuizDashboard() {
 
   return (
     <div className="space-y-6">
+      {activePlickersSession && (
+        <div className="bg-indigo-600 rounded-xl p-4 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-lg">
+              <Camera className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold">Đang có phòng Plickers hoạt động</h3>
+              <p className="text-indigo-100 text-sm">Bạn có muốn mở máy quét cho phòng này không?</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate(`/game/scanner/${activePlickersSession.id}`)}
+            className="w-full sm:w-auto bg-white text-indigo-600 px-6 py-2 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-sm"
+          >
+            Mở máy quét ngay
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {currentFolderId && (

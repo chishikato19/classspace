@@ -133,6 +133,43 @@ export const gameService = {
     return { id: snapshot.id, ...snapshot.data() } as GameSession;
   },
 
+  // Tìm phòng Plickers đang hoạt động của giáo viên
+  getActivePlickersSession: async (teacherId: string): Promise<GameSession | null> => {
+    const q = query(
+      getSessionsRef(),
+      where("hostId", "==", teacherId),
+      where("mode", "==", "PLICKERS"),
+      where("status", "in", ["WAITING", "QUESTION", "LEADERBOARD"])
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    
+    // Trả về session mới nhất
+    const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
+    return sessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+  },
+
+  // Lắng nghe các phòng Plickers đang hoạt động của giáo viên
+  subscribeToActivePlickersSessions: (teacherId: string, callback: (session: GameSession | null) => void) => {
+    const q = query(
+      getSessionsRef(),
+      where("hostId", "==", teacherId),
+      where("mode", "==", "PLICKERS"),
+      where("status", "in", ["WAITING", "QUESTION", "LEADERBOARD"])
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      if (snapshot.empty) {
+        callback(null);
+        return;
+      }
+
+      const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
+      const latestSession = sessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+      callback(latestSession);
+    });
+  },
+
   // Cập nhật câu trả lời từ máy quét Plickers
   submitScannerAnswer: async (
     sessionId: string,
