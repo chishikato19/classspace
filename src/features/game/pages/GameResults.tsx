@@ -52,8 +52,12 @@ export default function GameResults() {
   session.players?.forEach(player => {
     const answer = player.answers?.[currentQuestion.id];
     if (answer) {
-      if (answer.isCorrect) questionStats.correct++;
-      else questionStats.incorrect++;
+      if (currentQuestion.type === 'SURVEY') {
+        questionStats.correct++; // Coi như "đã trả lời"
+      } else {
+        if (answer.isCorrect) questionStats.correct++;
+        else questionStats.incorrect++;
+      }
       
       if (questionStats.optionCounts[answer.optionId] !== undefined) {
         questionStats.optionCounts[answer.optionId]++;
@@ -128,14 +132,20 @@ export default function GameResults() {
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Tỷ lệ đúng trung bình</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {session.players?.length ? 
-                      Math.round(
-                        session.players.reduce((acc, p) => {
-                          const answers = Object.values(p.answers || {}) as { isCorrect: boolean }[];
-                          const correctCount = answers.filter(a => a.isCorrect).length;
-                          return acc + (correctCount / quiz.questions.length);
-                        }, 0) / session.players.length * 100
-                      ) : 0}%
+                    {session.players?.length ? (() => {
+                      const nonSurveyQuestions = quiz.questions.filter(q => q.type !== 'SURVEY');
+                      if (nonSurveyQuestions.length === 0) return 100; // Hoặc 0 nếu chỉ có khảo sát
+                      
+                      const totalCorrectPercent = session.players.reduce((acc, p) => {
+                        let correctCount = 0;
+                        nonSurveyQuestions.forEach(q => {
+                          if (p.answers?.[q.id]?.isCorrect) correctCount++;
+                        });
+                        return acc + (correctCount / nonSurveyQuestions.length);
+                      }, 0);
+                      
+                      return Math.round((totalCorrectPercent / session.players.length) * 100);
+                    })() : 0}%
                   </p>
                 </div>
               </div>
@@ -169,10 +179,23 @@ export default function GameResults() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {sortedPlayers.map((player, index) => {
-                      const answers = Object.values(player.answers || {}) as { isCorrect: boolean }[];
-                      const correct = answers.filter(a => a.isCorrect).length;
-                      const incorrect = answers.filter(a => !a.isCorrect).length;
-                      const unanswered = quiz.questions.length - (correct + incorrect);
+                      let correct = 0;
+                      let incorrect = 0;
+                      let unanswered = 0;
+                      
+                      quiz.questions.forEach(q => {
+                        const ans = player.answers?.[q.id];
+                        if (ans) {
+                          if (q.type === 'SURVEY') {
+                            // Không tính đúng/sai cho câu hỏi khảo sát trong bảng tổng quan
+                          } else {
+                            if (ans.isCorrect) correct++;
+                            else incorrect++;
+                          }
+                        } else {
+                          unanswered++;
+                        }
+                      });
 
                       return (
                         <tr key={player.id} className="hover:bg-gray-50">
@@ -226,13 +249,19 @@ export default function GameResults() {
                         }`}
                       >
                         <span className="truncate pr-2">Câu {idx + 1}</span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          correctPercent >= 70 ? 'bg-green-100 text-green-700' : 
-                          correctPercent >= 40 ? 'bg-yellow-100 text-yellow-700' : 
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {correctPercent}% đúng
-                        </span>
+                        {q.type === 'SURVEY' ? (
+                          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                            Khảo sát
+                          </span>
+                        ) : (
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            correctPercent >= 70 ? 'bg-green-100 text-green-700' : 
+                            correctPercent >= 40 ? 'bg-yellow-100 text-yellow-700' : 
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {correctPercent}% đúng
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -246,14 +275,23 @@ export default function GameResults() {
                 <div className="flex justify-between items-start mb-6">
                   <h2 className="text-xl font-bold text-gray-900">
                     Câu {selectedQuestionIndex + 1}: <MathText text={currentQuestion.text} />
+                    {currentQuestion.type === 'SURVEY' && <span className="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Khảo sát</span>}
                   </h2>
                   <div className="flex gap-4 text-sm font-medium">
-                    <div className="flex items-center gap-1 text-green-600">
-                      <CheckCircle className="w-4 h-4" /> {questionStats.correct} đúng
-                    </div>
-                    <div className="flex items-center gap-1 text-red-600">
-                      <XCircle className="w-4 h-4" /> {questionStats.incorrect} sai
-                    </div>
+                    {currentQuestion.type === 'SURVEY' ? (
+                      <div className="flex items-center gap-1 text-blue-600">
+                        <CheckCircle className="w-4 h-4" /> {questionStats.correct} đã trả lời
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="w-4 h-4" /> {questionStats.correct} đúng
+                        </div>
+                        <div className="flex items-center gap-1 text-red-600">
+                          <XCircle className="w-4 h-4" /> {questionStats.incorrect} sai
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -262,11 +300,13 @@ export default function GameResults() {
                     const count = questionStats.optionCounts[option.id] || 0;
                     const total = session.players?.length || 1;
                     const percent = Math.round((count / total) * 100);
+                    const isSurvey = currentQuestion.type === 'SURVEY';
                     
                     return (
                       <div 
                         key={option.id}
                         className={`p-4 rounded-xl border-2 relative overflow-hidden ${
+                          isSurvey ? 'border-blue-200 bg-white' :
                           option.isCorrect 
                             ? 'border-green-500 bg-green-50' 
                             : 'border-gray-200 bg-white'
@@ -275,6 +315,7 @@ export default function GameResults() {
                         {/* Progress bar background */}
                         <div 
                           className={`absolute inset-y-0 left-0 opacity-10 ${
+                            isSurvey ? 'bg-blue-500' :
                             option.isCorrect ? 'bg-green-500' : 'bg-gray-500'
                           }`}
                           style={{ width: `${percent}%` }}
@@ -282,8 +323,8 @@ export default function GameResults() {
                         
                         <div className="relative z-10 flex justify-between items-center">
                           <div className="flex items-center gap-2">
-                            {option.isCorrect && <CheckCircle className="w-5 h-5 text-green-600" />}
-                            <span className={`font-medium ${option.isCorrect ? 'text-green-800' : 'text-gray-700'}`}>
+                            {!isSurvey && option.isCorrect && <CheckCircle className="w-5 h-5 text-green-600" />}
+                            <span className={`font-medium ${!isSurvey && option.isCorrect ? 'text-green-800' : 'text-gray-700'}`}>
                               <MathText text={option.text} />
                             </span>
                           </div>
@@ -297,7 +338,7 @@ export default function GameResults() {
                 </div>
 
                 {/* List of students who got it wrong */}
-                {questionStats.incorrect > 0 && (
+                {currentQuestion.type !== 'SURVEY' && questionStats.incorrect > 0 && (
                   <div className="mt-8">
                     <h3 className="text-md font-bold text-gray-900 mb-4 border-b pb-2">Học sinh trả lời sai</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

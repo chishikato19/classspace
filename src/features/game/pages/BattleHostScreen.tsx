@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { GameSession, Player } from '../../../types';
+import { GameSession, Player, Quiz } from '../../../types';
 import { gameService } from '../services/gameService';
+import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { Zap, Skull, Snowflake, EyeOff, ShieldAlert, ArrowLeft, Maximize, Minimize } from 'lucide-react';
 import { timeService } from '../../../services/timeService';
@@ -10,6 +11,7 @@ export default function BattleHostScreen() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentTime, setCurrentTime] = useState(timeService.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -43,16 +45,21 @@ export default function BattleHostScreen() {
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
+      if (!quiz && data.quizId) {
+        const quizData = await quizService.getQuizById(data.quizId);
+        setQuiz(quizData);
+      }
     });
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [sessionId, quiz]);
 
   if (!session) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
 
   const players = session.players || [];
   const pacing = session?.settings?.pacing || 'STUDENT';
+  const totalQuestions = quiz?.questions?.length || 0;
 
   const handleNextQuestion = async () => {
     if (!session) return;
@@ -62,7 +69,9 @@ export default function BattleHostScreen() {
 
   const handleEndGame = async () => {
     if (!session) return;
-    await gameService.endGame(session.id);
+    if (window.confirm('Bạn có chắc chắn muốn kết thúc trận đấu sinh tồn này ngay lập tức?')) {
+      await gameService.endGame(session.id);
+    }
   };
 
   // Find winner if game finished
@@ -134,14 +143,24 @@ export default function BattleHostScreen() {
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {players.map(player => (
-          <BattlePlayerCard key={player.id} player={player} currentTime={currentTime} />
+          <BattlePlayerCard 
+            key={player.id} 
+            player={player} 
+            currentTime={currentTime} 
+            totalQuestions={totalQuestions} 
+            onRemove={async () => {
+              if (window.confirm(`Bạn có chắc muốn xóa ${player.name} khỏi phòng?`)) {
+                await gameService.removePlayer(session.id, player.id);
+              }
+            }}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-const BattlePlayerCard: React.FC<{ player: Player, currentTime: number }> = ({ player, currentTime }) => {
+const BattlePlayerCard: React.FC<{ player: Player, currentTime: number, totalQuestions: number, onRemove: () => void }> = ({ player, currentTime, totalQuestions, onRemove }) => {
   const hp = player.hp ?? 100;
   const maxHp = player.maxHp ?? 100;
   const hpPercent = (hp / maxHp) * 100;
@@ -155,12 +174,19 @@ const BattlePlayerCard: React.FC<{ player: Player, currentTime: number }> = ({ p
   const isPoisoned = activeEffects.some(e => e.type === 'POISONED');
 
   return (
-    <div className={`relative bg-gray-800 rounded-2xl p-4 border-2 transition-all ${
+    <div className={`relative bg-gray-800 rounded-2xl p-4 border-2 transition-all group ${
       isParalyzed ? 'border-yellow-400 animate-shake' : 
       isFrozen ? 'border-blue-400' : 
       isPoisoned ? 'border-green-500' : 
       'border-gray-700'
     }`}>
+      <button
+        onClick={onRemove}
+        className="absolute top-2 left-2 z-30 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Xóa người chơi"
+      >
+        ✕
+      </button>
       {/* Status Overlays */}
       {isFrozen && (
         <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center">
@@ -192,7 +218,10 @@ const BattlePlayerCard: React.FC<{ player: Player, currentTime: number }> = ({ p
           )}
         </div>
         <h3 className="font-bold text-lg truncate w-full text-center">{player.name}</h3>
-        <div className="text-yellow-400 font-mono font-bold">{player.score} pts</div>
+        <div className="flex items-center justify-center gap-2 w-full mt-1">
+          <div className="text-yellow-400 font-mono font-bold bg-gray-900 px-2 py-0.5 rounded-md text-sm">{player.score} pts</div>
+          <div className="text-indigo-300 font-mono font-bold bg-gray-900 px-2 py-0.5 rounded-md text-sm">{Object.keys(player.answers || {}).length}{totalQuestions > 0 ? `/${totalQuestions}` : ''} câu</div>
+        </div>
       </div>
 
       {/* HP Bar */}

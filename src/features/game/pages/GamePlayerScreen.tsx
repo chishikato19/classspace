@@ -145,6 +145,10 @@ export default function GamePlayerScreen() {
       isAnswerCorrect = (currentQuestion.options || []).some(
         opt => opt.text.trim().toLowerCase() === textAnswer.trim().toLowerCase()
       );
+    } else if (currentQuestion.type === 'SURVEY') {
+      if (!optionId) return;
+      setSelectedOptionId(optionId);
+      isAnswerCorrect = true; // Any answer is accepted
     } else {
       if (!optionId) return;
       setSelectedOptionId(optionId);
@@ -155,9 +159,9 @@ export default function GamePlayerScreen() {
     setIsSubmitted(true);
     
     setIsCorrect(isAnswerCorrect);
-    if (isAnswerCorrect) {
+    if (isAnswerCorrect && currentQuestion.type !== 'SURVEY') {
       soundService.play('correct');
-    } else {
+    } else if (!isAnswerCorrect) {
       soundService.play('wrong');
     }
     
@@ -165,7 +169,7 @@ export default function GamePlayerScreen() {
     const settings = session.settings || { equalPoints: false, timeBasedPoints: true, streakBonus: true };
     
     let points = 0;
-    if (isAnswerCorrect) {
+    if (isAnswerCorrect && currentQuestion.type !== 'SURVEY') {
       let basePoints = settings.equalPoints ? 1000 : currentQuestion.points;
       
       if (settings.timeBasedPoints && !settings.equalPoints) {
@@ -179,7 +183,7 @@ export default function GamePlayerScreen() {
       
       setScore(prev => prev + points);
       setStreak(prev => prev + 1);
-    } else {
+    } else if (currentQuestion.type !== 'SURVEY') {
       setStreak(0);
     }
 
@@ -192,7 +196,7 @@ export default function GamePlayerScreen() {
         isCorrect: isAnswerCorrect,
         timeTaken,
         timeLimit: currentQuestion.timeLimit,
-        points: currentQuestion.points
+        points: points
       });
     }
 
@@ -364,7 +368,7 @@ export default function GamePlayerScreen() {
               let bgClass = "bg-white hover:bg-gray-50 border-2 border-gray-200";
               
               if (isSubmitted) {
-                const showAnswers = session?.settings?.showCorrectAnswers === 'IMMEDIATELY';
+                const showAnswers = session?.settings?.showCorrectAnswers === 'IMMEDIATELY' && currentQuestion.type !== 'SURVEY';
                 
                 if (showAnswers) {
                   if (option.isCorrect) bgClass = "bg-green-500 border-green-600 text-white";
@@ -410,11 +414,11 @@ export default function GamePlayerScreen() {
       {/* Feedback Overlay */}
       {isSubmitted && (
         <div className={`fixed inset-x-0 top-0 p-4 text-center font-bold text-white text-lg animate-slide-down ${
-          session?.settings?.showCorrectAnswers === 'IMMEDIATELY' 
+          session?.settings?.showCorrectAnswers === 'IMMEDIATELY' && currentQuestion.type !== 'SURVEY'
             ? (isCorrect ? 'bg-green-500' : 'bg-red-500')
             : 'bg-indigo-500'
         }`}>
-          {session?.settings?.showCorrectAnswers === 'IMMEDIATELY'
+          {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' && currentQuestion.type !== 'SURVEY'
             ? (isCorrect ? 'CHÍNH XÁC! +Điểm' : 'SAI RỒI!')
             : 'Đã ghi nhận câu trả lời!'}
         </div>

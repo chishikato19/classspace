@@ -398,9 +398,20 @@ export default function GameHostLobby() {
           {session.players?.map((player, index) => (
             <div 
               key={index} 
-              className="bg-indigo-700 p-4 rounded-lg text-center font-bold text-lg animate-bounce shadow-md border border-indigo-500 flex flex-col items-center gap-2"
+              className="bg-indigo-700 p-4 rounded-lg text-center font-bold text-lg animate-bounce shadow-md border border-indigo-500 flex flex-col items-center gap-2 relative group"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
+              <button
+                onClick={async () => {
+                  if (window.confirm(`Bạn có chắc muốn xóa ${player.name} khỏi phòng?`)) {
+                    await gameService.removePlayer(session.id, player.id);
+                  }
+                }}
+                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Xóa người chơi"
+              >
+                ✕
+              </button>
               <StudentAvatar 
                 name={player.name} 
                 avatarConfig={player.avatarConfig} 

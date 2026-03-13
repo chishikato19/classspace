@@ -107,6 +107,11 @@ export default function QuizEditor() {
       newOptions = [
         { id: uuidv4(), text: '', isCorrect: true },
       ];
+    } else if (newType === 'SURVEY') {
+      newOptions = [
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: true },
+        { id: uuidv4(), text: '', imageUrl: '', isCorrect: true },
+      ];
     } else {
       // MULTIPLE_CHOICE
       newOptions = [
@@ -142,7 +147,7 @@ export default function QuizEditor() {
         opt.isCorrect = idx === oIndex;
       });
     } else {
-      // For SHORT_ANSWER, all added options are correct variations
+      // For SHORT_ANSWER and SURVEY, all added options are considered "correct" or accepted
       // Logic handled in adding/removing options
     }
     setQuestions(newQuestions);
@@ -163,6 +168,17 @@ export default function QuizEditor() {
     newQuestions[qIndex].options.push({
       id: uuidv4(),
       text: '',
+      isCorrect: true
+    });
+    setQuestions(newQuestions);
+  };
+
+  const handleAddSurveyOption = (qIndex: number) => {
+    const newQuestions = [...questions];
+    newQuestions[qIndex].options.push({
+      id: uuidv4(),
+      text: '',
+      imageUrl: '',
       isCorrect: true
     });
     setQuestions(newQuestions);
@@ -215,6 +231,11 @@ export default function QuizEditor() {
       if (q.type === 'SHORT_ANSWER') {
         if (q.options.length === 0 || !q.options.some(o => o.text.trim())) {
           alert(`Câu hỏi số ${i + 1} (Trả lời ngắn) chưa có đáp án đúng nào`);
+          return;
+        }
+      } else if (q.type === 'SURVEY') {
+        if (q.options.length < 2) {
+          alert(`Câu hỏi số ${i + 1} (Khảo sát) phải có ít nhất 2 lựa chọn`);
           return;
         }
       } else {
@@ -332,6 +353,7 @@ export default function QuizEditor() {
                   <option value="MULTIPLE_CHOICE">Trắc nghiệm</option>
                   <option value="TRUE_FALSE">Đúng / Sai</option>
                   <option value="SHORT_ANSWER">Trả lời ngắn</option>
+                  <option value="SURVEY">Khảo sát</option>
                 </select>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700">Thời gian (giây):</label>
@@ -460,6 +482,70 @@ export default function QuizEditor() {
                 </button>
                 <p className="text-xs text-gray-500 mt-1">
                   * Học sinh trả lời đúng một trong các đáp án trên sẽ được tính điểm (không phân biệt hoa thường).
+                </p>
+              </div>
+            ) : q.type === 'SURVEY' ? (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Các lựa chọn khảo sát:</label>
+                {q.options.map((opt, oIndex) => (
+                  <div key={opt.id} className="flex flex-col gap-2 p-3 border rounded-md bg-gray-50 border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        {String.fromCharCode(65 + oIndex)}
+                      </div>
+                      <input
+                        type="text"
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
+                        value={opt.text}
+                        onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                        placeholder={`Lựa chọn ${oIndex + 1}`}
+                      />
+                      <button
+                        onClick={() => handleRemoveOption(qIndex, oIndex)}
+                        className="text-gray-400 hover:text-red-500"
+                        disabled={q.options.length <= 2}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 pl-8">
+                      <ImageIcon size={14} className="text-gray-400" />
+                      <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
+                        Chọn ảnh
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                          }}
+                        />
+                      </label>
+                      {opt.imageUrl && (
+                        <button
+                          onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
+                          className="text-xs text-red-500 hover:underline ml-2"
+                        >
+                          Xóa
+                        </button>
+                      )}
+                    </div>
+                    {opt.imageUrl && (
+                       <div className="pl-8">
+                          <img src={opt.imageUrl} alt="Option Preview" className="h-16 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                       </div>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => handleAddSurveyOption(qIndex)}
+                  className="text-indigo-600 text-sm font-medium flex items-center gap-1 hover:underline mt-2"
+                >
+                  <Plus size={16} /> Thêm lựa chọn
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  * Học sinh chọn bất kỳ phương án nào cũng được chấp nhận.
                 </p>
               </div>
             ) : (

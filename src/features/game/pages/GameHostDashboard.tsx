@@ -94,6 +94,58 @@ export default function GameHostDashboard() {
     }
   };
 
+  const renderSurveyResults = () => {
+    // Count votes for each option
+    const optionCounts: Record<string, number> = {};
+    currentQuestion.options.forEach(opt => {
+      optionCounts[opt.id] = 0;
+    });
+
+    session.players?.forEach(player => {
+      const answer = player.answers?.[currentQuestion.id];
+      if (answer && answer.optionId && optionCounts[answer.optionId] !== undefined) {
+        optionCounts[answer.optionId]++;
+      }
+    });
+
+    const totalVotes = Object.values(optionCounts).reduce((a, b) => a + b, 0);
+
+    return (
+      <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-4xl mx-auto">
+        <h3 className="text-3xl font-black text-gray-800 mb-8 text-center">Kết quả khảo sát</h3>
+        <div className="space-y-6">
+          {currentQuestion.options.map((opt, idx) => {
+            const count = optionCounts[opt.id] || 0;
+            const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+            
+            return (
+              <div key={opt.id} className="relative">
+                <div className="flex justify-between items-end mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                      {String.fromCharCode(65 + idx)}
+                    </div>
+                    <span className="font-bold text-gray-700 text-lg"><MathText text={opt.text} /></span>
+                  </div>
+                  <div className="font-black text-indigo-600 text-xl">{count} phiếu ({percentage}%)</div>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+                  <div 
+                    className="bg-indigo-500 h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: `${percentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-8 text-center text-gray-500 font-medium">
+          Tổng số người tham gia khảo sát: {totalVotes}
+        </div>
+      </div>
+    );
+  };
+
   const renderTeacherPacedContent = () => {
     if (session.status === 'QUESTION') {
       return (
@@ -223,13 +275,23 @@ export default function GameHostDashboard() {
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
         <div className="text-center mb-12">
-          <h2 className="text-5xl font-black text-yellow-400 mb-2">BẢNG VÀNG</h2>
-          <p className="text-gray-400 text-xl">Thứ hạng sau câu hỏi {session.currentQuestionIndex + 1}</p>
+          <h2 className="text-5xl font-black text-yellow-400 mb-2">
+            {currentQuestion.type === 'SURVEY' ? 'KẾT QUẢ KHẢO SÁT' : 'BẢNG VÀNG'}
+          </h2>
+          <p className="text-gray-400 text-xl">
+            {currentQuestion.type === 'SURVEY' ? `Khảo sát câu hỏi ${session.currentQuestionIndex + 1}` : `Thứ hạng sau câu hỏi ${session.currentQuestionIndex + 1}`}
+          </p>
         </div>
 
-        {/* Podium and List */}
-        {renderPodium()}
-        {renderPlayerList()}
+        {/* Podium and List or Survey Results */}
+        {currentQuestion.type === 'SURVEY' ? (
+          renderSurveyResults()
+        ) : (
+          <>
+            {renderPodium()}
+            {renderPlayerList()}
+          </>
+        )}
 
         <div className="fixed bottom-8 right-8">
           <button
@@ -311,11 +373,12 @@ export default function GameHostDashboard() {
             <th className="px-6 py-4">Tên</th>
             <th className="px-6 py-4">Tiến độ</th>
             <th className="px-6 py-4 text-right">Điểm số</th>
+            <th className="px-6 py-4 text-center">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
           {sortedPlayers.map((player, index) => (
-            <tr key={player.id} className="hover:bg-gray-700/50 transition-colors">
+            <tr key={player.id} className="hover:bg-gray-700/50 transition-colors group">
               <td className="px-6 py-4 font-mono text-gray-400">#{index + 1}</td>
               <td className="px-6 py-4 font-bold flex items-center gap-3">
                 <StudentAvatar 
@@ -344,6 +407,19 @@ export default function GameHostDashboard() {
               </td>
               <td className="px-6 py-4 text-right font-mono text-yellow-400 font-bold text-lg">
                 {player.score}
+              </td>
+              <td className="px-6 py-4 text-center">
+                <button
+                  onClick={async () => {
+                    if (window.confirm(`Bạn có chắc muốn xóa ${player.name} khỏi phòng?`)) {
+                      await gameService.removePlayer(session.id, player.id);
+                    }
+                  }}
+                  className="text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Xóa người chơi"
+                >
+                  ✕
+                </button>
               </td>
             </tr>
           ))}

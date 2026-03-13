@@ -276,6 +276,23 @@ export const gameService = {
     });
   },
 
+  // Xóa người chơi khỏi phòng
+  removePlayer: async (sessionId: string, playerId: string): Promise<void> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw new Error("Session not found");
+      
+      const sessionData = sessionDoc.data();
+      const players = (sessionData.players || []) as Player[];
+      
+      const newPlayers = players.filter(p => p.id !== playerId);
+      
+      transaction.update(sessionRef, { players: newPlayers });
+    });
+  },
+
   // Chuyển sang câu hỏi tiếp theo
   nextQuestion: async (sessionId: string, nextIndex: number): Promise<void> => {
     const sessionRef = doc(db, 'sessions', sessionId);
