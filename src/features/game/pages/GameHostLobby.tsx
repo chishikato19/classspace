@@ -19,7 +19,13 @@ export default function GameHostLobby() {
     equalPoints: false,
     timeBasedPoints: true,
     streakBonus: true,
-    effectDuration: 10, // Default 10s as requested
+    showCorrectAnswers: 'IMMEDIATELY',
+    maxAttempts: 0,
+    requirePasscode: false,
+    allowRetry: false,
+    effectDuration: 10,
+    reviveCost: 1000,
+    pacing: 'STUDENT'
   });
   const [sessionTitle, setSessionTitle] = useState('');
   
@@ -46,6 +52,12 @@ export default function GameHostLobby() {
 
   const handleCreateSession = async () => {
     if (!quizId) return;
+    
+    if (!auth.currentUser) {
+      alert('Vui lòng đăng nhập để tạo phòng!');
+      navigate('/login');
+      return;
+    }
     
     if (nameInputType === 'CLASS_LIST' && !selectedClassId) {
       alert('Vui lòng chọn lớp học!');
@@ -144,58 +156,79 @@ export default function GameHostLobby() {
                   >
                     Đấu trường sinh tồn
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGameMode('PLICKERS');
+                      setNameInputType('CLASS_LIST');
+                      setIsGroupPlay(false);
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                      gameMode === 'PLICKERS'
+                        ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Quét thẻ Plickers
+                  </button>
                 </div>
                 <p className="text-xs text-gray-500 italic">
                   {gameMode === 'STUDENT_PACED' 
                     ? 'Học sinh tự hoàn thành bài thi theo tốc độ cá nhân.' 
                     : gameMode === 'TEACHER_PACED'
                     ? 'Cả lớp cùng làm một câu hỏi. Giáo viên bấm nút để sang câu tiếp theo.'
-                    : 'Chế độ chiến đấu nhiều người chơi. Sử dụng vật phẩm để tấn công đối thủ!'}
+                    : gameMode === 'BATTLE'
+                    ? 'Chế độ chiến đấu nhiều người chơi. Sử dụng vật phẩm để tấn công đối thủ!'
+                    : 'Học sinh dùng thẻ giấy để trả lời. Giáo viên dùng điện thoại quét thẻ.'}
                 </p>
               </div>
 
               <div className="space-y-2 mt-4 border-t border-gray-200 pt-4">
                 <label className="block text-sm font-medium text-gray-700">Cài đặt người chơi</label>
                 
-                <div className="flex items-center gap-4 mb-2">
-                  <label className="flex items-center cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500 mr-2"
-                      checked={isGroupPlay}
-                      onChange={(e) => setIsGroupPlay(e.target.checked)}
-                    />
-                    <span className="text-gray-700 font-medium">Chế độ chơi nhóm</span>
-                  </label>
-                </div>
+                {gameMode !== 'PLICKERS' && (
+                  <>
+                    <div className="flex items-center gap-4 mb-2">
+                      <label className="flex items-center cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500 mr-2"
+                          checked={isGroupPlay}
+                          onChange={(e) => setIsGroupPlay(e.target.checked)}
+                        />
+                        <span className="text-gray-700 font-medium">Chế độ chơi nhóm</span>
+                      </label>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-600">Cách nhập tên:</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setNameInputType('MANUAL')}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                        nameInputType === 'MANUAL'
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      Tự nhập tên {isGroupPlay ? 'nhóm' : ''}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNameInputType('CLASS_LIST')}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                        nameInputType === 'CLASS_LIST'
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      Chọn từ danh sách lớp
-                    </button>
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-600">Cách nhập tên:</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNameInputType('MANUAL')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                            nameInputType === 'MANUAL'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Tự nhập tên {isGroupPlay ? 'nhóm' : ''}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNameInputType('CLASS_LIST')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                            nameInputType === 'CLASS_LIST'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Chọn từ danh sách lớp
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {nameInputType === 'CLASS_LIST' && (
                   <div className="mt-2 animate-fadeIn">
@@ -423,15 +456,17 @@ export default function GameHostLobby() {
           ))}
           {(!session.players || session.players.length === 0) && (
             <div className="col-span-full text-center text-indigo-300 text-xl mt-20 animate-pulse">
-              Đang chờ người chơi tham gia...
+              {session.mode === 'PLICKERS' ? 'Lớp học chưa có học sinh nào.' : 'Đang chờ người chơi tham gia...'}
             </div>
           )}
         </div>
       </div>
       
-      <div className="p-4 text-center text-indigo-300 text-sm">
-        Hãy truy cập vào trang web và nhập mã PIN ở trên để tham gia.
-      </div>
+      {session.mode !== 'PLICKERS' && (
+        <div className="p-4 text-center text-indigo-300 text-sm">
+          Hãy truy cập vào trang web và nhập mã PIN ở trên để tham gia.
+        </div>
+      )}
     </div>
   );
 }

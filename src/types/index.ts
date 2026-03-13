@@ -79,7 +79,7 @@ export interface Quiz {
 }
 
 export type GameStatus = 'WAITING' | 'STARTING' | 'QUESTION' | 'LEADERBOARD' | 'PLAYING' | 'FINISHED' | 'EXPIRED';
-export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK' | 'BATTLE';
+export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK' | 'BATTLE' | 'PLICKERS';
 
 export interface GameSettings {
   shuffleQuestions: boolean;
@@ -136,6 +136,7 @@ export interface Player {
     pointsAwarded: number;
   }>;
   avatarConfig?: AvatarConfig;
+  cardNumber?: string; // Số thứ tự thẻ Plickers
   // Battle Mode Specifics
   hp?: number;
   maxHp?: number;

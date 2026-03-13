@@ -28,9 +28,9 @@ export default function GameHostDashboard() {
     return () => unsubscribe();
   }, [sessionId, quiz]);
 
-  // Timer for Teacher-paced mode
+  // Timer for Teacher-paced and Plickers mode
   useEffect(() => {
-    if (session?.mode === 'TEACHER_PACED' && session.status === 'QUESTION' && quiz) {
+    if ((session?.mode === 'TEACHER_PACED' || session?.mode === 'PLICKERS') && session.status === 'QUESTION' && quiz) {
       const currentQuestion = quiz.questions[session.currentQuestionIndex];
       const startTime = session.questionStartTime || Date.now();
       const limit = (currentQuestion.timeLimit || 30) * 1000;
@@ -150,114 +150,136 @@ export default function GameHostDashboard() {
     if (session.status === 'QUESTION') {
       return (
         <div className="space-y-8 animate-in fade-in zoom-in duration-500">
-          {/* Question Display */}
-          <div className="bg-white text-gray-900 p-8 rounded-3xl shadow-2xl text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gray-100">
-              <div 
-                className="h-full bg-indigo-600 transition-all duration-1000 ease-linear"
-                style={{ width: `${(timeLeft / currentQuestion.timeLimit) * 10000 / 100}%` }}
-              ></div>
-            </div>
-            
-            <div className="flex justify-between items-center mb-6">
-              <span className="bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full font-bold text-sm">
-                Câu hỏi {session.currentQuestionIndex + 1} / {quiz.questions.length}
-              </span>
-              <div className="flex items-center gap-2 text-2xl font-black text-indigo-600">
-                <Clock className="w-6 h-6" />
-                {timeLeft}s
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Left Side: Question Display (3/5) */}
+            <div className="lg:w-3/5 bg-white text-gray-900 p-8 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gray-100">
+                <div 
+                  className="h-full bg-indigo-600 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(timeLeft / currentQuestion.timeLimit) * 10000 / 100}%` }}
+                ></div>
+              </div>
+              
+              <div className="flex justify-between items-center mb-6">
+                <span className="bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full font-bold text-sm">
+                  Câu hỏi {session.currentQuestionIndex + 1} / {quiz.questions.length}
+                </span>
+                <div className="flex items-center gap-2 text-2xl font-black text-indigo-600">
+                  <Clock className="w-6 h-6" />
+                  {timeLeft}s
+                </div>
+              </div>
+
+              <h2 className="text-4xl font-black mb-8 leading-tight flex flex-col items-center text-center">
+                {currentQuestion.imageUrl && (
+                  <img 
+                    src={currentQuestion.imageUrl} 
+                    alt="Question" 
+                    className="max-h-96 object-contain rounded-xl mb-6 border-4 border-gray-200 shadow-lg"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                )}
+                <MathText text={currentQuestion.text} />
+              </h2>
+              
+              <div className="grid grid-cols-2 gap-4 mt-auto">
+                {currentQuestion.type === 'SHORT_ANSWER' ? (
+                   <div className="col-span-2 bg-white p-6 rounded-2xl border-4 border-indigo-200 text-center shadow-sm">
+                      <p className="text-gray-500 font-bold mb-4 uppercase tracking-wide text-sm">Đáp án chấp nhận</p>
+                      <div className="flex flex-wrap gap-3 justify-center">
+                         {currentQuestion.options.map(opt => (
+                            <span key={opt.id} className="bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xl border-2 border-green-200 shadow-sm">
+                               {opt.text}
+                            </span>
+                         ))}
+                      </div>
+                   </div>
+                ) : (
+                  currentQuestion.options.map((opt, idx) => (
+                    <div 
+                      key={opt.id}
+                      className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex flex-col gap-4 ${
+                        idx === 0 ? 'bg-red-50 border-red-200 text-red-700' :
+                        idx === 1 ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                        idx === 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+                        'bg-green-50 border-green-200 text-green-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
+                          idx === 0 ? 'bg-red-500' :
+                          idx === 1 ? 'bg-blue-500' :
+                          idx === 2 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}>
+                          {String.fromCharCode(65 + idx)}
+                        </div>
+                        <MathText text={opt.text} />
+                      </div>
+                      {opt.imageUrl && (
+                        <img 
+                          src={opt.imageUrl} 
+                          alt="Option" 
+                          className="w-full h-48 object-cover rounded-lg border border-gray-300 bg-white"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            <h2 className="text-4xl font-black mb-8 leading-tight flex flex-col items-center">
-              {currentQuestion.imageUrl && (
-                <img 
-                  src={currentQuestion.imageUrl} 
-                  alt="Question" 
-                  className="max-h-96 object-contain rounded-xl mb-6 border-4 border-gray-200 shadow-lg"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
-              )}
-              <MathText text={currentQuestion.text} />
-            </h2>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {currentQuestion.type === 'SHORT_ANSWER' ? (
-                 <div className="col-span-2 bg-white p-6 rounded-2xl border-4 border-indigo-200 text-center shadow-sm">
-                    <p className="text-gray-500 font-bold mb-4 uppercase tracking-wide text-sm">Đáp án chấp nhận</p>
-                    <div className="flex flex-wrap gap-3 justify-center">
-                       {currentQuestion.options.map(opt => (
-                          <span key={opt.id} className="bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xl border-2 border-green-200 shadow-sm">
-                             {opt.text}
-                          </span>
-                       ))}
+            {/* Right Side: Tracking Board (2/5) */}
+            <div className="lg:w-2/5 bg-gray-800 rounded-3xl shadow-2xl p-6 flex flex-col border border-gray-700">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-400" />
+                  Bảng theo dõi
+                </h3>
+                <div className="bg-gray-900 px-3 py-1 rounded-full text-sm font-bold text-indigo-400 border border-gray-700">
+                  Đã nhận: {answeredCount}/{totalPlayers}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto max-h-[600px] pr-2 custom-scrollbar">
+                {session.players?.map((p, idx) => {
+                  const hasAnswered = !!p.answers?.[currentQuestion.id];
+                  // Extract last name
+                  const nameParts = p.name.trim().split(' ');
+                  const lastName = nameParts[nameParts.length - 1];
+                  
+                  return (
+                    <div 
+                      key={p.id}
+                      className={`relative p-3 rounded-xl border-2 flex flex-col items-center justify-center text-center transition-all duration-300 ${
+                        hasAnswered 
+                          ? 'bg-green-500 border-green-400 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)] transform scale-105 z-10' 
+                          : 'bg-gray-700 border-gray-600 text-gray-400'
+                      }`}
+                    >
+                      <span className="text-xs font-bold opacity-70 mb-1">[{p.cardNumber || idx + 1}]</span>
+                      <span className="font-bold text-sm truncate w-full">{lastName}</span>
                     </div>
-                 </div>
-              ) : (
-                currentQuestion.options.map((opt, idx) => (
-                  <div 
-                    key={opt.id}
-                    className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex flex-col gap-4 ${
-                      idx === 0 ? 'bg-red-50 border-red-200 text-red-700' :
-                      idx === 1 ? 'bg-blue-50 border-blue-200 text-blue-700' :
-                      idx === 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-                      'bg-green-50 border-green-200 text-green-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
-                        idx === 0 ? 'bg-red-500' :
-                        idx === 1 ? 'bg-blue-500' :
-                        idx === 2 ? 'bg-yellow-500' :
-                        'bg-green-500'
-                      }`}>
-                        {String.fromCharCode(65 + idx)}
-                      </div>
-                      <MathText text={opt.text} />
-                    </div>
-                    {opt.imageUrl && (
-                      <img 
-                        src={opt.imageUrl} 
-                        alt="Option" 
-                        className="w-full h-48 object-cover rounded-lg border border-gray-300 bg-white"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
-                    )}
-                  </div>
-                ))
-              )}
+                  );
+                })}
+              </div>
             </div>
           </div>
 
           {/* Stats Bar */}
           <div className="flex justify-between items-center bg-gray-800 p-6 rounded-2xl shadow-xl">
             <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <Users className="w-8 h-8 text-indigo-400" />
-                <div>
-                  <div className="text-2xl font-black">{answeredCount} / {totalPlayers}</div>
-                  <div className="text-xs text-gray-400 uppercase tracking-wider">Đã trả lời</div>
-                </div>
-              </div>
-              <div className="h-10 w-px bg-gray-700"></div>
-              <div className="flex -space-x-2">
-                {session.players?.slice(0, 5).map((p, i) => (
-                  <StudentAvatar 
-                    key={p.id} 
-                    name={p.name} 
-                    avatarConfig={p.avatarConfig} 
-                    size={40} 
-                    className="border-2 border-gray-800"
-                  />
-                ))}
-                {totalPlayers > 5 && (
-                  <div className="w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs font-bold">
-                    +{totalPlayers - 5}
-                  </div>
-                )}
-              </div>
+              {session.mode === 'PLICKERS' && (
+                <button
+                  onClick={() => window.open(`#/game/scanner/${session.id}`, '_blank')}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors border border-gray-600"
+                >
+                  Mở máy quét (Plickers)
+                </button>
+              )}
             </div>
 
             <button
@@ -435,10 +457,11 @@ export default function GameHostDashboard() {
           <div>
             <h1 className="text-3xl font-bold">
               {session.mode === 'HOMEWORK' ? 'Theo Dõi Bài Tập Về Nhà' : 
-               session.mode === 'TEACHER_PACED' ? 'Điều Khiển Phòng Thi' : 'Bảng Xếp Hạng Trực Tiếp'}
+               (session.mode === 'TEACHER_PACED' || session.mode === 'PLICKERS') ? 'Điều Khiển Phòng Thi' : 'Bảng Xếp Hạng Trực Tiếp'}
             </h1>
             <p className="text-gray-400 mt-1">
               {session.mode === 'TEACHER_PACED' ? 'Chế độ: Giáo viên điều khiển' : 
+               session.mode === 'PLICKERS' ? 'Chế độ: Quét thẻ Plickers' :
                session.mode === 'STUDENT_PACED' ? 'Chế độ: Học sinh tự làm' : 'Chế độ: Bài tập về nhà'}
             </p>
           </div>
@@ -463,7 +486,7 @@ export default function GameHostDashboard() {
           </div>
         </header>
 
-        {session.mode === 'TEACHER_PACED' ? renderTeacherPacedContent() : (
+        {(session.mode === 'TEACHER_PACED' || session.mode === 'PLICKERS') ? renderTeacherPacedContent() : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {renderPodium()}
             {renderPlayerList()}

@@ -17,6 +17,7 @@ import GamePlayerLobby from './features/game/pages/GamePlayerLobby';
 import GamePlayerScreen from './features/game/pages/GamePlayerScreen';
 import GameResults from './features/game/pages/GameResults';
 import LocalBattleArena from './features/game/pages/LocalBattleArena';
+import PlickersScanner from './features/game/pages/PlickersScanner';
 import QuizEditor from './features/quiz/pages/QuizEditor';
 import TeacherDashboard from './features/teacher/pages/TeacherDashboard';
 import RandomSelector from './features/random-selector/pages/RandomSelector';
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
         <Route path="/game/host/:quizId" element={<GameHostLobby />} />
         <Route path="/game/dashboard/:sessionId" element={<GameHostDashboard />} />
+        <Route path="/game/scanner/:sessionId" element={<PlickersScanner />} />
         <Route path="/game/results/:sessionId" element={<GameResults />} />
         <Route path="/game/local-battle/:quizId" element={<LocalBattleArena />} />
 

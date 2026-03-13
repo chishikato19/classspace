@@ -33,6 +33,13 @@ export default function GameJoinPage() {
       if (foundSession) {
         setSession(foundSession);
         
+        // Prevent joining PLICKERS mode via web
+        if (foundSession.mode === 'PLICKERS') {
+          setError('Chế độ này không hỗ trợ tham gia qua điện thoại. Vui lòng sử dụng thẻ Plickers.');
+          setLoading(false);
+          return;
+        }
+
         // Check deadline for Homework
         if (foundSession.mode === 'HOMEWORK' && foundSession.homeworkConfig?.deadline) {
           if (Date.now() > foundSession.homeworkConfig.deadline) {

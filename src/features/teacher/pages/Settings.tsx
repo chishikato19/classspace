@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Keyboard } from 'lucide-react';
+import { Save, Eye, EyeOff, Keyboard, Printer } from 'lucide-react';
+import { PlickersCardsPrint } from '../components/PlickersCardsPrint';
 
 export default function Settings() {
   const [noDuplicate, setNoDuplicate] = useState(false);
@@ -45,9 +46,9 @@ export default function Settings() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Cài đặt hệ thống</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 print:hidden">Cài đặt hệ thống</h1>
       
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:hidden">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Công cụ chọn ngẫu nhiên</h2>
           <p className="text-sm text-gray-500 mt-1">Cấu hình cho các công cụ chọn học sinh</p>
@@ -183,6 +184,47 @@ export default function Settings() {
           </div>
         </div>
         
+        <div className="border-t border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Printer className="w-5 h-5 text-indigo-600" />
+              In thẻ Plickers
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">In bộ 60 thẻ để học sinh sử dụng trong lớp học</p>
+          </div>
+          <div className="p-6">
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                In bộ 60 thẻ (A4)
+              </button>
+              
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <Save className="w-4 h-4" />
+                Xuất ra file PDF
+              </button>
+            </div>
+            <div className="mt-4 p-4 bg-blue-50 text-blue-800 rounded-lg text-sm">
+              <p className="font-semibold mb-1">💡 Hướng dẫn xuất PDF:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Nhấn nút <strong>Xuất ra file PDF</strong> hoặc <strong>In bộ 60 thẻ</strong>.</li>
+                <li>Trong hộp thoại in hiện ra, tìm mục <strong>Destination (Máy in đích)</strong>.</li>
+                <li>Chọn <strong>Save as PDF (Lưu dưới dạng PDF)</strong>.</li>
+                <li>Nhấn <strong>Save (Lưu)</strong> để tải file về máy.</li>
+              </ul>
+            </div>
+            <p className="mt-4 text-sm text-gray-500">
+              Lưu ý: Mỗi thẻ sẽ được in trên 1 tờ giấy A4. Hãy đảm bảo máy in của bạn đã sẵn sàng hoặc chọn lưu thành PDF để in sau.
+            </p>
+          </div>
+        </div>
+
         <div className="bg-gray-50 px-6 py-4 flex items-center justify-end">
           {showSuccess && (
             <span className="text-green-600 text-sm font-medium mr-4 animate-fade-in">
@@ -198,6 +240,7 @@ export default function Settings() {
           </button>
         </div>
       </div>
+      <PlickersCardsPrint />
     </div>
   );
 }
