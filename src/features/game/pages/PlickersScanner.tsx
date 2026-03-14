@@ -55,6 +55,8 @@ export default function PlickersScanner() {
     new Map(),
   );
   const [isScanning, setIsScanning] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   const lastResultsRef = useRef<Map<string, Answer>>(new Map());
   const processingRef = useRef(false);
@@ -176,6 +178,7 @@ export default function PlickersScanner() {
     };
 
     const startCamera = async () => {
+      setCameraError(null);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -189,9 +192,17 @@ export default function PlickersScanner() {
           videoRef.current.play();
           setIsScanning(true);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Camera Error:", err);
-        alert("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
+        let errorMsg = "Không thể truy cập camera.";
+        if (err.name === 'NotAllowedError') {
+          errorMsg = "Bạn đã từ chối quyền truy cập camera. Vui lòng cấp quyền trong cài đặt trình duyệt.";
+        } else if (err.name === 'NotFoundError') {
+          errorMsg = "Không tìm thấy camera trên thiết bị này.";
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          errorMsg = "Camera đang bị ứng dụng khác sử dụng hoặc bị chặn bởi lớp phủ hệ thống.";
+        }
+        setCameraError(errorMsg);
       }
     };
 
@@ -301,8 +312,44 @@ export default function PlickersScanner() {
     session.players?.filter((p) => p.answers && p.answers[currentQuestion?.id])
       ?.length || 0;
 
+  const TroubleshootingModal = () => (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-6 overflow-y-auto">
+      <div className="bg-white text-gray-900 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <h3 className="text-xl font-bold mb-4 text-red-600">Khắc phục lỗi Camera</h3>
+        <div className="space-y-4 text-sm leading-relaxed">
+          <p className="font-semibold">Nếu bạn thấy thông báo "Đóng lớp phủ ứng dụng" hoặc không mở được camera:</p>
+          <ol className="list-decimal list-inside space-y-2">
+            <li><span className="font-bold">Tắt các ứng dụng chạy đè:</span> Tắt bong bóng chat Messenger, ứng dụng lọc ánh sáng xanh (Twilight), hoặc trình ghi màn hình.</li>
+            <li><span className="font-bold">Kiểm tra quyền:</span> Vào Cài đặt {'>'} Ứng dụng {'>'} Trình duyệt (Chrome/Safari) {'>'} Quyền {'>'} Camera {'>'} Chọn "Cho phép".</li>
+            <li><span className="font-bold">Đóng tab khác:</span> Đảm bảo không có trang web nào khác đang mở camera.</li>
+            <li><span className="font-bold">Khởi động lại:</span> Thử tải lại trang hoặc khởi động lại trình duyệt.</li>
+          </ol>
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-4">
+            <p className="text-blue-800 text-xs italic">Mẹo: Trên Android, bạn có thể tìm "Xuất hiện trên cùng" trong cài đặt và tạm thời tắt quyền này của các ứng dụng khác.</p>
+          </div>
+        </div>
+        <div className="mt-6 flex gap-3">
+          <button 
+            onClick={() => window.location.reload()}
+            className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition"
+          >
+            Thử lại ngay
+          </button>
+          <button 
+            onClick={() => {setShowHelp(false); setCameraError(null);}}
+            className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-bold hover:bg-gray-300 transition"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden flex flex-col">
+      {(cameraError || showHelp) && <TroubleshootingModal />}
+      
       {/* Header */}
       <div className="absolute top-0 left-0 w-full p-4 z-10 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
         <button
@@ -311,6 +358,12 @@ export default function PlickersScanner() {
         >
           <ArrowLeft className="w-5 h-5" />
           Quay lại
+        </button>
+        <button
+          onClick={() => setShowHelp(true)}
+          className="text-white flex items-center gap-2 bg-yellow-500/20 border border-yellow-500/50 px-4 py-2 rounded-full backdrop-blur-sm hover:bg-yellow-500/30 transition"
+        >
+          Trợ giúp Camera
         </button>
         <div className="text-white text-center">
           <h2 className="font-bold text-xl">Máy quét Plickers</h2>
