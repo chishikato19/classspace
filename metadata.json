@@ -1,5 +1,5 @@
 {
   "name": "ClassSpace",
   "description": "",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["camera"]
 }

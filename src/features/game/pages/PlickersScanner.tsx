@@ -350,7 +350,7 @@ export default function PlickersScanner() {
         )}
 
         <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-4">
-          <p className="text-blue-800 text-xs italic">Mẹo: Sau khi thay đổi cài đặt, hãy nhấn "Thử lại ngay" hoặc tải lại trang web.</p>
+          <p className="text-blue-800 text-xs italic">Mẹo: Nếu vẫn không được, hãy thử mở ứng dụng trong một tab mới (nút "Mở trong tab mới" ở góc trên bên phải).</p>
         </div>
 
         <div className="mt-6 flex gap-3">
