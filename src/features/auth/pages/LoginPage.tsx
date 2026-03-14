@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../../config/firebase';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!auth) return;
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        if (user.email && user.email.includes('admin')) {
+          navigate('/admin');
+        } else {
+          navigate('/teacher/dashboard');
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   const handleGoogleLogin = async () => {
     setLoading(true);

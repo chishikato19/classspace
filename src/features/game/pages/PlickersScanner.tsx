@@ -195,13 +195,18 @@ export default function PlickersScanner() {
       } catch (err: any) {
         console.error("Camera Error:", err);
         let errorMsg = "Không thể truy cập camera.";
-        if (err.name === 'NotAllowedError') {
-          errorMsg = "Bạn đã từ chối quyền truy cập camera. Vui lòng cấp quyền trong cài đặt trình duyệt.";
-        } else if (err.name === 'NotFoundError') {
+        
+        // Handle various permission denied scenarios
+        if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+          errorMsg = "Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.";
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           errorMsg = "Không tìm thấy camera trên thiết bị này.";
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || err.message?.includes('could not start')) {
           errorMsg = "Camera đang bị ứng dụng khác sử dụng hoặc bị chặn bởi lớp phủ hệ thống.";
+        } else if (err.name === 'OverconstrainedError') {
+          errorMsg = "Yêu cầu cấu hình camera không được hỗ trợ bởi thiết bị này.";
         }
+        
         setCameraError(errorMsg);
       }
     };
@@ -316,18 +321,38 @@ export default function PlickersScanner() {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-6 overflow-y-auto">
       <div className="bg-white text-gray-900 rounded-2xl p-6 max-w-md w-full shadow-2xl">
         <h3 className="text-xl font-bold mb-4 text-red-600">Khắc phục lỗi Camera</h3>
-        <div className="space-y-4 text-sm leading-relaxed">
-          <p className="font-semibold">Nếu bạn thấy thông báo "Đóng lớp phủ ứng dụng" hoặc không mở được camera:</p>
-          <ol className="list-decimal list-inside space-y-2">
-            <li><span className="font-bold">Tắt các ứng dụng chạy đè:</span> Tắt bong bóng chat Messenger, ứng dụng lọc ánh sáng xanh (Twilight), hoặc trình ghi màn hình.</li>
-            <li><span className="font-bold">Kiểm tra quyền:</span> Vào Cài đặt {'>'} Ứng dụng {'>'} Trình duyệt (Chrome/Safari) {'>'} Quyền {'>'} Camera {'>'} Chọn "Cho phép".</li>
-            <li><span className="font-bold">Đóng tab khác:</span> Đảm bảo không có trang web nào khác đang mở camera.</li>
-            <li><span className="font-bold">Khởi động lại:</span> Thử tải lại trang hoặc khởi động lại trình duyệt.</li>
-          </ol>
-          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-4">
-            <p className="text-blue-800 text-xs italic">Mẹo: Trên Android, bạn có thể tìm "Xuất hiện trên cùng" trong cài đặt và tạm thời tắt quyền này của các ứng dụng khác.</p>
+        
+        {cameraError?.includes("Quyền truy cập camera bị từ chối") ? (
+          <div className="space-y-4 text-sm leading-relaxed">
+            <p className="font-bold text-red-500">Bạn đã chặn quyền truy cập camera.</p>
+            <p>Để quét được thẻ Plickers, bạn cần cấp lại quyền theo các bước sau:</p>
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
+              <div>
+                <p className="font-bold">Trên Chrome (Android/Máy tính):</p>
+                <p>Bấm vào biểu tượng <span className="inline-block px-1 bg-gray-200 rounded">ổ khóa</span> hoặc <span className="inline-block px-1 bg-gray-200 rounded">cài đặt</span> ở bên trái thanh địa chỉ trình duyệt {'>'} Chọn <span className="font-bold">Cài đặt trang web</span> {'>'} Tìm <span className="font-bold">Máy ảnh</span> {'>'} Chọn <span className="font-bold">Cho phép</span>.</p>
+              </div>
+              <div>
+                <p className="font-bold">Trên Safari (iOS):</p>
+                <p>Bấm vào biểu tượng <span className="inline-block px-1 bg-gray-200 rounded">Aa</span> ở thanh địa chỉ {'>'} Chọn <span className="font-bold">Cài đặt trang web</span> {'>'} Tìm <span className="font-bold">Máy ảnh</span> {'>'} Chọn <span className="font-bold">Cho phép</span>.</p>
+              </div>
+            </div>
           </div>
+        ) : (
+          <div className="space-y-4 text-sm leading-relaxed">
+            <p className="font-semibold">Nếu bạn thấy thông báo "Đóng lớp phủ ứng dụng" hoặc không mở được camera:</p>
+            <ol className="list-decimal list-inside space-y-2">
+              <li><span className="font-bold">Tắt các ứng dụng chạy đè:</span> Tắt bong bóng chat Messenger, ứng dụng lọc ánh sáng xanh (Twilight), hoặc trình ghi màn hình.</li>
+              <li><span className="font-bold">Kiểm tra quyền:</span> Vào Cài đặt {'>'} Ứng dụng {'>'} Trình duyệt {'>'} Quyền {'>'} Camera {'>'} Chọn "Cho phép".</li>
+              <li><span className="font-bold">Đóng tab khác:</span> Đảm bảo không có trang web nào khác đang mở camera.</li>
+              <li><span className="font-bold">Khởi động lại:</span> Thử tải lại trang hoặc khởi động lại trình duyệt.</li>
+            </ol>
+          </div>
+        )}
+
+        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-4">
+          <p className="text-blue-800 text-xs italic">Mẹo: Sau khi thay đổi cài đặt, hãy nhấn "Thử lại ngay" hoặc tải lại trang web.</p>
         </div>
+
         <div className="mt-6 flex gap-3">
           <button 
             onClick={() => window.location.reload()}

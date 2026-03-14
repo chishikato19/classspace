@@ -29,6 +29,8 @@ import ShopManager from './features/shop/pages/ShopManager';
 import Settings from './features/teacher/pages/Settings';
 import { timeService } from './services/timeService';
 
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
 export default function App() {
   useEffect(() => {
     if (isFirebaseConfigured) {
@@ -53,14 +55,16 @@ export default function App() {
         {/* Game Routes (No Layout) */}
         <Route path="/game/lobby/:sessionId" element={<GamePlayerLobby />} />
         <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
-        <Route path="/game/host/:quizId" element={<GameHostLobby />} />
-        <Route path="/game/dashboard/:sessionId" element={<GameHostDashboard />} />
-        <Route path="/game/scanner/:sessionId" element={<PlickersScanner />} />
-        <Route path="/game/results/:sessionId" element={<GameResults />} />
-        <Route path="/game/local-battle/:quizId" element={<LocalBattleArena />} />
+        
+        {/* Protected Game Routes */}
+        <Route path="/game/host/:quizId" element={<ProtectedRoute><GameHostLobby /></ProtectedRoute>} />
+        <Route path="/game/dashboard/:sessionId" element={<ProtectedRoute><GameHostDashboard /></ProtectedRoute>} />
+        <Route path="/game/scanner/:sessionId" element={<ProtectedRoute><PlickersScanner /></ProtectedRoute>} />
+        <Route path="/game/results/:sessionId" element={<ProtectedRoute><GameResults /></ProtectedRoute>} />
+        <Route path="/game/local-battle/:quizId" element={<ProtectedRoute><LocalBattleArena /></ProtectedRoute>} />
 
         {/* Protected Routes (Wrapped in Layout) */}
-        <Route element={<Layout />}>
+        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
           <Route path="/teacher/shop" element={<ShopManager />} />

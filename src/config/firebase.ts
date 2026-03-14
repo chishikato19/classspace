@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
 
 // Import the Firebase configuration
@@ -11,6 +11,13 @@ export const isFirebaseConfigured = !!firebaseConfig.apiKey;
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null as any;
 export const auth = app ? getAuth(app) : null as any;
+
+// Set persistence to LOCAL (persists even after browser is closed)
+if (auth) {
+  setPersistence(auth, browserLocalPersistence).catch((error) => {
+    console.error("Auth persistence error:", error);
+  });
+}
 
 // Error Handling Spec for Firestore Permissions
 export enum OperationType {
