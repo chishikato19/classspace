@@ -159,15 +159,13 @@ export default function PlickersScanner() {
   );
 
   useEffect(() => {
-    let animationFrameId: number;
-    let isWorkerBusy = false;
-
     // Initialize Web Worker
     workerRef.current = new Worker(
       new URL("../workers/zxingWorker.ts", import.meta.url),
       { type: "module" },
     );
 
+    let isWorkerBusy = false;
     workerRef.current.onmessage = (e) => {
       isWorkerBusy = false;
       if (e.data.results) {
@@ -189,14 +187,19 @@ export default function PlickersScanner() {
         });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
+          // Use a promise to handle play() and avoid "interrupted by new load request"
+          const playPromise = videoRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.warn("Video play was interrupted:", error);
+            });
+          }
           setIsScanning(true);
         }
       } catch (err: any) {
         console.error("Camera Error:", err);
         let errorMsg = "Không thể truy cập camera.";
         
-        // Handle various permission denied scenarios
         if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
           errorMsg = "Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.";
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -211,24 +214,37 @@ export default function PlickersScanner() {
       }
     };
 
+    startCamera();
+
+    return () => {
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      workerRef.current?.terminate();
+    };
+  }, []); // Only run once on mount
+
+  // Scanning Loop Effect
+  useEffect(() => {
+    if (!isScanning) return;
+
+    let animationFrameId: number;
+    let isWorkerBusy = false;
+
     const scanFrame = () => {
       if (
         videoRef.current &&
         canvasRef.current &&
         videoRef.current.readyState === 4 &&
-        !isWorkerBusy &&
-        isScanning
+        !isWorkerBusy
       ) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
         if (ctx) {
-          // Set canvas dimensions to match video
-          if (
-            canvas.width !== video.videoWidth ||
-            canvas.height !== video.videoHeight
-          ) {
+          if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
           }
@@ -240,9 +256,9 @@ export default function PlickersScanner() {
           workerRef.current?.postMessage({
             imageData,
             options: {
-              tryHarder: false, // Set to true for better accuracy but slower performance
+              tryHarder: false,
               formats: ["QRCode"],
-              maxNumberOfSymbols: 60, // Max number of students
+              maxNumberOfSymbols: 60,
             },
           });
         }
@@ -250,22 +266,32 @@ export default function PlickersScanner() {
       animationFrameId = requestAnimationFrame(scanFrame);
     };
 
+    scanFrame();
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [isScanning, processBarcodes]);
+
+  // Overlay Drawing Effect
+  useEffect(() => {
     const drawOverlay = () => {
       const canvas = canvasRef.current;
       const video = videoRef.current;
-      if (!canvas || !video) return;
+      if (!canvas || !video || video.readyState !== 4) return;
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       results.forEach((student) => {
         const pts = student.corners;
-
         ctx.beginPath();
         ctx.lineWidth = 4;
         ctx.strokeStyle = "#00FF00";
@@ -279,31 +305,13 @@ export default function PlickersScanner() {
 
         ctx.fillStyle = "#000";
         ctx.font = "bold 20px Arial";
-        ctx.fillText(
-          `${student.name}: ${student.answer}`,
-          pts[0].x + 5,
-          pts[0].y - 12,
-        );
+        ctx.fillText(`${student.name}: ${student.answer}`, pts[0].x + 5, pts[0].y - 12);
       });
     };
 
-    startCamera().then(() => {
-      scanFrame();
-    });
-
-    // Draw overlay on every frame
-    const overlayInterval = setInterval(drawOverlay, 1000 / 30); // 30fps
-
-    return () => {
-      clearInterval(overlayInterval);
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
-      workerRef.current?.terminate();
-    };
-  }, [processBarcodes, isScanning, results]);
+    const overlayInterval = setInterval(drawOverlay, 1000 / 30);
+    return () => clearInterval(overlayInterval);
+  }, [results]);
 
   if (!session || !quiz)
     return (
