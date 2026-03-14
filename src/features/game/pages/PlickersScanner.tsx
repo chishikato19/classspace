@@ -88,7 +88,6 @@ export default function PlickersScanner() {
 
       const currentQuestion = quiz.questions[session.currentQuestionIndex];
       const newResults = new Map<string, ScannedStudent>();
-      let hasChanged = false;
 
       for (const barcode of barcodes) {
         if (!barcode.isValid || !barcode.text) continue;
@@ -113,11 +112,23 @@ export default function PlickersScanner() {
                 : `Học sinh ${cardNumber}`;
               const playerId = student ? student.id : `card_${cardNumber}`;
 
+              // Update results for the visual overlay (every frame)
+              newResults.set(cardNumber, {
+                id: cardNumber,
+                name: playerName,
+                answer,
+                corners: [
+                  barcode.position.topLeft,
+                  barcode.position.topRight,
+                  barcode.position.bottomRight,
+                  barcode.position.bottomLeft,
+                ],
+              });
+
+              // Submit answer to Firebase only if it changed
               if (lastResultsRef.current.get(cardNumber) !== answer) {
-                hasChanged = true;
                 lastResultsRef.current.set(cardNumber, answer);
 
-                // Submit answer to Firebase
                 if (!processingRef.current) {
                   processingRef.current = true;
                   await gameService.submitScannerAnswer(
@@ -132,18 +143,6 @@ export default function PlickersScanner() {
                   processingRef.current = false;
                 }
               }
-
-              newResults.set(cardNumber, {
-                id: cardNumber,
-                name: playerName,
-                answer,
-                corners: [
-                  barcode.position.topLeft,
-                  barcode.position.topRight,
-                  barcode.position.bottomRight,
-                  barcode.position.bottomLeft,
-                ],
-              });
             }
           }
         } catch (e) {
@@ -151,9 +150,9 @@ export default function PlickersScanner() {
         }
       }
 
-      if (hasChanged) {
-        setResults(new Map(newResults));
-      }
+      // Always update results to reflect the current camera frame
+      // This ensures that if no barcodes are detected, the overlay is cleared
+      setResults(newResults);
     },
     [session, quiz, students],
   );
