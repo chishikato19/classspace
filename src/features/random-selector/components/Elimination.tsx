@@ -15,6 +15,8 @@ export default function Elimination({ students, onSelect, selectableIds, hideSel
   const [winner, setWinner] = useState<StudentData | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
+  const selectableIdsString = selectableIds?.join(',') || '';
+
   // Initialize eliminatedIds with non-selectable students
   useEffect(() => {
     if (selectableIds && hideSelected) {
@@ -30,7 +32,8 @@ export default function Elimination({ students, onSelect, selectableIds, hideSel
     }
     setWinner(null);
     setIsRunning(false);
-  }, [students, selectableIds, hideSelected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students, selectableIdsString, hideSelected]);
 
   const startElimination = async () => {
     // Determine which students can be selected
