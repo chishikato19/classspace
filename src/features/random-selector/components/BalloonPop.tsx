@@ -24,15 +24,15 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
 
   useEffect(() => {
     const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-400', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500'];
-    // Limit to 30 balloons for visual clarity, but ensure we can pick anyone
-    const visualStudents = displayStudents.slice(0, 30);
+    // Increase to 80 balloons for a more crowded, fun screen
+    const visualStudents = displayStudents.slice(0, 80);
     
     const newBalloons = visualStudents.map((student, i) => ({
       id: student.id,
       student,
       color: colors[i % colors.length],
-      x: 10 + Math.random() * 80, // 10% to 90%
-      y: 10 + Math.random() * 60, // 10% to 70%
+      x: 5 + Math.random() * 90, // 5% to 95%
+      y: 10 + Math.random() * 70, // 10% to 80%
       delay: Math.random() * 2
     }));
     setBalloons(newBalloons);
@@ -81,8 +81,8 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-3xl mx-auto">
-      <div className="relative w-full aspect-video bg-sky-100 rounded-3xl border-4 border-sky-300 shadow-inner overflow-hidden mb-8">
+    <div className="flex flex-col items-center w-full max-w-5xl mx-auto">
+      <div className="relative w-full aspect-[16/9] bg-sky-100 rounded-3xl border-4 border-sky-300 shadow-inner overflow-hidden mb-8">
         
         {/* Clouds background */}
         <div className="absolute top-10 left-10 w-20 h-8 bg-white rounded-full opacity-50 blur-sm" />
@@ -104,7 +104,7 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
                 isPopped 
                   ? { scale: 2, opacity: 0 } 
                   : { 
-                      y: [0, -15, 0],
+                      y: gameState === 'idle' ? [0, -15, 0] : 0, // Freeze when aiming
                       opacity: fadeOut ? 0 : 1,
                       scale: fadeOut ? 0.8 : 1
                     }
@@ -113,7 +113,9 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
                 isPopped 
                   ? { duration: 0.2 } 
                   : { 
-                      y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: balloon.delay },
+                      y: gameState === 'idle' 
+                        ? { duration: 3, repeat: Infinity, ease: "easeInOut", delay: balloon.delay }
+                        : { duration: 0.5, ease: "easeOut" },
                       opacity: { duration: 0.5 }
                     }
               }
@@ -121,10 +123,10 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
             >
               {!isPopped && (
                 <>
-                  <div className={`w-12 h-16 rounded-[50%] ${balloon.color} shadow-md relative flex items-center justify-center`}>
+                  <div className={`w-10 h-14 rounded-[50%] ${balloon.color} shadow-md relative flex items-center justify-center`}>
                     <div className="absolute -bottom-1 w-2 h-2 border-t-4 border-t-transparent border-l-4 border-l-transparent border-r-4 border-r-transparent border-b-4 border-b-current text-inherit opacity-80" style={{ color: balloon.color }}></div>
                   </div>
-                  <div className="w-0.5 h-10 bg-gray-300/50 mt-1" />
+                  <div className="w-0.5 h-8 bg-gray-300/50 mt-1" />
                 </>
               )}
             </motion.div>
@@ -135,14 +137,14 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
         <AnimatePresence>
           {gameState === 'aiming' && (
             <motion.div
-              className="absolute z-20 text-red-600"
+              className="absolute z-20 text-red-600 drop-shadow-md"
               initial={{ left: '50%', top: '120%', scale: 0.5, opacity: 0 }}
               animate={{ left: `${targetPos.x}%`, top: `${targetPos.y}%`, scale: 1, opacity: 1 }}
               exit={{ scale: 2, opacity: 0 }}
               transition={{ duration: 1.2, ease: "backOut" }}
               style={{ x: '-50%', y: '-50%' }}
             >
-              <Crosshair className="w-12 h-12 animate-spin-slow" />
+              <Crosshair className="w-16 h-16 animate-spin-slow" />
             </motion.div>
           )}
         </AnimatePresence>

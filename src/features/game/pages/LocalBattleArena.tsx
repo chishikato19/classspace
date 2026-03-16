@@ -39,6 +39,8 @@ interface PlayerState {
   wrongAttempts: number;
   eliminatedOptions: string[]; // For 50/50
   pendingAnswer: { id: string; isCorrect: boolean } | null;
+  questionOrder: number[];
+  answerOrder: number[][];
 }
 
 const ITEMS: { type: ItemType; name: string; icon: any; color: string; desc: string }[] = [
@@ -65,6 +67,8 @@ export default function LocalBattleArena() {
   const [gameMode, setGameMode] = useState<GameMode>('sync');
   const [itemsEnabled, setItemsEnabled] = useState(false);
   const [timeBonusEnabled, setTimeBonusEnabled] = useState(false);
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
+  const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [balance, setBalance] = useState(50); // 0 = Red wins, 100 = Blue wins, 50 = Balanced
   
   // Key Bindings
@@ -87,10 +91,10 @@ export default function LocalBattleArena() {
   
   // Player State
   const [redPlayer, setRedPlayer] = useState<PlayerState>({
-    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: [], pendingAnswer: null
+    name: 'Đội Đỏ', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: [], pendingAnswer: null, questionOrder: [], answerOrder: []
   });
   const [bluePlayer, setBluePlayer] = useState<PlayerState>({
-    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: [], pendingAnswer: null
+    name: 'Đội Xanh', score: 0, streak: 0, isLocked: false, lockedUntil: 0, lastAnswer: null, isCorrect: null, questionIndex: 0, items: [], hasShield: false, isFrozen: false, frozenUntil: 0, isBlinded: false, blindedUntil: 0, isConfused: false, confusedUntil: 0, hasTimeBomb: false, timeBombUntil: 0, isInked: false, inkedUntil: 0, isDoublePoints: false, isHealed: false, showFeedback: false, isSelectingItem: false, selectionOptions: [], questionStartTime: Date.now(), wrongAttempts: 0, eliminatedOptions: [], pendingAnswer: null, questionOrder: [], answerOrder: []
   });
 
   // Load Quiz
@@ -154,10 +158,12 @@ export default function LocalBattleArena() {
           if (redPlayer.isFrozen && now < redPlayer.frozenUntil) return;
           if (redPlayer.lastAnswer || redPlayer.showFeedback) return;
           
-          const currentQuestion = quiz?.questions[redPlayer.questionIndex];
+          const actualQIndex = redPlayer.questionOrder[redPlayer.questionIndex];
+          const currentQuestion = quiz?.questions[actualQIndex];
           if (!currentQuestion) return;
 
-          const option = currentQuestion.options[answerIndex];
+          const actualAIndex = redPlayer.answerOrder[actualQIndex][answerIndex];
+          const option = currentQuestion.options[actualAIndex];
           if (option) handleAnswer('red', option.id, option.isCorrect);
         }
       }
@@ -182,10 +188,12 @@ export default function LocalBattleArena() {
           if (bluePlayer.isFrozen && now < bluePlayer.frozenUntil) return;
           if (bluePlayer.lastAnswer || bluePlayer.showFeedback) return;
 
-          const currentQuestion = quiz?.questions[bluePlayer.questionIndex];
+          const actualQIndex = bluePlayer.questionOrder[bluePlayer.questionIndex];
+          const currentQuestion = quiz?.questions[actualQIndex];
           if (!currentQuestion) return;
 
-          const option = currentQuestion.options[answerIndex];
+          const actualAIndex = bluePlayer.answerOrder[actualQIndex][answerIndex];
+          const option = currentQuestion.options[actualAIndex];
           if (option) handleAnswer('blue', option.id, option.isCorrect);
         }
       }
@@ -305,7 +313,8 @@ export default function LocalBattleArena() {
     const setter = isRed ? setRedPlayer : setBluePlayer;
     const player = isRed ? redPlayer : bluePlayer;
     const opponent = isRed ? bluePlayer : redPlayer;
-    const currentQuestion = quiz?.questions[player.questionIndex];
+    const actualQIndex = player.questionOrder[player.questionIndex];
+    const currentQuestion = quiz?.questions[actualQIndex];
     if (!currentQuestion) return;
 
     if (gameMode === 'sync') {
@@ -398,7 +407,8 @@ export default function LocalBattleArena() {
   };
 
   const processSyncResults = (redAns: { id: string; isCorrect: boolean }, blueAns: { id: string; isCorrect: boolean }) => {
-    const currentQuestion = quiz?.questions[redPlayer.questionIndex];
+    const actualQIndex = redPlayer.questionOrder[redPlayer.questionIndex];
+    const currentQuestion = quiz?.questions[actualQIndex];
     if (!currentQuestion) return;
 
     const now = Date.now();
@@ -536,9 +546,28 @@ export default function LocalBattleArena() {
   };
 
   const startGame = () => {
+    if (!quiz) return;
     const now = Date.now();
-    setRedPlayer(p => ({ ...p, questionStartTime: now, wrongAttempts: 0 }));
-    setBluePlayer(p => ({ ...p, questionStartTime: now, wrongAttempts: 0 }));
+    
+    let redQOrder = Array.from({ length: quiz.questions.length }, (_, i) => i);
+    let blueQOrder = Array.from({ length: quiz.questions.length }, (_, i) => i);
+    
+    let redAOrder = quiz.questions.map(q => Array.from({ length: q.options.length }, (_, i) => i));
+    let blueAOrder = quiz.questions.map(q => Array.from({ length: q.options.length }, (_, i) => i));
+
+    if (gameMode === 'chaos') {
+      if (shuffleQuestions) {
+        redQOrder = [...redQOrder].sort(() => 0.5 - Math.random());
+        blueQOrder = [...blueQOrder].sort(() => 0.5 - Math.random());
+      }
+      if (shuffleAnswers) {
+        redAOrder = redAOrder.map(order => [...order].sort(() => 0.5 - Math.random()));
+        blueAOrder = blueAOrder.map(order => [...order].sort(() => 0.5 - Math.random()));
+      }
+    }
+
+    setRedPlayer(p => ({ ...p, questionStartTime: now, wrongAttempts: 0, questionOrder: redQOrder, answerOrder: redAOrder }));
+    setBluePlayer(p => ({ ...p, questionStartTime: now, wrongAttempts: 0, questionOrder: blueQOrder, answerOrder: blueAOrder }));
     setGameState('PLAYING');
     soundService.play('join');
   };
@@ -556,7 +585,7 @@ export default function LocalBattleArena() {
           <p className="text-xl text-gray-400 mb-8">Chế độ đối kháng 1vs1 trên cùng một thiết bị</p>
 
           {/* Settings */}
-          <div className="flex justify-center gap-8 mb-12">
+          <div className="flex justify-center gap-8 mb-6">
             <div className="bg-gray-700 p-6 rounded-2xl flex-1 max-w-xs">
               <h3 className="text-lg font-bold mb-4">Chế độ chơi</h3>
               <div className="flex flex-col gap-2">
@@ -611,6 +640,30 @@ export default function LocalBattleArena() {
               </div>
             </div>
           </div>
+
+          {gameMode === 'chaos' && (
+            <div className="flex justify-center gap-8 mb-12">
+              <div className="bg-gray-700 p-4 rounded-2xl flex items-center gap-4">
+                <span className="font-bold">Đảo câu hỏi:</span>
+                <button 
+                  onClick={() => setShuffleQuestions(!shuffleQuestions)}
+                  className={`px-4 py-2 rounded-lg font-bold transition ${shuffleQuestions ? 'bg-green-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-600'}`}
+                >
+                  {shuffleQuestions ? 'Bật' : 'Tắt'}
+                </button>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-2xl flex items-center gap-4">
+                <span className="font-bold">Đảo đáp án:</span>
+                <button 
+                  onClick={() => setShuffleAnswers(!shuffleAnswers)}
+                  className={`px-4 py-2 rounded-lg font-bold transition ${shuffleAnswers ? 'bg-green-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-600'}`}
+                >
+                  {shuffleAnswers ? 'Bật' : 'Tắt'}
+                </button>
+              </div>
+            </div>
+          )}
+          {gameMode !== 'chaos' && <div className="mb-12"></div>}
 
           <div className="grid grid-cols-2 gap-12 mb-12">
             <div className="bg-red-900/30 border-2 border-red-500 rounded-2xl p-8">
@@ -695,7 +748,8 @@ export default function LocalBattleArena() {
   const renderPlayerZone = (team: 'red' | 'blue', isSidePanel: boolean = false) => {
     const isRed = team === 'red';
     const player = isRed ? redPlayer : bluePlayer;
-    const currentQuestion = quiz.questions[player.questionIndex];
+    const actualQIndex = player.questionOrder[player.questionIndex];
+    const currentQuestion = actualQIndex !== undefined ? quiz.questions[actualQIndex] : quiz.questions[quiz.questions.length - 1];
     const isFinished = player.questionIndex >= quiz.questions.length - 1 && player.showFeedback;
 
     return (
@@ -865,6 +919,8 @@ export default function LocalBattleArena() {
                   if (player.isConfused) {
                     // Shuffle options for display only (logic remains same by ID)
                     options = [...options].sort(() => 0.5 - Math.random());
+                  } else if (actualQIndex !== undefined && player.answerOrder[actualQIndex]) {
+                    options = player.answerOrder[actualQIndex].map(idx => options[idx]);
                   }
                   
                   return options.map((opt, idx) => {
@@ -983,20 +1039,31 @@ export default function LocalBattleArena() {
                 </div>
                 
                 <h2 className={`text-4xl font-black mb-12 leading-tight max-w-3xl flex flex-col items-center ${redPlayer.isBlinded || bluePlayer.isBlinded ? 'blur-md opacity-50' : ''}`}>
-                  {quiz.questions[redPlayer.questionIndex]?.imageUrl && (
-                    <img 
-                      src={quiz.questions[redPlayer.questionIndex].imageUrl} 
-                      alt="Question" 
-                      className="max-h-96 object-contain rounded-xl mb-8 border-4 border-gray-700 shadow-2xl"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
-                    />
-                  )}
-                  <MathText text={quiz.questions[redPlayer.questionIndex]?.text || ''} />
+                  {(() => {
+                    const actualQIndex = redPlayer.questionOrder[redPlayer.questionIndex];
+                    const currentQuestion = actualQIndex !== undefined ? quiz.questions[actualQIndex] : quiz.questions[quiz.questions.length - 1];
+                    return (
+                      <>
+                        {currentQuestion?.imageUrl && (
+                          <img 
+                            src={currentQuestion.imageUrl} 
+                            alt="Question" 
+                            className="max-h-96 object-contain rounded-xl mb-8 border-4 border-gray-700 shadow-2xl"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                          />
+                        )}
+                        <MathText text={currentQuestion?.text || ''} />
+                      </>
+                    );
+                  })()}
                 </h2>
 
                 <div className="grid grid-cols-2 gap-6 w-full max-w-4xl">
-                  {quiz.questions[redPlayer.questionIndex]?.options.map((opt, idx) => (
+                  {(() => {
+                    const actualQIndex = redPlayer.questionOrder[redPlayer.questionIndex];
+                    const currentQuestion = actualQIndex !== undefined ? quiz.questions[actualQIndex] : quiz.questions[quiz.questions.length - 1];
+                    return currentQuestion?.options.map((opt, idx) => (
                     <div 
                       key={opt.id}
                       className={`p-6 rounded-2xl border-l-8 text-left font-bold text-xl bg-gray-800 shadow-lg transition-all flex flex-col gap-4 ${
@@ -1029,7 +1096,7 @@ export default function LocalBattleArena() {
                         />
                       )}
                     </div>
-                  ))}
+                  ))})()}
                 </div>
               </div>
             </div>
