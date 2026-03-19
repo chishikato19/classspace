@@ -4,7 +4,7 @@ import { GameSession, Quiz, Question } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { CheckCircle2, XCircle, Users, Clock, ArrowRight, Copy, Check } from 'lucide-react';
+import { CheckCircle2, XCircle, Users, Clock, ArrowRight, Copy, Check, LogOut } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
 import { soundService } from '../services/soundService';
 import BattleHostScreen from './BattleHostScreen';
@@ -489,6 +489,15 @@ export default function GameHostDashboard() {
                 </button>
               )}
             </div>
+            
+            <button 
+              onClick={() => navigate('/teacher/reports')}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-bold transition-colors flex items-center gap-2"
+            >
+              <LogOut size={18} />
+              Thoát
+            </button>
+
             <button 
               onClick={async () => {
                 const msg = session.mode === 'HOMEWORK' 
