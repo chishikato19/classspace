@@ -4,7 +4,7 @@ import { GameSession, Quiz, Question } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
-import { CheckCircle2, XCircle, Users, Clock, ArrowRight } from 'lucide-react';
+import { CheckCircle2, XCircle, Users, Clock, ArrowRight, Copy, Check } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
 import { soundService } from '../services/soundService';
 import BattleHostScreen from './BattleHostScreen';
@@ -15,6 +15,7 @@ export default function GameHostDashboard() {
   const [session, setSession] = useState<GameSession | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -144,6 +145,15 @@ export default function GameHostDashboard() {
         </div>
       </div>
     );
+  };
+
+  const handleCopyLink = () => {
+    if (!session?.pin) return;
+    const link = `${window.location.origin}/#/join?pin=${session.pin}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const renderTeacherPacedContent = () => {
@@ -466,8 +476,18 @@ export default function GameHostDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-xl bg-gray-800 px-4 py-2 rounded-lg">
-              Mã PIN: <span className="font-mono font-bold text-yellow-400">{session.pin}</span>
+            <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg">
+              <span className="text-xl">Mã PIN:</span>
+              <span className="font-mono font-bold text-yellow-400 text-xl">{session.pin}</span>
+              {session.mode === 'HOMEWORK' && (
+                <button 
+                  onClick={handleCopyLink}
+                  className="ml-2 p-1.5 hover:bg-gray-700 rounded-md transition-colors text-gray-400 hover:text-white"
+                  title="Sao chép đường dẫn"
+                >
+                  {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5" />}
+                </button>
+              )}
             </div>
             <button 
               onClick={async () => {

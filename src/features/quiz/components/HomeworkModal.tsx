@@ -3,7 +3,7 @@ import { ClassGroup, GameSettings, HomeworkConfig } from '../../../types';
 import { adminService } from '../../admin/services/adminService';
 import { gameService } from '../../game/services/gameService';
 import { useNavigate } from 'react-router-dom';
-import { X, Calendar, Users, Shield, Clock, RotateCcw } from 'lucide-react';
+import { X, Calendar, Users, Shield, Clock, RotateCcw, Copy, Check } from 'lucide-react';
 
 interface HomeworkModalProps {
   quizId: string;
@@ -22,6 +22,8 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
   );
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [sessionTitle, setSessionTitle] = useState('');
+  const [createdPin, setCreatedPin] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   
   // Game Settings State
   const [settings, setSettings] = useState<GameSettings>({
@@ -57,8 +59,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
 
       const { id: sessionId, pin } = await gameService.createSession(quizId, settings, 'HOMEWORK', homeworkConfig, sessionTitle);
       
-      alert(`Đã giao bài tập thành công! Mã PIN: ${pin}`);
-      onClose();
+      setCreatedPin(pin);
     } catch (error) {
       console.error("Failed to create homework", error);
       alert("Lỗi khi tạo bài tập về nhà");
@@ -66,6 +67,56 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
       setLoading(false);
     }
   };
+
+  const handleCopyLink = () => {
+    if (!createdPin) return;
+    const link = `${window.location.origin}/#/join?pin=${createdPin}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  if (createdPin) {
+    const link = `${window.location.origin}/#/join?pin=${createdPin}`;
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in duration-300">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Đã giao bài tập!</h2>
+          <p className="text-gray-500 mb-6">Học sinh có thể truy cập bằng mã PIN hoặc đường dẫn bên dưới.</p>
+          
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+            <div className="text-sm text-gray-500 mb-1">Mã PIN</div>
+            <div className="text-3xl font-mono font-bold text-indigo-600 tracking-widest">{createdPin}</div>
+          </div>
+
+          <div className="space-y-3">
+            <button 
+              onClick={handleCopyLink}
+              className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+                copied ? 'bg-green-500 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              {copied ? (
+                <><Check size={20} /> Đã sao chép đường dẫn</>
+              ) : (
+                <><Copy size={20} /> Sao chép đường dẫn</>
+              )}
+            </button>
+            <button 
+              onClick={onClose}
+              className="w-full py-3 px-4 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

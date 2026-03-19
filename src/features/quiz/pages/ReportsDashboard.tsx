@@ -5,7 +5,7 @@ import { db, auth } from '../../../config/firebase';
 import { GameSession, Quiz } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
 import { gameService } from '../../game/services/gameService';
-import { Clock, Users, ChevronRight, BarChart2, Activity, Trash2, StopCircle } from 'lucide-react';
+import { Clock, Users, ChevronRight, BarChart2, Activity, Trash2, StopCircle, Link as LinkIcon } from 'lucide-react';
 
 export default function ReportsDashboard() {
   const navigate = useNavigate();
@@ -86,6 +86,17 @@ export default function ReportsDashboard() {
     }
   };
 
+  const handleCopyLink = (e: React.MouseEvent, pin: string) => {
+    e.stopPropagation();
+    const link = `${window.location.origin}/#/join?pin=${pin}`;
+    navigator.clipboard.writeText(link).then(() => {
+      alert('Đã sao chép đường dẫn bài tập!');
+    }).catch(err => {
+      console.error('Failed to copy link: ', err);
+      alert('Không thể sao chép đường dẫn. Vui lòng thử lại.');
+    });
+  };
+
   if (loading) {
     return <div className="flex h-64 items-center justify-center">Đang tải dữ liệu...</div>;
   }
@@ -159,6 +170,17 @@ export default function ReportsDashboard() {
                 </div>
                 
                 <div className="flex items-center gap-3">
+                  {session.mode === 'HOMEWORK' && session.status !== 'FINISHED' && (
+                    <button
+                      onClick={(e) => handleCopyLink(e, session.pin)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                      title="Sao chép đường dẫn"
+                    >
+                      <LinkIcon className="w-4 h-4" />
+                      Copy Link
+                    </button>
+                  )}
+
                   {session.mode === 'HOMEWORK' && (
                     <button
                       onClick={(e) => handleMonitorHomework(e, session.id)}
