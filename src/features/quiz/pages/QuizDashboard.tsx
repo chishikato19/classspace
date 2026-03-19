@@ -266,7 +266,7 @@ export default function QuizDashboard() {
                         onClick={() => navigate(`/game/local-battle/${quiz.id}`)}
                         className="flex-1 rounded-md bg-yellow-500 px-3 py-2 text-sm font-semibold text-black shadow-sm hover:bg-yellow-400 flex items-center justify-center gap-2"
                       >
-                        <Swords size={16} /> Đối Kháng 1vs1
+                        <Swords size={16} /> Đấu trường tốc độ
                       </button>
                     </div>
                     <div className="flex items-center gap-2">

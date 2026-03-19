@@ -30,6 +30,10 @@ import Settings from './features/teacher/pages/Settings';
 import { timeService } from './services/timeService';
 
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import { NoiseMonitorProvider } from './contexts/NoiseMonitorContext';
+import { NoiseMonitorWidget } from './components/NoiseMonitorWidget';
+import { TimerProvider } from './contexts/TimerContext';
+import { TimerWidget } from './components/TimerWidget';
 
 export default function App() {
   useEffect(() => {
@@ -43,9 +47,13 @@ export default function App() {
   }
 
   return (
-    <HashRouter>
-      <Routes>
-        {/* Public Routes */}
+    <NoiseMonitorProvider>
+      <TimerProvider>
+        <HashRouter>
+          <NoiseMonitorWidget />
+          <TimerWidget />
+          <Routes>
+          {/* Public Routes */}
         <Route path="/" element={<GameJoinPage />} />
         <Route path="/login" element={<LoginPage />} />
         
@@ -77,5 +85,7 @@ export default function App() {
         </Route>
       </Routes>
     </HashRouter>
+    </TimerProvider>
+    </NoiseMonitorProvider>
   );
 }

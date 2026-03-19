@@ -5,17 +5,28 @@ import { Quiz, Folder } from '../../../types';
 const getQuizzesRef = () => collection(db, 'quizzes');
 const getFoldersRef = () => collection(db, 'folders');
 
+// Helper function to remove undefined values from an object
+const sanitizeData = (data: any) => {
+  const sanitized = { ...data };
+  Object.keys(sanitized).forEach(key => {
+    if (sanitized[key] === undefined) {
+      delete sanitized[key];
+    }
+  });
+  return sanitized;
+};
+
 export const quizService = {
   // Tạo bộ câu hỏi mới
   createQuiz: async (quiz: Omit<Quiz, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getQuizzesRef(), quiz);
+    const docRef = await addDoc(getQuizzesRef(), sanitizeData(quiz));
     return docRef.id;
   },
 
   // Cập nhật bộ câu hỏi
   updateQuiz: async (quizId: string, quizData: Partial<Quiz>): Promise<void> => {
     const docRef = doc(db, 'quizzes', quizId);
-    await updateDoc(docRef, quizData);
+    await updateDoc(docRef, sanitizeData(quizData));
   },
 
   // Xóa bộ câu hỏi
@@ -55,13 +66,13 @@ export const quizService = {
 
   // --- Folder Management ---
   createFolder: async (folder: Omit<Folder, 'id'>): Promise<string> => {
-    const docRef = await addDoc(getFoldersRef(), folder);
+    const docRef = await addDoc(getFoldersRef(), sanitizeData(folder));
     return docRef.id;
   },
 
   updateFolder: async (folderId: string, folderData: Partial<Folder>): Promise<void> => {
     const docRef = doc(db, 'folders', folderId);
-    await updateDoc(docRef, folderData);
+    await updateDoc(docRef, sanitizeData(folderData));
   },
 
   deleteFolder: async (folderId: string): Promise<void> => {

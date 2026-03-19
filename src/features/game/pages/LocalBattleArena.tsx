@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Quiz, Question } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
-import { ArrowLeft, Trophy, Swords, Zap, Timer, AlertCircle, Shield, Snowflake, EyeOff, Magnet, Shuffle, Bomb, Droplets, Scissors, Heart, ArrowLeftRight } from 'lucide-react';
+import { ArrowLeft, Trophy, Swords, Zap, Timer, AlertCircle, Shield, Snowflake, EyeOff, Magnet, Shuffle, Bomb, Droplets, Scissors, Heart, ArrowLeftRight, X } from 'lucide-react';
 import { MathText } from '../../../components/MathText';
 import { soundService } from '../services/soundService';
 
@@ -70,6 +70,7 @@ export default function LocalBattleArena() {
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [balance, setBalance] = useState(50); // 0 = Red wins, 100 = Blue wins, 50 = Balanced
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
   
   // Key Bindings
   const [redKeys, setRedKeys] = useState({
@@ -748,6 +749,7 @@ export default function LocalBattleArena() {
   const renderPlayerZone = (team: 'red' | 'blue', isSidePanel: boolean = false) => {
     const isRed = team === 'red';
     const player = isRed ? redPlayer : bluePlayer;
+    const opponent = isRed ? bluePlayer : redPlayer;
     const actualQIndex = player.questionOrder[player.questionIndex];
     const currentQuestion = actualQIndex !== undefined ? quiz.questions[actualQIndex] : quiz.questions[quiz.questions.length - 1];
     const isFinished = player.questionIndex >= quiz.questions.length - 1 && player.showFeedback;
@@ -898,7 +900,7 @@ export default function LocalBattleArena() {
                     </span>
                   </div>
                   
-                  <h2 className={`text-2xl font-bold mb-8 text-center flex-1 flex flex-col items-center justify-center ${player.isBlinded ? 'blur-md select-none opacity-50' : ''}`}>
+                  <h2 className={`text-2xl font-bold mb-8 text-center flex-1 flex flex-col items-center justify-center`}>
                     {currentQuestion?.imageUrl && (
                       <img 
                         src={currentQuestion.imageUrl} 
@@ -966,6 +968,29 @@ export default function LocalBattleArena() {
               </div>
             </>
           )}
+
+          {isSidePanel && gameMode === 'sync' && opponent.isBlinded && (
+            <div className="mt-8 flex-1 flex flex-col gap-3 animate-fade-in">
+              <div className="text-yellow-400 font-bold text-sm uppercase tracking-wider text-center bg-yellow-400/10 py-2 rounded-lg border border-yellow-400/30">
+                Đối thủ bị mù! Đáp án:
+              </div>
+              <div className="flex flex-col gap-2">
+                {currentQuestion?.options.map((opt, idx) => (
+                  <div key={opt.id} className="p-3 bg-gray-800 rounded-xl border border-gray-600 text-sm font-bold flex items-center gap-3">
+                    <span className={`inline-block w-6 text-center ${
+                      idx === 0 ? 'text-red-500' :
+                      idx === 1 ? 'text-blue-500' :
+                      idx === 2 ? 'text-yellow-500' :
+                      'text-green-500'
+                    }`}>
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span className="flex-1 truncate"><MathText text={opt.text} /></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1018,7 +1043,41 @@ export default function LocalBattleArena() {
             B
           </div>
         </div>
+        
+        <button 
+          onClick={() => setShowEndConfirm(true)}
+          className="absolute top-2 right-2 p-2 text-gray-500 hover:text-red-400 transition-colors z-50"
+          title="Kết thúc sớm"
+        >
+          <X size={24} />
+        </button>
       </div>
+
+      {showEndConfirm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-800 p-8 rounded-2xl max-w-md w-full text-center border border-gray-700 shadow-2xl">
+            <h3 className="text-2xl font-bold mb-4 text-white">Kết thúc sớm?</h3>
+            <p className="text-gray-400 mb-8">Bạn có chắc chắn muốn kết thúc trận đấu ngay bây giờ?</p>
+            <div className="flex gap-4 justify-center">
+              <button 
+                onClick={() => setShowEndConfirm(false)}
+                className="px-6 py-3 rounded-xl font-bold bg-gray-700 text-white hover:bg-gray-600 transition"
+              >
+                Hủy
+              </button>
+              <button 
+                onClick={() => {
+                  setShowEndConfirm(false);
+                  setGameState('FINISHED');
+                }}
+                className="px-6 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-500 transition"
+              >
+                Kết thúc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Game Area */}
       <div className="flex-1 flex relative overflow-hidden">
@@ -1038,7 +1097,7 @@ export default function LocalBattleArena() {
                   </span>
                 </div>
                 
-                <h2 className={`text-4xl font-black mb-12 leading-tight max-w-3xl flex flex-col items-center ${redPlayer.isBlinded || bluePlayer.isBlinded ? 'blur-md opacity-50' : ''}`}>
+                <h2 className={`text-4xl font-black mb-12 leading-tight max-w-3xl flex flex-col items-center`}>
                   {(() => {
                     const actualQIndex = redPlayer.questionOrder[redPlayer.questionIndex];
                     const currentQuestion = actualQIndex !== undefined ? quiz.questions[actualQIndex] : quiz.questions[quiz.questions.length - 1];

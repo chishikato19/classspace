@@ -1,8 +1,14 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../features/auth/services/authService';
+import { useNoiseMonitor } from '../../contexts/NoiseMonitorContext';
+import { useTimer } from '../../contexts/TimerContext';
+import { Settings, Youtube, Shuffle, Mic, Timer, LogOut } from 'lucide-react';
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isWidgetVisible, setWidgetVisible } = useNoiseMonitor();
+  const { isTimerVisible, setTimerVisible } = useTimer();
 
   const handleLogout = async () => {
     await authService.logout();
@@ -16,48 +22,77 @@ export default function Layout() {
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold text-indigo-600">ClassVerse</span>
           </div>
-          <nav className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/admin')}
-              className="text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              Admin
-            </button>
-            <button 
-              onClick={() => navigate('/teacher/dashboard')}
-              className="text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              Quizizz
-            </button>
-            <button 
-              onClick={() => navigate('/teacher/shop')}
-              className="text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              Cửa hàng
-            </button>
-            <button 
-              onClick={() => navigate('/teacher/random-selector')}
-              className="text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              Công cụ lớp học
-            </button>
-            <button 
-              onClick={() => navigate('/teacher/video-player')}
-              className="text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              Video YouTube
-            </button>
-            <button 
-              onClick={() => navigate('/teacher/settings')}
-              className="text-sm font-medium text-gray-500 hover:text-gray-900"
-            >
-              Cài đặt
-            </button>
+          <nav className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => navigate('/admin')}
+                className={`text-sm font-medium transition-colors ${location.pathname === '/admin' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Admin
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/dashboard')}
+                className={`text-sm font-medium transition-colors ${location.pathname.includes('/teacher/dashboard') || location.pathname.includes('/teacher/quiz') ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Quizizz
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/shop')}
+                className={`text-sm font-medium transition-colors ${location.pathname.includes('/teacher/shop') ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Cửa hàng
+              </button>
+            </div>
+
+            <div className="h-6 w-px bg-gray-300"></div>
+
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setTimerVisible(!isTimerVisible)}
+                className={`p-2 rounded-lg transition-colors ${isTimerVisible ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Đồng hồ đếm ngược"
+              >
+                <Timer className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setWidgetVisible(!isWidgetVisible)}
+                className={`p-2 rounded-lg transition-colors ${isWidgetVisible ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Đo tiếng ồn"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/random-selector')}
+                className={`p-2 rounded-lg transition-colors ${location.pathname === '/teacher/random-selector' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Công cụ lớp học"
+              >
+                <Shuffle className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/video-player')}
+                className={`p-2 rounded-lg transition-colors ${location.pathname === '/teacher/video-player' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Video YouTube"
+              >
+                <Youtube className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/settings')}
+                className={`p-2 rounded-lg transition-colors ${location.pathname === '/teacher/settings' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Cài đặt"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="h-6 w-px bg-gray-300"></div>
+
             <button 
               onClick={handleLogout}
-              className="text-sm font-medium text-red-500 hover:text-red-700 ml-4 border border-red-200 px-3 py-1 rounded-md"
+              className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
+              title="Đăng xuất"
             >
-              Đăng xuất
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Đăng xuất</span>
             </button>
           </nav>
         </div>
