@@ -336,6 +336,37 @@ export default function QuizEditor() {
               rows={2}
             />
           </div>
+          <div className="pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Cài đặt nhanh cho toàn bộ câu hỏi</h3>
+                <p className="text-xs text-gray-500">Áp dụng thời gian làm bài cho tất cả các câu trong bộ này.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                  onChange={(e) => {
+                    const time = parseInt(e.target.value);
+                    if (confirm(`Bạn có chắc muốn đặt thời gian ${time === 0 ? 'Không giới hạn' : time + ' giây'} cho TẤT CẢ ${questions.length} câu hỏi?`)) {
+                      setQuestions(questions.map(q => ({ ...q, timeLimit: time })));
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Chọn thời gian...</option>
+                  <option value="0">Không giới hạn (∞)</option>
+                  <option value="10">10 giây</option>
+                  <option value="20">20 giây</option>
+                  <option value="30">30 giây</option>
+                  <option value="45">45 giây</option>
+                  <option value="60">1 phút</option>
+                  <option value="120">2 phút</option>
+                  <option value="180">3 phút</option>
+                  <option value="300">5 phút</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -357,14 +388,21 @@ export default function QuizEditor() {
                 </select>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700">Thời gian (giây):</label>
-                  <input
-                    type="number"
-                    min="5"
-                    max="600"
-                    value={q.timeLimit || 30}
-                    onChange={(e) => handleQuestionChange(qIndex, 'timeLimit', parseInt(e.target.value) || 30)}
-                    className="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
-                  />
+                  <select
+                    value={q.timeLimit}
+                    onChange={(e) => handleQuestionChange(qIndex, 'timeLimit', parseInt(e.target.value))}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
+                  >
+                    <option value="0">Không giới hạn (∞)</option>
+                    <option value="10">10 giây</option>
+                    <option value="20">20 giây</option>
+                    <option value="30">30 giây</option>
+                    <option value="45">45 giây</option>
+                    <option value="60">1 phút</option>
+                    <option value="120">2 phút</option>
+                    <option value="180">3 phút</option>
+                    <option value="300">5 phút</option>
+                  </select>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -613,21 +651,8 @@ export default function QuizEditor() {
               </div>
             )}
 
-            <div className="mt-4 flex items-center gap-4 text-sm">
-              <div>
-                <label className="mr-2 text-gray-700">Thời gian (giây):</label>
-                <select
-                  value={q.timeLimit}
-                  onChange={(e) => handleQuestionChange(qIndex, 'timeLimit', Number(e.target.value))}
-                  className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-1"
-                >
-                  <option value={10}>10s</option>
-                  <option value={20}>20s</option>
-                  <option value={30}>30s</option>
-                  <option value={60}>60s</option>
-                  <option value={120}>120s</option>
-                </select>
-              </div>
+            <div className="mt-4 flex items-center gap-4 text-sm text-gray-400 italic">
+              * Bạn có thể thay đổi thời gian làm bài ở phía trên của mỗi câu hỏi.
             </div>
           </div>
         ))}

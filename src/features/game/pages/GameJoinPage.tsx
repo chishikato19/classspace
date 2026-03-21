@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { ClassGroup, Student, AvatarConfig, GameSession } from '../../../types';
 import { adminService } from '../../admin/services/adminService';
@@ -7,8 +7,9 @@ import { gameService } from '../services/gameService';
 import { DEFAULT_AVATAR_STYLE, AvatarStyle } from '../../../utils/avatarUtils';
 
 export default function GameJoinPage() {
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<'PIN' | 'CLASS' | 'STUDENT' | 'PASSCODE' | 'NAME_INPUT'>('PIN');
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState(searchParams.get('pin') || '');
   const [session, setSession] = useState<GameSession | null>(null);
   
   const [classes, setClasses] = useState<ClassGroup[]>([]);
@@ -23,13 +24,28 @@ export default function GameJoinPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handlePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-submit PIN if provided in URL
+  useEffect(() => {
+    const pinFromUrl = searchParams.get('pin');
+    if (pinFromUrl && pinFromUrl.length === 6) {
+      // Small delay to let component mount
+      const timer = setTimeout(() => {
+        handlePinSubmit(new Event('submit') as any, pinFromUrl);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handlePinSubmit = async (e?: React.FormEvent, pinOverride?: string) => {
+    if (e) e.preventDefault();
+    const pinToUse = pinOverride || pin;
+    if (!pinToUse || pinToUse.length < 6) return;
+
     setLoading(true);
     setError('');
     
     try {
-      const foundSession = await gameService.findSessionByPin(pin);
+      const foundSession = await gameService.findSessionByPin(pinToUse);
       if (foundSession) {
         setSession(foundSession);
         

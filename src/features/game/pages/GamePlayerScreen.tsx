@@ -145,6 +145,13 @@ export default function GamePlayerScreen() {
     
     if (shuffledQuestions.length === 0) return;
 
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    // If time limit is 0, it's unlimited
+    if (!currentQuestion || currentQuestion.timeLimit === 0) {
+      setTimeLeft(0); // Or some indicator for unlimited
+      return;
+    }
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -224,36 +231,45 @@ export default function GamePlayerScreen() {
     // Send to server
     const playerId = sessionStorage.getItem('currentPlayerId');
     if (playerId) {
-      await gameService.submitAnswer(session.id, playerId, currentQuestion.id, {
-        optionId,
-        textAnswer,
-        isCorrect: isAnswerCorrect,
-        timeTaken,
-        timeLimit: currentQuestion.timeLimit,
-        points: points
-      });
+      try {
+        await gameService.submitAnswer(session.id, playerId, currentQuestion.id, {
+          optionId,
+          textAnswer,
+          isCorrect: isAnswerCorrect,
+          timeTaken,
+          timeLimit: currentQuestion.timeLimit,
+          points: points
+        });
+      } catch (e) {
+        console.error("Failed to submit answer", e);
+        // We continue to the next question even if submission fails to avoid getting stuck
+      }
     }
 
     // Move to next question after delay (Only for Student-paced)
     if (session.mode !== 'TEACHER_PACED') {
       setTimeout(async () => {
-        if (currentQuestionIndex < shuffledQuestions.length - 1) {
-          setCurrentQuestionIndex(prev => prev + 1);
-          setIsSubmitted(false);
-          setSelectedOptionId(null);
-          setShortAnswerText('');
-          setIsCorrect(false);
-          setQuestionStartTime(Date.now());
-          setTimeLeft(shuffledQuestions[currentQuestionIndex + 1]?.timeLimit || 30);
-        } else {
-          setFinished(true);
-          if (playerId) {
-            try {
+        try {
+          if (currentQuestionIndex < shuffledQuestions.length - 1) {
+            const nextIndex = currentQuestionIndex + 1;
+            setCurrentQuestionIndex(nextIndex);
+            setIsSubmitted(false);
+            setSelectedOptionId(null);
+            setShortAnswerText('');
+            setIsCorrect(false);
+            setQuestionStartTime(Date.now());
+            const nextTimeLimit = shuffledQuestions[nextIndex]?.timeLimit;
+            setTimeLeft(nextTimeLimit === 0 ? 0 : (nextTimeLimit || 30));
+          } else {
+            setFinished(true);
+            if (playerId) {
               await gameService.finishPlayerSession(session.id, playerId);
-            } catch (e) {
-              console.error("Failed to finish session", e);
             }
           }
+        } catch (e) {
+          console.error("Error moving to next question", e);
+          // Even on error, try to reset submission state to avoid getting stuck
+          setIsSubmitted(false);
         }
       }, 2000); // 2 seconds delay to show result
     }
@@ -335,8 +351,8 @@ export default function GamePlayerScreen() {
           <div className="text-sm font-medium text-gray-500">Streak: 🔥 {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? streak : '?'}</div>
         </div>
         <div className="flex items-center gap-6">
-          <div className={`text-2xl font-black ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-700'}`}>
-            ⏱ {timeLeft}s
+          <div className={`text-2xl font-black ${timeLeft > 0 && timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-700'}`}>
+            ⏱ {currentQuestion.timeLimit === 0 ? '∞' : `${timeLeft}s`}
           </div>
           <div className="font-bold text-xl text-indigo-600">
             {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? `${score} điểm` : '---'}
@@ -346,10 +362,12 @@ export default function GamePlayerScreen() {
 
       {/* Timer Progress Bar */}
       <div className="w-full bg-gray-200 h-2">
-        <div 
-          className={`h-full transition-all duration-1000 linear ${timeLeft <= 5 ? 'bg-red-500' : 'bg-indigo-500'}`}
-          style={{ width: `${(timeLeft / (currentQuestion.timeLimit || 30)) * 100}%` }}
-        ></div>
+        {currentQuestion.timeLimit > 0 && (
+          <div 
+            className={`h-full transition-all duration-1000 linear ${timeLeft <= 5 ? 'bg-red-500' : 'bg-indigo-500'}`}
+            style={{ width: `${(timeLeft / (currentQuestion.timeLimit || 30)) * 100}%` }}
+          ></div>
+        )}
       </div>
 
       {/* Question Area */}

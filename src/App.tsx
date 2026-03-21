@@ -55,6 +55,7 @@ export default function App() {
           <Routes>
           {/* Public Routes */}
         <Route path="/" element={<GameJoinPage />} />
+        <Route path="/join" element={<GameJoinPage />} />
         <Route path="/login" element={<LoginPage />} />
         
         {/* Student Shop Route */}
