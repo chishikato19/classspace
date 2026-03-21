@@ -21,6 +21,7 @@ export default function GamePlayerScreen() {
   const [score, setScore] = useState(0);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [hasFailedCurrentQuestion, setHasFailedCurrentQuestion] = useState(false);
   const [finished, setFinished] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(undefined);
@@ -132,7 +133,16 @@ export default function GamePlayerScreen() {
           
           setCurrentQuestionIndex(startIndex);
           setQuestionStartTime(Date.now());
-          setTimeLeft(questions[startIndex]?.timeLimit || 30);
+          
+          const getEffectiveTimeLimit = (q: Question) => {
+            if (data.settings?.forceTimeLimit !== undefined) {
+              return data.settings.forceTimeLimit;
+            }
+            return q.timeLimit;
+          };
+          
+          const limit = getEffectiveTimeLimit(questions[startIndex]);
+          setTimeLeft(limit === 0 ? 0 : (limit || 30));
         }
       }
     });
@@ -147,8 +157,16 @@ export default function GamePlayerScreen() {
     if (shuffledQuestions.length === 0) return;
 
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    const getEffectiveTimeLimit = (q: Question) => {
+      if (session?.settings?.forceTimeLimit !== undefined) {
+        return session.settings.forceTimeLimit;
+      }
+      return q.timeLimit;
+    };
+    
+    const limit = getEffectiveTimeLimit(currentQuestion);
     // If time limit is 0, it's unlimited
-    if (!currentQuestion || currentQuestion.timeLimit === 0) {
+    if (!currentQuestion || limit === 0) {
       setTimeLeft(0); // Or some indicator for unlimited
       return;
     }
@@ -210,22 +228,35 @@ export default function GamePlayerScreen() {
     const timeTaken = (Date.now() - questionStartTime) / 1000; // in seconds
     const settings = session.settings || { equalPoints: false, timeBasedPoints: true, streakBonus: true };
     
+    const getEffectiveTimeLimit = (q: Question) => {
+      if (session?.settings?.forceTimeLimit !== undefined) {
+        return session.settings.forceTimeLimit;
+      }
+      return q.timeLimit;
+    };
+
     let points = 0;
     if (isAnswerCorrect && currentQuestion.type !== 'SURVEY') {
-      let basePoints = settings.equalPoints ? 1000 : currentQuestion.points;
-      
-      if (settings.timeBasedPoints && !settings.equalPoints) {
-        const timeLimit = currentQuestion.timeLimit || 30;
-        const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
-        basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
+      // No points if redoing a failed question
+      if (!hasFailedCurrentQuestion) {
+        let basePoints = settings.equalPoints ? 1000 : currentQuestion.points;
+        
+        if (settings.timeBasedPoints && !settings.equalPoints) {
+          const timeLimit = getEffectiveTimeLimit(currentQuestion) || 30;
+          const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+          basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
+        }
+        
+        const streakBonus = settings.streakBonus ? (streak * 100) : 0;
+        points = basePoints + streakBonus;
+        
+        setScore(prev => prev + points);
+        setCorrectAnswersCount(prev => prev + 1);
+        setStreak(prev => prev + 1);
+      } else {
+        // Redoing - no points, but we still count it as correct for progress
+        setStreak(0); // Reset streak because they failed once
       }
-      
-      const streakBonus = settings.streakBonus ? (streak * 100) : 0;
-      points = basePoints + streakBonus;
-      
-      setScore(prev => prev + points);
-      setCorrectAnswersCount(prev => prev + 1);
-      setStreak(prev => prev + 1);
     } else if (currentQuestion.type !== 'SURVEY') {
       setStreak(0);
     }
@@ -239,13 +270,28 @@ export default function GamePlayerScreen() {
           textAnswer,
           isCorrect: isAnswerCorrect,
           timeTaken,
-          timeLimit: currentQuestion.timeLimit,
+          timeLimit: getEffectiveTimeLimit(currentQuestion),
           points: points
         });
       } catch (e) {
         console.error("Failed to submit answer", e);
         // We continue to the next question even if submission fails to avoid getting stuck
       }
+    }
+
+    // Handle Redoing Wrong Questions
+    if (!isAnswerCorrect && session.settings.redoWrongQuestions && currentQuestion.type !== 'SURVEY') {
+      setHasFailedCurrentQuestion(true);
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setSelectedOptionId(null);
+        setShortAnswerText('');
+        setIsCorrect(false);
+        setQuestionStartTime(Date.now());
+        const limit = getEffectiveTimeLimit(currentQuestion);
+        setTimeLeft(limit === 0 ? 0 : (limit || 30));
+      }, 2000);
+      return;
     }
 
     // Move to next question after delay (Only for Student-paced)
@@ -259,8 +305,9 @@ export default function GamePlayerScreen() {
             setSelectedOptionId(null);
             setShortAnswerText('');
             setIsCorrect(false);
+            setHasFailedCurrentQuestion(false); // Reset for next question
             setQuestionStartTime(Date.now());
-            const nextTimeLimit = shuffledQuestions[nextIndex]?.timeLimit;
+            const nextTimeLimit = getEffectiveTimeLimit(shuffledQuestions[nextIndex]);
             setTimeLeft(nextTimeLimit === 0 ? 0 : (nextTimeLimit || 30));
           } else {
             setFinished(true);
@@ -485,7 +532,9 @@ export default function GamePlayerScreen() {
             : 'bg-indigo-500'
         }`}>
           {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' && currentQuestion.type !== 'SURVEY'
-            ? (isCorrect ? 'CHÍNH XÁC! +Điểm' : 'SAI RỒI!')
+            ? (isCorrect 
+                ? (hasFailedCurrentQuestion ? 'CHÍNH XÁC!' : 'CHÍNH XÁC! +Điểm') 
+                : (session.settings.redoWrongQuestions ? 'SAI RỒI! HÃY THỬ LẠI' : 'SAI RỒI!'))
             : 'Đã ghi nhận câu trả lời!'}
         </div>
       )}

@@ -36,7 +36,9 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     showScore: true,
     maxAttempts: 1,
     requirePasscode: false,
-    allowRetry: false
+    allowRetry: false,
+    redoWrongQuestions: false,
+    forceTimeLimit: undefined
   });
 
   useEffect(() => {
@@ -250,6 +252,41 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                   type="checkbox"
                   checked={settings.shuffleQuestions}
                   onChange={(e) => setSettings({...settings, shuffleQuestions: e.target.checked, shuffleAnswers: e.target.checked})}
+                  className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                />
+              </div>
+
+              <div className="border p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-900 mb-2">Thời gian trả lời</label>
+                <select 
+                  value={settings.forceTimeLimit === undefined ? 'default' : settings.forceTimeLimit}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSettings({...settings, forceTimeLimit: val === 'default' ? undefined : parseInt(val)});
+                  }}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="default">Theo từng câu hỏi (Mặc định)</option>
+                  <option value="0">Không giới hạn (∞)</option>
+                  <option value="10">10 giây</option>
+                  <option value="20">20 giây</option>
+                  <option value="30">30 giây</option>
+                  <option value="60">1 phút</option>
+                  <option value="120">2 phút</option>
+                  <option value="300">5 phút</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Ghi đè thời gian của tất cả câu hỏi</p>
+              </div>
+
+              <div className="border p-4 rounded-lg flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900">Bắt buộc làm lại câu sai</label>
+                  <p className="text-xs text-gray-500">Học sinh phải làm lại cho đúng (không tính điểm)</p>
+                </div>
+                <input 
+                  type="checkbox"
+                  checked={settings.redoWrongQuestions}
+                  onChange={(e) => setSettings({...settings, redoWrongQuestions: e.target.checked})}
                   className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                 />
               </div>

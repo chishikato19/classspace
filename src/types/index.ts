@@ -93,6 +93,8 @@ export interface GameSettings {
   maxAttempts: number; // 0 = unlimited
   requirePasscode: boolean;
   allowRetry: boolean; // Cho phép làm lại ngay sau khi sai (chế độ luyện tập)
+  forceTimeLimit?: number; // Override all questions time limit (0 = unlimited, null = use quiz default)
+  redoWrongQuestions: boolean; // Must redo incorrect questions (no points)
   // Battle Mode settings
   pacing?: 'STUDENT' | 'TEACHER'; // Tốc độ (Học sinh tự làm) hoặc Đồng loạt (Giáo viên điều khiển)
   reviveCost?: number; // Điểm phí để hồi sinh
