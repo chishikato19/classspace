@@ -491,7 +491,7 @@ export default function GameHostDashboard() {
             </div>
             
             <button 
-              onClick={() => navigate('/teacher/reports')}
+              onClick={() => navigate('/teacher/dashboard?tab=reports')}
               className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-bold transition-colors flex items-center gap-2"
             >
               <LogOut size={18} />

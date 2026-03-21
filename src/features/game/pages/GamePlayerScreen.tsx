@@ -19,6 +19,7 @@ export default function GamePlayerScreen() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [streak, setStreak] = useState(0);
   const [finished, setFinished] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
@@ -223,6 +224,7 @@ export default function GamePlayerScreen() {
       points = basePoints + streakBonus;
       
       setScore(prev => prev + points);
+      setCorrectAnswersCount(prev => prev + 1);
       setStreak(prev => prev + 1);
     } else if (currentQuestion.type !== 'SURVEY') {
       setStreak(0);
@@ -317,7 +319,12 @@ export default function GamePlayerScreen() {
         />
         <h1 className="text-4xl font-bold mb-4">HOÀN THÀNH!</h1>
         {session?.settings?.showScore && (
-          <div className="text-6xl font-black text-yellow-400 mb-8">{score} điểm</div>
+          <div className="flex flex-col items-center gap-2 mb-8">
+            <div className="text-6xl font-black text-yellow-400">{score} điểm</div>
+            <div className="text-2xl font-bold text-indigo-200">
+              Đúng {correctAnswersCount} / {quiz?.questions.length} câu
+            </div>
+          </div>
         )}
         <p className="text-xl opacity-80">
           {session?.status === 'FINISHED' ? 'Giáo viên đã kết thúc bài thi.' : 'Bạn đã trả lời hết các câu hỏi.'}

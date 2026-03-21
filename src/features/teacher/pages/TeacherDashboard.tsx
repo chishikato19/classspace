@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import QuizDashboard from '../../quiz/pages/QuizDashboard';
 import ReportsDashboard from '../../quiz/pages/ReportsDashboard';
 import { BookOpen, BarChart2 } from 'lucide-react';
 
 export default function TeacherDashboard() {
-  const [activeTab, setActiveTab] = useState<'quizzes' | 'reports'>('quizzes');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'quizzes' | 'reports'>((searchParams.get('tab') as any) || 'quizzes');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'quizzes' || tab === 'reports') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: 'quizzes' | 'reports') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
-            onClick={() => setActiveTab('quizzes')}
+            onClick={() => handleTabChange('quizzes')}
             className={`
               ${activeTab === 'quizzes'
                 ? 'border-indigo-500 text-indigo-600'
@@ -27,7 +41,7 @@ export default function TeacherDashboard() {
             Thư viện câu hỏi
           </button>
           <button
-            onClick={() => setActiveTab('reports')}
+            onClick={() => handleTabChange('reports')}
             className={`
               ${activeTab === 'reports'
                 ? 'border-indigo-500 text-indigo-600'
