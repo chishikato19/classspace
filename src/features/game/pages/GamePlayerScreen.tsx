@@ -383,15 +383,36 @@ export default function GamePlayerScreen() {
             )}
           </div>
         )}
-        <p className="text-xl opacity-80">
+        <p className="text-xl opacity-80 mb-8">
           {session?.status === 'FINISHED' ? 'Giáo viên đã kết thúc bài thi.' : 'Bạn đã trả lời hết các câu hỏi.'}
         </p>
-        <button 
-          onClick={() => navigate('/')}
-          className="mt-8 bg-white text-indigo-900 px-6 py-3 rounded-lg font-bold hover:bg-gray-100"
-        >
-          Về trang chủ
-        </button>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+          {session?.mode === 'HOMEWORK' && (
+            <button 
+              onClick={() => {
+                sessionStorage.removeItem('currentPlayerId');
+                sessionStorage.removeItem('currentPlayerName');
+                sessionStorage.removeItem('currentPlayerAvatar');
+                navigate(`/join?pin=${session?.pin}`);
+              }}
+              className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-500 border-2 border-indigo-400 shadow-lg transition-all"
+            >
+              Làm lại
+            </button>
+          )}
+          <button 
+            onClick={() => {
+              sessionStorage.removeItem('currentPlayerId');
+              sessionStorage.removeItem('currentPlayerName');
+              sessionStorage.removeItem('currentPlayerAvatar');
+              navigate('/');
+            }}
+            className="bg-white text-indigo-900 px-8 py-3 rounded-lg font-bold hover:bg-gray-100 shadow-lg transition-all"
+          >
+            Thoát
+          </button>
+        </div>
       </div>
     );
   }
