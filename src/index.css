@@ -1,2 +1,26 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
+
+/* Jodit Editor Table Styles */
+.math-text-container table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.math-text-container th,
+.math-text-container td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.math-text-container th {
+  background-color: #f3f4f6;
+  font-weight: bold;
+}
+
+/* Ensure Jodit editor content doesn't overflow */
+.jodit-wysiwyg {
+  overflow-x: auto;
+}

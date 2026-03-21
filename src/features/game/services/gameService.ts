@@ -663,6 +663,38 @@ export const gameService = {
     });
   },
 
+  // Nộp toàn bộ tiến độ (dành cho Eco Mode)
+  submitEcoModeProgress: async (
+    sessionId: string,
+    playerId: string,
+    playerData: Partial<Player>
+  ) => {
+    const sessionRef = doc(db, "sessions", sessionId);
+
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw new Error("Session not found");
+
+      const data = sessionDoc.data();
+      const players = data.players as Player[];
+      const playerIndex = players.findIndex((p) => p.id === playerId);
+
+      if (playerIndex === -1) throw new Error("Player not found");
+
+      // Update player info
+      players[playerIndex] = {
+        ...players[playerIndex],
+        ...playerData,
+        answers: {
+          ...players[playerIndex].answers,
+          ...playerData.answers
+        }
+      };
+
+      transaction.update(sessionRef, { players });
+    });
+  },
+
   // Cập nhật avatar của người chơi
   updatePlayerAvatar: async (
     sessionId: string,

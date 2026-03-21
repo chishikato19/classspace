@@ -28,6 +28,7 @@ export default function GamePlayerScreen() {
   const [playerName, setPlayerName] = useState('');
   const [shortAnswerText, setShortAnswerText] = useState('');
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [localAnswers, setLocalAnswers] = useState<Record<string, any>>({});
 
   // Load session and quiz data
   useEffect(() => {
@@ -119,8 +120,33 @@ export default function GamePlayerScreen() {
           // Determine starting question index based on previous answers
           const player = data.players.find(p => p.id === playerId);
           let startIndex = 0;
-          if (data.mode !== 'TEACHER_PACED' && player && player.answers) {
-            const firstUnansweredIndex = questions.findIndex(q => !player.answers[q.id]);
+          
+          // Load local answers for ecoMode
+          let currentLocalAnswers = {};
+          if (data.settings?.ecoMode && playerId) {
+            const saved = localStorage.getItem(`ecoMode_${data.id}_${playerId}`);
+            if (saved) {
+              try {
+                currentLocalAnswers = JSON.parse(saved);
+                setLocalAnswers(currentLocalAnswers);
+              } catch (e) {}
+            }
+          }
+          
+          if (data.mode !== 'TEACHER_PACED' && player) {
+            const combinedAnswers = { ...(player.answers || {}), ...currentLocalAnswers };
+            
+            // Recalculate score and correct answers from combined answers
+            let loadedScore = 0;
+            let loadedCorrectCount = 0;
+            Object.values(combinedAnswers).forEach((ans: any) => {
+              loadedScore += (ans.pointsAwarded || 0);
+              if (ans.isCorrect) loadedCorrectCount++;
+            });
+            setScore(loadedScore);
+            setCorrectAnswersCount(loadedCorrectCount);
+            
+            const firstUnansweredIndex = questions.findIndex(q => !combinedAnswers[q.id]);
             if (firstUnansweredIndex !== -1) {
               startIndex = firstUnansweredIndex;
             } else {
@@ -261,21 +287,35 @@ export default function GamePlayerScreen() {
       setStreak(0);
     }
 
-    // Send to server
+    // Send to server or save locally if ecoMode
     const playerId = sessionStorage.getItem('currentPlayerId');
     if (playerId) {
-      try {
-        await gameService.submitAnswer(session.id, playerId, currentQuestion.id, {
-          optionId,
-          textAnswer,
-          isCorrect: isAnswerCorrect,
-          timeTaken,
-          timeLimit: getEffectiveTimeLimit(currentQuestion),
-          points: points
-        });
-      } catch (e) {
-        console.error("Failed to submit answer", e);
-        // We continue to the next question even if submission fails to avoid getting stuck
+      const answerData = {
+        optionId,
+        textAnswer,
+        isCorrect: isAnswerCorrect,
+        timeTaken,
+        timeLimit: getEffectiveTimeLimit(currentQuestion),
+        points: points,
+        pointsAwarded: points // For ecoMode compatibility
+      };
+
+      if (session.settings.ecoMode) {
+        // Save locally
+        const newLocalAnswers = {
+          ...localAnswers,
+          [currentQuestion.id]: answerData
+        };
+        setLocalAnswers(newLocalAnswers);
+        localStorage.setItem(`ecoMode_${session.id}_${playerId}`, JSON.stringify(newLocalAnswers));
+      } else {
+        // Submit to Firebase immediately
+        try {
+          await gameService.submitAnswer(session.id, playerId, currentQuestion.id, answerData);
+        } catch (e) {
+          console.error("Failed to submit answer", e);
+          // We continue to the next question even if submission fails to avoid getting stuck
+        }
       }
     }
 
@@ -312,7 +352,27 @@ export default function GamePlayerScreen() {
           } else {
             setFinished(true);
             if (playerId) {
-              await gameService.finishPlayerSession(session.id, playerId);
+              if (session.settings.ecoMode) {
+                // Submit all accumulated progress
+                const saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
+                const finalAnswers = saved ? JSON.parse(saved) : localAnswers;
+                
+                // Calculate final score and progress
+                const finalScore = Object.values(finalAnswers).reduce((sum: number, ans: any) => sum + (ans.pointsAwarded || 0), 0);
+                
+                await gameService.submitEcoModeProgress(session.id, playerId, {
+                  answers: finalAnswers,
+                  score: finalScore,
+                  progress: Object.keys(finalAnswers).length,
+                  streak: streak,
+                  finished: true
+                });
+                
+                // Clean up local storage
+                localStorage.removeItem(`ecoMode_${session.id}_${playerId}`);
+              } else {
+                await gameService.finishPlayerSession(session.id, playerId);
+              }
             }
           }
         } catch (e) {

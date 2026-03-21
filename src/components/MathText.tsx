@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
-import Latex from 'react-latex-next';
+import renderMathInElement from 'katex/contrib/auto-render';
 
 interface MathTextProps {
   text: string;
@@ -8,15 +8,29 @@ interface MathTextProps {
 }
 
 export const MathText: React.FC<MathTextProps> = ({ text, className }) => {
-  // Replace standard LaTeX delimiters with what react-latex-next expects if needed,
-  // but react-latex-next usually handles $...$ and $$...$$ well.
-  // We might want to ensure that the text is treated as a string.
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      renderMathInElement(containerRef.current, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true },
+        ],
+        throwOnError: false,
+      });
+    }
+  }, [text]);
+
   if (!text) return null;
 
   return (
-    <span className={className}>
-      <Latex>{text}</Latex>
-    </span>
+    <div
+      ref={containerRef}
+      className={`math-text-container ${className || ''}`}
+      dangerouslySetInnerHTML={{ __html: text }}
+    />
   );
 };

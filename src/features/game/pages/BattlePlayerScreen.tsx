@@ -408,7 +408,7 @@ export default function BattlePlayerScreen() {
         {currentQuestion ? (
            <>
               <div className="bg-gray-800 p-4 rounded-xl mb-4 text-center min-h-[100px] flex items-center justify-center border-2 border-gray-700">
-                 <h2 className="text-xl font-bold"><MathText text={currentQuestion.text} /></h2>
+                 <div className="text-xl font-bold"><MathText text={currentQuestion.text} /></div>
               </div>
               
               {/* Controls (A, B, C, D) */}

@@ -39,7 +39,8 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     allowRetry: false,
     redoWrongQuestions: false,
     forceTimeLimit: undefined,
-    passingPercentage: 0
+    passingPercentage: 0,
+    ecoMode: true // Mặc định bật chế độ tiết kiệm cho bài tập về nhà
   });
 
   useEffect(() => {
@@ -335,6 +336,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                   className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                 />
                 <label className="text-sm text-gray-700">Cho phép làm lại câu sai (Redemption)</label>
+              </div>
+              <div className="flex items-center gap-2 md:col-span-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                <input 
+                  type="checkbox"
+                  checked={settings.ecoMode}
+                  onChange={(e) => setSettings({...settings, ecoMode: e.target.checked})}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+                />
+                <div>
+                  <label className="text-sm font-medium text-green-800 block">Chế độ Tiết kiệm dữ liệu (Eco Mode)</label>
+                  <p className="text-xs text-green-600">Chỉ đồng bộ kết quả khi học sinh nộp bài. Giảm thiểu lượt ghi Firebase, phù hợp cho bài tập về nhà.</p>
+                </div>
               </div>
             </div>
           </section>

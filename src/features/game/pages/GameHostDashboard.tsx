@@ -126,7 +126,7 @@ export default function GameHostDashboard() {
                     <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
                       {String.fromCharCode(65 + idx)}
                     </div>
-                    <span className="font-bold text-gray-700 text-lg"><MathText text={opt.text} /></span>
+                    <div className="font-bold text-gray-700 text-lg"><MathText text={opt.text} /></div>
                   </div>
                   <div className="font-black text-indigo-600 text-xl">{count} phiếu ({percentage}%)</div>
                 </div>

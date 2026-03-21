@@ -959,7 +959,7 @@ export default function LocalBattleArena() {
                             onError={(e) => (e.currentTarget.style.display = 'none')}
                           />
                         )}
-                        <span className="text-left w-full truncate"><MathText text={opt.text} /></span>
+                        <div className="text-left w-full truncate"><MathText text={opt.text} /></div>
                       </div>
                     </button>
                   );
@@ -985,7 +985,7 @@ export default function LocalBattleArena() {
                     }`}>
                       {String.fromCharCode(65 + idx)}
                     </span>
-                    <span className="flex-1 truncate"><MathText text={opt.text} /></span>
+                    <div className="flex-1 truncate"><MathText text={opt.text} /></div>
                   </div>
                 ))}
               </div>

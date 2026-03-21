@@ -8,6 +8,7 @@ import { Trash2, Eye, Image as ImageIcon, Upload, Plus, X, FileText } from 'luci
 import { MathText } from '../../../components/MathText';
 import { compressImage } from '../../../utils/fileUtils';
 import ImportQuestionsModal from '../components/ImportQuestionsModal';
+import { RichTextarea } from '../../../components/RichTextarea';
 
 export default function QuizEditor() {
   const navigate = useNavigate();
@@ -440,10 +441,10 @@ export default function QuizEditor() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nội dung câu hỏi (Hỗ trợ LaTeX: $...$ hoặc $$...$$)
                     </label>
-                    <textarea
+                    <RichTextarea
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 mb-2"
                       value={q.text}
-                      onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
+                      onChangeValue={(value) => handleQuestionChange(qIndex, 'text', value)}
                       rows={3}
                       placeholder="Nhập câu hỏi tại đây... Ví dụ: Giải phương trình $x^2 + 2x + 1 = 0$"
                     />
@@ -485,12 +486,12 @@ export default function QuizEditor() {
                     <label className="block text-sm font-medium text-gray-700">Các đáp án chấp nhận được:</label>
                     {q.options.map((opt, oIndex) => (
                       <div key={opt.id} className="flex items-center gap-2">
-                        <input
-                          type="text"
+                        <RichTextarea
                           className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
                           value={opt.text}
-                          onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                          onChangeValue={(value) => handleOptionChange(qIndex, oIndex, 'text', value)}
                           placeholder="Nhập đáp án đúng..."
+                          rows={1}
                         />
                         <button
                           onClick={() => handleRemoveOption(qIndex, oIndex)}
@@ -518,12 +519,12 @@ export default function QuizEditor() {
                             <div className="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold shrink-0">
                               {String.fromCharCode(65 + oIndex)}
                             </div>
-                            <input
-                              type="text"
+                            <RichTextarea
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
                               value={opt.text}
-                              onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                              onChangeValue={(value) => handleOptionChange(qIndex, oIndex, 'text', value)}
                               placeholder={`Lựa chọn ${oIndex + 1}`}
+                              rows={1}
                             />
                             <button
                               onClick={() => handleRemoveOption(qIndex, oIndex)}
@@ -578,14 +579,24 @@ export default function QuizEditor() {
                             onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
                           />
-                          <input
-                            type="text"
-                            className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
-                            value={opt.text}
-                            onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
-                            placeholder={q.type === 'TRUE_FALSE' ? (oIndex === 0 ? 'Đúng' : 'Sai') : `Đáp án ${oIndex + 1}`}
-                            readOnly={q.type === 'TRUE_FALSE'} // True/False text is fixed
-                          />
+                          {q.type === 'TRUE_FALSE' ? (
+                            <input
+                              type="text"
+                              className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
+                              value={opt.text}
+                              onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                              placeholder={oIndex === 0 ? 'Đúng' : 'Sai'}
+                              readOnly={true}
+                            />
+                          ) : (
+                            <RichTextarea
+                              className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
+                              value={opt.text}
+                              onChangeValue={(value) => handleOptionChange(qIndex, oIndex, 'text', value)}
+                              placeholder={`Đáp án ${oIndex + 1}`}
+                              rows={1}
+                            />
+                          )}
                         </div>
                         
                         {q.type === 'MULTIPLE_CHOICE' && (
