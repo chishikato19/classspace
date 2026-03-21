@@ -20,6 +20,7 @@ export default function GameHostLobby() {
     timeBasedPoints: true,
     streakBonus: true,
     showCorrectAnswers: 'IMMEDIATELY',
+    showScore: true,
     maxAttempts: 0,
     requirePasscode: false,
     allowRetry: false,

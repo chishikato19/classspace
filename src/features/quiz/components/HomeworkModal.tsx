@@ -33,6 +33,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     timeBasedPoints: false, // Homework usually doesn't use speed points
     streakBonus: true,
     showCorrectAnswers: 'AFTER_GAME',
+    showScore: true,
     maxAttempts: 1,
     requirePasscode: false,
     allowRetry: false
@@ -193,6 +194,19 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                   <option value="AFTER_GAME">Sau khi nộp bài (Kiểm tra)</option>
                   <option value="NEVER">Không hiển thị (Bảo mật)</option>
                 </select>
+              </div>
+
+              <div className="border p-4 rounded-lg flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900">Hiển thị điểm số</label>
+                  <p className="text-xs text-gray-500">Cho học sinh xem điểm sau khi hoàn thành</p>
+                </div>
+                <input 
+                  type="checkbox"
+                  checked={settings.showScore}
+                  onChange={(e) => setSettings({...settings, showScore: e.target.checked})}
+                  className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                />
               </div>
 
               <div className="border p-4 rounded-lg">

@@ -89,6 +89,7 @@ export interface GameSettings {
   streakBonus: boolean;
   // Anti-cheating & Homework settings
   showCorrectAnswers: 'IMMEDIATELY' | 'AFTER_GAME' | 'NEVER';
+  showScore: boolean;
   maxAttempts: number; // 0 = unlimited
   requirePasscode: boolean;
   allowRetry: boolean; // Cho phép làm lại ngay sau khi sai (chế độ luyện tập)

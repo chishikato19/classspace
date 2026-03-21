@@ -316,7 +316,7 @@ export default function GamePlayerScreen() {
           className="border-4 border-yellow-400 shadow-lg mb-6"
         />
         <h1 className="text-4xl font-bold mb-4">HOÀN THÀNH!</h1>
-        {session?.settings?.showCorrectAnswers !== 'NEVER' && (
+        {session?.settings?.showScore && (
           <div className="text-6xl font-black text-yellow-400 mb-8">{score} điểm</div>
         )}
         <p className="text-xl opacity-80">
@@ -457,7 +457,7 @@ export default function GamePlayerScreen() {
                     <img 
                       src={option.imageUrl} 
                       alt="Option" 
-                      className="w-full h-32 object-cover rounded border border-gray-300 bg-white"
+                      className="w-full h-32 object-contain rounded border border-gray-300 bg-white"
                       referrerPolicy="no-referrer"
                       onError={(e) => (e.currentTarget.style.display = 'none')}
                     />
