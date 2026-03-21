@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Save, Eye, EyeOff, Keyboard, Printer } from 'lucide-react';
+import { Save, Eye, EyeOff, Keyboard, Printer, BarChart3, ExternalLink } from 'lucide-react';
 import { PlickersCardsPrint } from '../components/PlickersCardsPrint';
+import firebaseConfig from '../../../../firebase-applet-config.json';
 
 export default function Settings() {
   const [noDuplicate, setNoDuplicate] = useState(false);
   const [hideSelected, setHideSelected] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const consoleUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/usage`;
 
   // Local Battle Key Bindings
   const [redKeys, setRedKeys] = useState({
@@ -222,6 +225,59 @@ export default function Settings() {
             <p className="mt-4 text-sm text-gray-500">
               Lưu ý: Mỗi thẻ sẽ được in trên 1 tờ giấy A4. Hãy đảm bảo máy in của bạn đã sẵn sàng hoặc chọn lưu thành PDF để in sau.
             </p>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-indigo-600" />
+              Giới hạn & Sử dụng Firebase
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Theo dõi lượt đọc/ghi dữ liệu của hệ thống</p>
+          </div>
+          <div className="p-6">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-amber-800">
+                <strong>Lưu ý:</strong> Vì lý do bảo mật, số lượng lượt đọc/ghi chính xác chỉ có thể được xem trực tiếp từ bảng điều khiển Firebase của bạn.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Gói miễn phí (Mỗi ngày)</p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-gray-900">50,000</span>
+                  <span className="text-sm text-gray-500">lượt đọc</span>
+                </div>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Gói miễn phí (Mỗi ngày)</p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-gray-900">20,000</span>
+                  <span className="text-sm text-gray-500">lượt ghi</span>
+                </div>
+              </div>
+            </div>
+
+            <a 
+              href={consoleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Xem chi tiết trên Firebase Console
+            </a>
+            
+            <div className="mt-6 space-y-3">
+              <h4 className="text-sm font-bold text-gray-900">Cách kiểm tra:</h4>
+              <ol className="list-decimal pl-5 text-sm text-gray-600 space-y-2">
+                <li>Nhấn nút <strong>Xem chi tiết trên Firebase Console</strong> ở trên.</li>
+                <li>Đăng nhập bằng tài khoản Google quản trị của bạn.</li>
+                <li>Tại tab <strong>Usage (Sử dụng)</strong>, bạn sẽ thấy biểu đồ lượt Đọc (Reads) và Ghi (Writes) trong 24h qua.</li>
+              </ol>
+            </div>
           </div>
         </div>
 
