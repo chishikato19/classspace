@@ -298,7 +298,7 @@ export default function QuizEditor() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
       <ImportQuestionsModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
@@ -432,224 +432,274 @@ export default function QuizEditor() {
               </div>
             </div>
             
-            <div className="mb-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nội dung câu hỏi (Hỗ trợ LaTeX: $...$ hoặc $$...$$)
-                </label>
-                <textarea
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 mb-2"
-                  value={q.text}
-                  onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
-                  rows={2}
-                  placeholder="Nhập câu hỏi tại đây... Ví dụ: Giải phương trình $x^2 + 2x + 1 = 0$"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <ImageIcon size={16} /> Hình ảnh (Tùy chọn)
-                </label>
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    <Upload size={16} />
-                    Chọn ảnh từ máy
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file, (base64) => handleQuestionChange(qIndex, 'imageUrl', base64));
-                      }}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column: Edit Area */}
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nội dung câu hỏi (Hỗ trợ LaTeX: $...$ hoặc $$...$$)
+                    </label>
+                    <textarea
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 mb-2"
+                      value={q.text}
+                      onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
+                      rows={3}
+                      placeholder="Nhập câu hỏi tại đây... Ví dụ: Giải phương trình $x^2 + 2x + 1 = 0$"
                     />
-                  </label>
-                  {q.imageUrl && (
-                    <button
-                      onClick={() => handleQuestionChange(qIndex, 'imageUrl', '')}
-                      className="text-red-500 text-sm hover:underline"
-                    >
-                      Xóa ảnh
-                    </button>
-                  )}
-                </div>
-                {q.imageUrl && (
-                  <div className="mt-2">
-                    <img src={q.imageUrl} alt="Preview" className="h-32 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
                   </div>
-                )}
-              </div>
 
-              {q.text && (
-                <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
-                  <div className="text-xs text-gray-500 mb-1 font-bold flex items-center gap-1">
-                    <Eye size={12} /> Xem trước:
-                  </div>
-                  <MathText text={q.text} />
-                </div>
-              )}
-            </div>
-
-            {/* Render Options based on Type */}
-            {q.type === 'SHORT_ANSWER' ? (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Các đáp án chấp nhận được:</label>
-                {q.options.map((opt, oIndex) => (
-                  <div key={opt.id} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
-                      value={opt.text}
-                      onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
-                      placeholder="Nhập đáp án đúng..."
-                    />
-                    <button
-                      onClick={() => handleRemoveOption(qIndex, oIndex)}
-                      className="text-gray-400 hover:text-red-500"
-                      disabled={q.options.length <= 1}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() => handleAddShortAnswerOption(qIndex)}
-                  className="text-indigo-600 text-sm font-medium flex items-center gap-1 hover:underline"
-                >
-                  <Plus size={16} /> Thêm đáp án chấp nhận
-                </button>
-                <p className="text-xs text-gray-500 mt-1">
-                  * Học sinh trả lời đúng một trong các đáp án trên sẽ được tính điểm (không phân biệt hoa thường).
-                </p>
-              </div>
-            ) : q.type === 'SURVEY' ? (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Các lựa chọn khảo sát:</label>
-                {q.options.map((opt, oIndex) => (
-                  <div key={opt.id} className="flex flex-col gap-2 p-3 border rounded-md bg-gray-50 border-gray-200">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <ImageIcon size={16} /> Hình ảnh (Tùy chọn)
+                    </label>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                        {String.fromCharCode(65 + oIndex)}
-                      </div>
-                      <input
-                        type="text"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
-                        value={opt.text}
-                        onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
-                        placeholder={`Lựa chọn ${oIndex + 1}`}
-                      />
-                      <button
-                        onClick={() => handleRemoveOption(qIndex, oIndex)}
-                        className="text-gray-400 hover:text-red-500"
-                        disabled={q.options.length <= 2}
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 pl-8">
-                      <ImageIcon size={14} className="text-gray-400" />
-                      <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
-                        Chọn ảnh
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        <Upload size={16} />
+                        Chọn ảnh từ máy
                         <input
                           type="file"
                           className="hidden"
                           accept="image/*"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                            if (file) handleImageUpload(file, (base64) => handleQuestionChange(qIndex, 'imageUrl', base64));
                           }}
                         />
                       </label>
-                      {opt.imageUrl && (
+                      {q.imageUrl && (
                         <button
-                          onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
-                          className="text-xs text-red-500 hover:underline ml-2"
+                          onClick={() => handleQuestionChange(qIndex, 'imageUrl', '')}
+                          className="text-red-500 text-sm hover:underline"
                         >
-                          Xóa
+                          Xóa ảnh
                         </button>
                       )}
                     </div>
-                    {opt.imageUrl && (
-                       <div className="pl-8">
-                          <img src={opt.imageUrl} alt="Option Preview" className="h-16 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                       </div>
-                    )}
                   </div>
-                ))}
-                <button
-                  onClick={() => handleAddSurveyOption(qIndex)}
-                  className="text-indigo-600 text-sm font-medium flex items-center gap-1 hover:underline mt-2"
-                >
-                  <Plus size={16} /> Thêm lựa chọn
-                </button>
-                <p className="text-xs text-gray-500 mt-1">
-                  * Học sinh chọn bất kỳ phương án nào cũng được chấp nhận.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {q.options.map((opt, oIndex) => (
-                  <div key={opt.id} className={`flex flex-col gap-2 p-3 border rounded-md ${opt.isCorrect ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name={`correct-${q.id}`}
-                        checked={opt.isCorrect}
-                        onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                      />
-                      <input
-                        type="text"
-                        className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
-                        value={opt.text}
-                        onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
-                        placeholder={q.type === 'TRUE_FALSE' ? (oIndex === 0 ? 'Đúng' : 'Sai') : `Đáp án ${oIndex + 1}`}
-                        readOnly={q.type === 'TRUE_FALSE'} // True/False text is fixed
-                      />
-                    </div>
-                    
-                    {q.type === 'MULTIPLE_CHOICE' && (
-                      <>
-                        <div className="flex items-center gap-2 pl-6">
-                          <ImageIcon size={14} className="text-gray-400" />
-                          <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
-                            Chọn ảnh
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
-                              }}
-                            />
-                          </label>
-                          {opt.imageUrl && (
-                            <button
-                              onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
-                              className="text-xs text-red-500 hover:underline ml-2"
-                            >
-                              Xóa
-                            </button>
-                          )}
-                        </div>
-                        {opt.imageUrl && (
-                           <div className="pl-6">
-                              <img src={opt.imageUrl} alt="Option Preview" className="h-16 object-contain rounded border border-gray-200" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                           </div>
-                        )}
-                      </>
-                    )}
+                </div>
 
-                    {opt.text && (opt.text.includes('$') || opt.text.includes('\\')) && (
-                      <div className="pl-6 text-xs text-gray-600">
-                        <MathText text={opt.text} />
+                {/* Render Options based on Type */}
+                {q.type === 'SHORT_ANSWER' ? (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Các đáp án chấp nhận được:</label>
+                    {q.options.map((opt, oIndex) => (
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
+                          value={opt.text}
+                          onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                          placeholder="Nhập đáp án đúng..."
+                        />
+                        <button
+                          onClick={() => handleRemoveOption(qIndex, oIndex)}
+                          className="text-gray-400 hover:text-red-500"
+                          disabled={q.options.length <= 1}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => handleAddShortAnswerOption(qIndex)}
+                      className="text-indigo-600 text-sm font-medium flex items-center gap-1 hover:underline"
+                    >
+                      <Plus size={16} /> Thêm đáp án chấp nhận
+                    </button>
+                  </div>
+                ) : q.type === 'SURVEY' ? (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Các lựa chọn khảo sát:</label>
+                    <div className="grid grid-cols-1 gap-3">
+                      {q.options.map((opt, oIndex) => (
+                        <div key={opt.id} className="flex flex-col gap-2 p-3 border rounded-md bg-gray-50 border-gray-200">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                              {String.fromCharCode(65 + oIndex)}
+                            </div>
+                            <input
+                              type="text"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
+                              value={opt.text}
+                              onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                              placeholder={`Lựa chọn ${oIndex + 1}`}
+                            />
+                            <button
+                              onClick={() => handleRemoveOption(qIndex, oIndex)}
+                              className="text-gray-400 hover:text-red-500"
+                              disabled={q.options.length <= 2}
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 pl-8">
+                            <ImageIcon size={14} className="text-gray-400" />
+                            <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
+                              Chọn ảnh
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                                }}
+                              />
+                            </label>
+                            {opt.imageUrl && (
+                              <button
+                                onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
+                                className="text-xs text-red-500 hover:underline ml-2"
+                              >
+                                Xóa
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => handleAddSurveyOption(qIndex)}
+                      className="text-indigo-600 text-sm font-medium flex items-center gap-1 hover:underline mt-2"
+                    >
+                      <Plus size={16} /> Thêm lựa chọn
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    {q.options.map((opt, oIndex) => (
+                      <div key={opt.id} className={`flex flex-col gap-2 p-3 border rounded-md ${opt.isCorrect ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`correct-${q.id}`}
+                            checked={opt.isCorrect}
+                            onChange={() => handleCorrectOptionSelect(qIndex, oIndex)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                          />
+                          <input
+                            type="text"
+                            className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
+                            value={opt.text}
+                            onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
+                            placeholder={q.type === 'TRUE_FALSE' ? (oIndex === 0 ? 'Đúng' : 'Sai') : `Đáp án ${oIndex + 1}`}
+                            readOnly={q.type === 'TRUE_FALSE'} // True/False text is fixed
+                          />
+                        </div>
+                        
+                        {q.type === 'MULTIPLE_CHOICE' && (
+                          <div className="flex items-center gap-2 pl-6">
+                            <ImageIcon size={14} className="text-gray-400" />
+                            <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
+                              Chọn ảnh
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                                }}
+                              />
+                            </label>
+                            {opt.imageUrl && (
+                              <button
+                                onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
+                                className="text-xs text-red-500 hover:underline ml-2"
+                              >
+                                Xóa
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Preview Area */}
+              <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 flex flex-col h-full min-h-[400px]">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Eye size={16} /> Xem trước hiển thị
+                  </h3>
+                  <div className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">
+                    {q.type === 'MULTIPLE_CHOICE' ? 'Trắc nghiệm' : 
+                     q.type === 'TRUE_FALSE' ? 'Đúng / Sai' : 
+                     q.type === 'SHORT_ANSWER' ? 'Trả lời ngắn' : 'Khảo sát'}
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
+                  {/* Question Content Preview */}
+                  <div className="w-full">
+                    {q.imageUrl && (
+                      <div className="mb-4 flex justify-center">
+                        <img 
+                          src={q.imageUrl} 
+                          alt="Question" 
+                          className="max-h-48 object-contain rounded-lg shadow-sm border border-white" 
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
+                    <div className="text-xl font-bold text-gray-800 leading-relaxed">
+                      {q.text ? <MathText text={q.text} /> : <span className="text-gray-300 italic">Nội dung câu hỏi...</span>}
+                    </div>
+                  </div>
+
+                  {/* Options Preview */}
+                  <div className="w-full pt-6 border-t border-gray-200">
+                    {q.type === 'SHORT_ANSWER' ? (
+                      <div className="max-w-xs mx-auto">
+                        <div className="w-full h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 italic">
+                          Học sinh nhập câu trả lời...
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {q.options.map((opt, oIndex) => (
+                          <div 
+                            key={opt.id} 
+                            className={`p-3 rounded-lg border-2 flex flex-col items-center justify-center gap-2 min-h-[80px] transition-all ${
+                              opt.isCorrect ? 'border-green-500 bg-green-50 shadow-sm' : 'border-white bg-white shadow-sm'
+                            }`}
+                          >
+                            {opt.imageUrl && (
+                              <img 
+                                src={opt.imageUrl} 
+                                alt="Option" 
+                                className="h-12 w-full object-contain rounded" 
+                                referrerPolicy="no-referrer"
+                              />
+                            )}
+                            <div className={`text-sm font-medium ${!opt.text && !opt.imageUrl ? 'text-gray-300 italic' : 'text-gray-700'}`}>
+                              {opt.text ? <MathText text={opt.text} /> : (opt.imageUrl ? '' : `Đáp án ${String.fromCharCode(65 + oIndex)}`)}
+                            </div>
+                            {opt.isCorrect && q.type !== 'SURVEY' && (
+                              <div className="absolute top-1 right-1">
+                                <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                ))}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <div>Thời gian: {q.timeLimit === 0 ? '∞' : q.timeLimit + 's'}</div>
+                  <div>Điểm: {q.points}</div>
+                </div>
               </div>
-            )}
+            </div>
 
             <div className="mt-4 flex items-center gap-4 text-sm text-gray-400 italic">
               * Bạn có thể thay đổi thời gian làm bài ở phía trên của mỗi câu hỏi.
