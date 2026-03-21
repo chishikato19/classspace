@@ -29,6 +29,8 @@ export default function GamePlayerScreen() {
   const [shortAnswerText, setShortAnswerText] = useState('');
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>({});
+  const [showReview, setShowReview] = useState(false);
+  const [playerAnswers, setPlayerAnswers] = useState<Record<string, any>>({});
 
   // Load session and quiz data
   useEffect(() => {
@@ -135,6 +137,7 @@ export default function GamePlayerScreen() {
           
           if (data.mode !== 'TEACHER_PACED' && player) {
             const combinedAnswers = { ...(player.answers || {}), ...currentLocalAnswers };
+            setPlayerAnswers(combinedAnswers);
             
             // Recalculate score and correct answers from combined answers
             let loadedScore = 0;
@@ -307,9 +310,11 @@ export default function GamePlayerScreen() {
           [currentQuestion.id]: answerData
         };
         setLocalAnswers(newLocalAnswers);
+        setPlayerAnswers(prev => ({ ...prev, [currentQuestion.id]: answerData }));
         localStorage.setItem(`ecoMode_${session.id}_${playerId}`, JSON.stringify(newLocalAnswers));
       } else {
         // Submit to Firebase immediately
+        setPlayerAnswers(prev => ({ ...prev, [currentQuestion.id]: answerData }));
         try {
           await gameService.submitAnswer(session.id, playerId, currentQuestion.id, answerData);
         } catch (e) {
@@ -358,7 +363,7 @@ export default function GamePlayerScreen() {
                 const finalAnswers = saved ? JSON.parse(saved) : localAnswers;
                 
                 // Calculate final score and progress
-                const finalScore = Object.values(finalAnswers).reduce((sum: number, ans: any) => sum + (ans.pointsAwarded || 0), 0);
+                const finalScore = Object.values(finalAnswers).reduce((sum: number, ans: any) => sum + (ans.pointsAwarded || 0), 0) as number;
                 
                 await gameService.submitEcoModeProgress(session.id, playerId, {
                   answers: finalAnswers,
@@ -416,6 +421,96 @@ export default function GamePlayerScreen() {
   }
 
   if (finished || session?.status === 'FINISHED') {
+    if (showReview) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          <div className="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-10">
+            <h1 className="text-xl font-bold text-gray-800">Xem lại bài làm</h1>
+            <button 
+              onClick={() => setShowReview(false)}
+              className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-bold hover:bg-indigo-200 transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
+          <div className="flex-1 p-4 max-w-3xl mx-auto w-full space-y-6 overflow-y-auto pb-20">
+            {quiz?.questions.map((q, idx) => {
+              const answer = playerAnswers[q.id];
+              const isCorrect = answer?.isCorrect;
+              
+              return (
+                <div key={q.id} className={`bg-white p-6 rounded-2xl shadow-sm border-2 ${isCorrect ? 'border-green-200' : 'border-red-200'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">
+                      Câu {idx + 1}: <MathText text={q.text} />
+                    </h3>
+                    <div className={`px-3 py-1 rounded-full text-sm font-bold ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {isCorrect ? 'Đúng' : 'Sai'}
+                    </div>
+                  </div>
+                  
+                  {q.imageUrl && (
+                    <img 
+                      src={q.imageUrl} 
+                      alt="Question" 
+                      className="max-h-48 object-contain rounded-lg mb-4 border border-gray-100"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+
+                  <div className="space-y-3">
+                    {q.type === 'SHORT_ANSWER' ? (
+                      <div>
+                        <div className="mb-2">
+                          <span className="text-sm text-gray-500 font-medium">Câu trả lời của bạn:</span>
+                          <div className={`p-3 rounded-lg mt-1 font-medium ${isCorrect ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                            {answer?.textAnswer || '(Không trả lời)'}
+                          </div>
+                        </div>
+                        {!isCorrect && (
+                          <div>
+                            <span className="text-sm text-gray-500 font-medium">Đáp án đúng:</span>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {q.options?.map(opt => (
+                                <span key={opt.id} className="bg-green-50 text-green-700 px-3 py-1 rounded-md text-sm font-bold border border-green-200">
+                                  {opt.text}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {q.options?.map(opt => {
+                          const isSelected = answer?.optionId === opt.id;
+                          const isActuallyCorrect = opt.isCorrect;
+                          
+                          let bgClass = "bg-gray-50 border-gray-200 text-gray-600";
+                          if (isActuallyCorrect) {
+                            bgClass = "bg-green-50 border-green-500 text-green-800 font-bold";
+                          } else if (isSelected && !isActuallyCorrect) {
+                            bgClass = "bg-red-50 border-red-500 text-red-800 font-bold";
+                          }
+                          
+                          return (
+                            <div key={opt.id} className={`p-3 rounded-lg border-2 flex items-center gap-2 ${bgClass}`}>
+                              <div className="flex-1"><MathText text={opt.text} /></div>
+                              {isSelected && <span className="text-xs uppercase tracking-wider font-black opacity-50">(Bạn chọn)</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     const totalQuestions = quiz?.questions.length || 1;
     const percentage = Math.round((correctAnswersCount / totalQuestions) * 100);
     const passingPercentage = session?.settings?.passingPercentage || 0;
@@ -448,6 +543,14 @@ export default function GamePlayerScreen() {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4">
+          {session?.settings?.showCorrectAnswers !== 'NEVER' && (
+            <button 
+              onClick={() => setShowReview(true)}
+              className="bg-green-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-green-400 border-2 border-green-400 shadow-lg transition-all"
+            >
+              Xem lại bài
+            </button>
+          )}
           {session?.mode === 'HOMEWORK' && (
             <button 
               onClick={() => {
