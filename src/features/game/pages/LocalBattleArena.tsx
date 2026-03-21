@@ -900,7 +900,7 @@ export default function LocalBattleArena() {
                     </span>
                   </div>
                   
-                  <h2 className={`text-2xl font-bold mb-8 text-center flex-1 flex flex-col items-center justify-center`}>
+                  <div className={`text-2xl font-bold mb-8 text-center flex-1 flex flex-col items-center justify-center`}>
                     {currentQuestion?.imageUrl && (
                       <img 
                         src={currentQuestion.imageUrl} 
@@ -911,7 +911,7 @@ export default function LocalBattleArena() {
                       />
                     )}
                     <MathText text={currentQuestion?.text || ''} />
-                  </h2>
+                  </div>
                 </>
               )}
 
@@ -1097,7 +1097,7 @@ export default function LocalBattleArena() {
                   </span>
                 </div>
                 
-                <h2 className={`text-4xl font-black mb-12 leading-tight max-w-3xl flex flex-col items-center`}>
+                <div className={`text-4xl font-black mb-12 leading-tight max-w-3xl flex flex-col items-center`}>
                   {(() => {
                     const actualQIndex = redPlayer.questionOrder[redPlayer.questionIndex];
                     const currentQuestion = actualQIndex !== undefined ? quiz.questions[actualQIndex] : quiz.questions[quiz.questions.length - 1];
@@ -1116,7 +1116,7 @@ export default function LocalBattleArena() {
                       </>
                     );
                   })()}
-                </h2>
+                </div>
 
                 <div className="grid grid-cols-2 gap-6 w-full max-w-4xl">
                   {(() => {

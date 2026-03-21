@@ -441,9 +441,9 @@ export default function GamePlayerScreen() {
               return (
                 <div key={q.id} className={`bg-white p-6 rounded-2xl shadow-sm border-2 ${isCorrect ? 'border-green-200' : 'border-red-200'}`}>
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-bold text-gray-800">
-                      Câu {idx + 1}: <MathText text={q.text} />
-                    </h3>
+                    <div className="text-lg font-bold text-gray-800 flex items-start gap-2">
+                      <span>Câu {idx + 1}:</span> <MathText text={q.text} className="flex-1" />
+                    </div>
                     <div className={`px-3 py-1 rounded-full text-sm font-bold ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {isCorrect ? 'Đúng' : 'Sai'}
                     </div>
@@ -630,7 +630,7 @@ export default function GamePlayerScreen() {
               onError={(e) => (e.currentTarget.style.display = 'none')}
             />
           )}
-          <h2 className="text-2xl font-bold text-gray-800"><MathText text={currentQuestion.text} /></h2>
+          <div className="text-2xl font-bold text-gray-800"><MathText text={currentQuestion.text} /></div>
         </div>
 
         {/* Options Grid */}

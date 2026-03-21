@@ -180,7 +180,7 @@ export default function GameHostDashboard() {
                 </div>
               </div>
 
-              <h2 className="text-4xl font-black mb-8 leading-tight flex flex-col items-center text-center">
+              <div className="text-4xl font-black mb-8 leading-tight flex flex-col items-center text-center">
                 {currentQuestion.imageUrl && (
                   <img 
                     src={currentQuestion.imageUrl} 
@@ -191,7 +191,7 @@ export default function GameHostDashboard() {
                   />
                 )}
                 <MathText text={currentQuestion.text} />
-              </h2>
+              </div>
               
               <div className="grid grid-cols-2 gap-4 mt-auto">
                 {currentQuestion.type === 'SHORT_ANSWER' ? (

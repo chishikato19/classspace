@@ -273,10 +273,10 @@ export default function GameResults() {
             <div className="lg:w-3/4 space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex justify-between items-start mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    Câu {selectedQuestionIndex + 1}: <MathText text={currentQuestion.text} />
-                    {currentQuestion.type === 'SURVEY' && <span className="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Khảo sát</span>}
-                  </h2>
+                    <div className="text-xl font-bold text-gray-900 flex items-start gap-2 flex-wrap">
+                      <span>Câu {selectedQuestionIndex + 1}:</span> <MathText text={currentQuestion.text} className="flex-1" />
+                      {currentQuestion.type === 'SURVEY' && <span className="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full whitespace-nowrap">Khảo sát</span>}
+                    </div>
                   <div className="flex gap-4 text-sm font-medium">
                     {currentQuestion.type === 'SURVEY' ? (
                       <div className="flex items-center gap-1 text-blue-600">
