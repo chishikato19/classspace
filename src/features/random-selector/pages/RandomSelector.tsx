@@ -12,19 +12,20 @@ import ClawMachine from '../components/ClawMachine';
 import BalloonPop from '../components/BalloonPop';
 import MiniRace from '../components/MiniRace';
 import ScratchCard from '../components/ScratchCard';
+import DuckShoot from '../components/DuckShoot';
 import StudentActionModal from '../components/StudentActionModal';
 import QueueList from '../components/QueueList';
 import { StudentData, ClassData, classService } from '../services/classService';
 import { auth } from '../../../config/firebase';
 
 type SelectionMode = 'random' | 'targeted';
-type RandomMethod = 'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'random';
+type RandomMethod = 'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'duck' | 'random';
 type ListSource = 'manual' | 'class';
 
 export default function RandomSelector() {
   const [mode, setMode] = useState<SelectionMode>('random');
   const [randomMethod, setRandomMethod] = useState<RandomMethod>('wheel');
-  const [activeRandomMethod, setActiveRandomMethod] = useState<'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch'>('wheel');
+  const [activeRandomMethod, setActiveRandomMethod] = useState<'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'duck'>('wheel');
   const [isSelecting, setIsSelecting] = useState(false);
   const [students, setStudents] = useState<StudentData[]>([]);
   const [manualInput, setManualInput] = useState('');
@@ -132,7 +133,7 @@ export default function RandomSelector() {
     }
 
     if (randomMethod === 'random') {
-      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'claw', 'balloon', 'race', 'scratch'];
+      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'duck')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'claw', 'balloon', 'race', 'scratch', 'duck'];
       const randomIndex = Math.floor(Math.random() * methods.length);
       setActiveRandomMethod(methods[randomIndex]);
     }
@@ -437,6 +438,14 @@ export default function RandomSelector() {
                       Thẻ cào
                     </button>
                     <button
+                      onClick={() => setRandomMethod('duck')}
+                      className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        randomMethod === 'duck' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Bắn vịt
+                    </button>
+                    <button
                       onClick={() => setRandomMethod('random')}
                       className={`py-2 px-3 rounded-md text-sm font-medium transition-colors col-span-2 ${
                         randomMethod === 'random' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -534,6 +543,7 @@ export default function RandomSelector() {
                   {activeRandomMethod === 'balloon' && <BalloonPop students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'race' && <MiniRace students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'scratch' && <ScratchCard students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'duck' && <DuckShoot students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                 </div>
               </div>
             )

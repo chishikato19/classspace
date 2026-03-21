@@ -41,15 +41,17 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
           if (el.tagName === 'IMG') {
             const src = (el as HTMLImageElement).src;
             extractedText += `\n[IMG:${src}]\n`;
-          } else if (el.tagName === 'P' || el.tagName === 'DIV' || el.tagName === 'BR') {
+          } else if (el.tagName === 'P' || el.tagName === 'DIV' || el.tagName === 'BR' || el.tagName === 'TR') {
             extractedText += '\n';
+          } else if (el.tagName === 'TD' || el.tagName === 'TH') {
+            extractedText += ' ';
           }
           
           for (let i = 0; i < el.childNodes.length; i++) {
             traverse(el.childNodes[i]);
           }
           
-          if (el.tagName === 'P' || el.tagName === 'DIV') {
+          if (el.tagName === 'P' || el.tagName === 'DIV' || el.tagName === 'TABLE') {
             extractedText += '\n';
           }
         }

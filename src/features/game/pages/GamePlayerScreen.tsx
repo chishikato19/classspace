@@ -71,11 +71,28 @@ export default function GamePlayerScreen() {
           let questions = [...(quizData.questions || [])];
           const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
           
-          // Fisher-Yates shuffle function
-          const shuffleArray = <T,>(array: T[]): T[] => {
+          // Simple seeded random generator
+          const seededRandom = (seed: number) => {
+            let t = seed += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+          };
+
+          // Generate a numeric seed from playerId or sessionId
+          const seedString = playerId || data.id;
+          let seed = 0;
+          for (let i = 0; i < seedString.length; i++) {
+            seed = Math.imul(31, seed) + seedString.charCodeAt(i) | 0;
+          }
+
+          // Fisher-Yates shuffle function with seeded random
+          const shuffleArray = <T,>(array: T[], seedValue: number): T[] => {
             const newArray = [...array];
+            let currentSeed = seedValue;
             for (let i = newArray.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
+              const randomVal = seededRandom(currentSeed++);
+              const j = Math.floor(randomVal * (i + 1));
               [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
             }
             return newArray;
@@ -84,20 +101,37 @@ export default function GamePlayerScreen() {
           // Only shuffle if NOT teacher-paced (everyone must see the same order in teacher-paced)
           if (data.mode !== 'TEACHER_PACED') {
             if (settings.shuffleQuestions) {
-              questions = shuffleArray(questions);
+              questions = shuffleArray(questions, seed);
             }
             
             if (settings.shuffleAnswers) {
-              questions = questions.map(q => ({
+              questions = questions.map((q, idx) => ({
                 ...q,
-                options: shuffleArray(q.options || [])
+                options: shuffleArray(q.options || [], seed + idx)
               }));
             }
           }
           
           setShuffledQuestions(questions);
+
+          // Determine starting question index based on previous answers
+          const player = data.players.find(p => p.id === playerId);
+          let startIndex = 0;
+          if (data.mode !== 'TEACHER_PACED' && player && player.answers) {
+            const firstUnansweredIndex = questions.findIndex(q => !player.answers[q.id]);
+            if (firstUnansweredIndex !== -1) {
+              startIndex = firstUnansweredIndex;
+            } else {
+              startIndex = questions.length;
+              setFinished(true);
+            }
+          } else {
+            startIndex = data.currentQuestionIndex || 0;
+          }
+          
+          setCurrentQuestionIndex(startIndex);
           setQuestionStartTime(Date.now());
-          setTimeLeft(questions[data.currentQuestionIndex || 0]?.timeLimit || 30);
+          setTimeLeft(questions[startIndex]?.timeLimit || 30);
         }
       }
     });
@@ -188,7 +222,7 @@ export default function GamePlayerScreen() {
     }
 
     // Send to server
-    const playerId = localStorage.getItem('currentPlayerId');
+    const playerId = sessionStorage.getItem('currentPlayerId');
     if (playerId) {
       await gameService.submitAnswer(session.id, playerId, currentQuestion.id, {
         optionId,
@@ -202,7 +236,7 @@ export default function GamePlayerScreen() {
 
     // Move to next question after delay (Only for Student-paced)
     if (session.mode !== 'TEACHER_PACED') {
-      setTimeout(() => {
+      setTimeout(async () => {
         if (currentQuestionIndex < shuffledQuestions.length - 1) {
           setCurrentQuestionIndex(prev => prev + 1);
           setIsSubmitted(false);
@@ -213,6 +247,13 @@ export default function GamePlayerScreen() {
           setTimeLeft(shuffledQuestions[currentQuestionIndex + 1]?.timeLimit || 30);
         } else {
           setFinished(true);
+          if (playerId) {
+            try {
+              await gameService.finishPlayerSession(session.id, playerId);
+            } catch (e) {
+              console.error("Failed to finish session", e);
+            }
+          }
         }
       }, 2000); // 2 seconds delay to show result
     }

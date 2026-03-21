@@ -267,15 +267,17 @@ export const gameService = {
           const maxAttempts = settings.maxAttempts || 1;
           const allowRetry = settings.allowRetry || maxAttempts > 1;
 
-          if (!allowRetry) {
-            throw new Error("Bạn đã hết lượt làm bài.");
+          if (existingPlayer.finished && !allowRetry) {
+            throw new Error("Bạn đã hoàn thành bài tập này rồi.");
           }
         }
 
-        // Overwrite/Reset player but preserve cardNumber
+        // Update player info but preserve progress
         players[existingPlayerIndex] = {
-          ...player,
-          cardNumber: existingPlayer.cardNumber,
+          ...existingPlayer,
+          name: player.name,
+          avatarConfig: player.avatarConfig,
+          studentIds: player.studentIds,
         };
       } else {
         // New player
@@ -635,6 +637,27 @@ export const gameService = {
       };
 
       players[playerIndex] = player;
+
+      transaction.update(sessionRef, { players });
+    });
+  },
+
+  // Đánh dấu người chơi đã hoàn thành bài thi
+  finishPlayerSession: async (sessionId: string, playerId: string) => {
+    const sessionRef = doc(db, "sessions", sessionId);
+
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw "Session not found";
+
+      const data = sessionDoc.data();
+      const players = data.players as Player[];
+      const playerIndex = players.findIndex((p: Player) => p.id === playerId);
+
+      if (playerIndex === -1) throw "Player not found";
+
+      // Cập nhật trạng thái hoàn thành
+      players[playerIndex].finished = true;
 
       transaction.update(sessionRef, { players });
     });
