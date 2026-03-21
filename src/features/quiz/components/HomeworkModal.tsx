@@ -38,7 +38,8 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     requirePasscode: false,
     allowRetry: false,
     redoWrongQuestions: false,
-    forceTimeLimit: undefined
+    forceTimeLimit: undefined,
+    passingPercentage: 0
   });
 
   useEffect(() => {
@@ -289,6 +290,24 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                   onChange={(e) => setSettings({...settings, redoWrongQuestions: e.target.checked})}
                   className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                 />
+              </div>
+
+              <div className="border p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-900 mb-2">Yêu cầu hoàn thành (%)</label>
+                <select 
+                  value={settings.passingPercentage || 0}
+                  onChange={(e) => setSettings({...settings, passingPercentage: parseInt(e.target.value)})}
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="0">Không yêu cầu</option>
+                  <option value="50">50%</option>
+                  <option value="60">60%</option>
+                  <option value="70">70%</option>
+                  <option value="80">80%</option>
+                  <option value="90">90%</option>
+                  <option value="100">100%</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Tỷ lệ trả lời đúng tối thiểu để đạt</p>
               </div>
             </div>
           </section>

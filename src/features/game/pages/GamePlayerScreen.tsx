@@ -356,6 +356,11 @@ export default function GamePlayerScreen() {
   }
 
   if (finished || session?.status === 'FINISHED') {
+    const totalQuestions = quiz?.questions.length || 1;
+    const percentage = Math.round((correctAnswersCount / totalQuestions) * 100);
+    const passingPercentage = session?.settings?.passingPercentage || 0;
+    const isPassed = passingPercentage > 0 && percentage >= passingPercentage;
+
     return (
       <div className="min-h-screen bg-indigo-900 text-white flex flex-col items-center justify-center p-4">
         <StudentAvatar 
@@ -369,8 +374,13 @@ export default function GamePlayerScreen() {
           <div className="flex flex-col items-center gap-2 mb-8">
             <div className="text-6xl font-black text-yellow-400">{score} điểm</div>
             <div className="text-2xl font-bold text-indigo-200">
-              Đúng {correctAnswersCount} / {quiz?.questions.length} câu
+              Đúng {correctAnswersCount} / {totalQuestions} câu ({percentage}%)
             </div>
+            {passingPercentage > 0 && (
+              <div className={`mt-4 px-6 py-3 rounded-xl font-bold text-lg ${isPassed ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
+                {isPassed ? '🎉 Bạn đã hoàn thành yêu cầu của giáo viên' : `❌ Chưa đạt yêu cầu (Cần ${passingPercentage}%)`}
+              </div>
+            )}
           </div>
         )}
         <p className="text-xl opacity-80">
