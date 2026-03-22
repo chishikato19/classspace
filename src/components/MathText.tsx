@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
-import Latex from 'react-latex-next';
+import renderMathInElement from 'katex/dist/contrib/auto-render';
 
 interface MathTextProps {
   text: string;
@@ -8,15 +8,36 @@ interface MathTextProps {
 }
 
 export const MathText: React.FC<MathTextProps> = ({ text, className }) => {
-  // Replace standard LaTeX delimiters with what react-latex-next expects if needed,
-  // but react-latex-next usually handles $...$ and $$...$$ well.
-  // We might want to ensure that the text is treated as a string.
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current && text) {
+      // Reset the HTML first so we start fresh
+      // Do NOT replace \n with <br/> here, because it breaks math blocks that span multiple lines.
+      // Instead, we use CSS white-space: pre-wrap to preserve newlines.
+      containerRef.current.textContent = text;
+      
+      // Then render math
+      renderMathInElement(containerRef.current, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false }
+        ],
+        throwOnError: false,
+        errorColor: '#cc0000',
+        strict: false
+      });
+    }
+  }, [text]);
+
   if (!text) return null;
 
   return (
-    <div className={className}>
-      <Latex>{text}</Latex>
-    </div>
+    <div 
+      ref={containerRef} 
+      className={`whitespace-pre-wrap ${className || ''}`}
+    />
   );
 };

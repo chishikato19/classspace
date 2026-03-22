@@ -6,13 +6,14 @@ import {
   doc,
   getDoc,
   getDocs,
+  getDocsFromCache,
   onSnapshot,
   query,
   runTransaction,
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db, auth } from "../../../config/firebase";
+import { db, auth, handleFirestoreError, OperationType } from "../../../config/firebase";
 import {
   GameMode,
   GameSession,
@@ -23,6 +24,11 @@ import {
 import { timeService } from "../../../services/timeService";
 
 const getSessionsRef = () => collection(db, "sessions");
+
+// In-memory cache for sessions to reduce Firestore reads
+const sessionCache = new Map<string, GameSession>();
+const teacherSessionsCache = new Map<string, { data: GameSession[], timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 export const gameService = {
   // Tạo phòng game mới
@@ -107,6 +113,10 @@ export const gameService = {
     // Sanitize sessionData to remove undefined values for Firestore
     const sanitizedData = JSON.parse(JSON.stringify(sessionData));
     const docRef = await addDoc(getSessionsRef(), sanitizedData);
+    
+    // Invalidate teacher sessions cache
+    teacherSessionsCache.delete(hostId);
+    
     return { id: docRef.id, pin };
   },
 
@@ -125,12 +135,61 @@ export const gameService = {
     } as GameSession;
   },
 
+  // Lấy danh sách session của giáo viên
+  getSessionsByTeacher: async (teacherId: string): Promise<GameSession[]> => {
+    const cached = teacherSessionsCache.get(teacherId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+
+    try {
+      const q = query(
+        getSessionsRef(),
+        where("hostId", "==", teacherId)
+      );
+      
+      let snapshot;
+      try {
+        snapshot = await getDocs(q);
+      } catch (err: any) {
+        // Fallback to cache if quota exceeded or offline
+        if (err.message?.includes('Quota exceeded') || err.code === 'unavailable') {
+          console.warn(`[GameService] Falling back to cache for sessions due to: ${err.message}`);
+          snapshot = await getDocsFromCache(q);
+        } else {
+          throw err;
+        }
+      }
+
+      const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
+      
+      // Sắp xếp trên client
+      const sorted = results.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      teacherSessionsCache.set(teacherId, { data: sorted, timestamp: Date.now() });
+      return sorted;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "sessions");
+      return [];
+    }
+  },
+
   // Lấy thông tin phòng bằng ID
   getSessionById: async (sessionId: string): Promise<GameSession | null> => {
-    const docRef = doc(db, "sessions", sessionId);
-    const snapshot = await getDoc(docRef);
-    if (!snapshot.exists()) return null;
-    return { id: snapshot.id, ...snapshot.data() } as GameSession;
+    if (sessionCache.has(sessionId)) {
+      return sessionCache.get(sessionId)!;
+    }
+
+    try {
+      const docRef = doc(db, "sessions", sessionId);
+      const snapshot = await getDoc(docRef);
+      if (!snapshot.exists()) return null;
+      const session = { id: snapshot.id, ...snapshot.data() } as GameSession;
+      sessionCache.set(sessionId, session);
+      return session;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}`);
+      return null;
+    }
   },
 
   // Tìm phòng Plickers đang hoạt động của giáo viên
@@ -167,6 +226,14 @@ export const gameService = {
       const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
       const latestSession = sessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
       callback(latestSession);
+    }, (error) => {
+      // If quota exceeded, don't throw an uncaught error, just warn and notify via callback if possible
+      if (error.message?.includes('Quota exceeded')) {
+        console.warn('[GameService] Quota exceeded for active sessions listener.');
+        callback(null);
+        return;
+      }
+      handleFirestoreError(error, OperationType.LIST, "sessions");
     });
   },
 
@@ -511,17 +578,41 @@ export const gameService = {
 
   // Kết thúc game
   endGame: async (sessionId: string): Promise<void> => {
-    const sessionRef = doc(db, "sessions", sessionId);
-    await updateDoc(sessionRef, {
-      status: "FINISHED",
-      finishedAt: Date.now(),
-    });
+    try {
+      const sessionRef = doc(db, "sessions", sessionId);
+      await updateDoc(sessionRef, {
+        status: "FINISHED",
+        finishedAt: Date.now(),
+      });
+      
+      // Invalidate cache
+      const session = sessionCache.get(sessionId);
+      if (session) {
+        teacherSessionsCache.delete(session.hostId);
+      } else {
+        teacherSessionsCache.clear();
+      }
+      sessionCache.delete(sessionId);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `sessions/${sessionId}`);
+    }
   },
 
   // Xóa session
   deleteSession: async (sessionId: string): Promise<void> => {
-    const sessionRef = doc(db, "sessions", sessionId);
-    await deleteDoc(sessionRef);
+    try {
+      const docRef = doc(db, "sessions", sessionId);
+      const session = sessionCache.get(sessionId);
+      await deleteDoc(docRef);
+      sessionCache.delete(sessionId);
+      if (session) {
+        teacherSessionsCache.delete(session.hostId);
+      } else {
+        teacherSessionsCache.clear();
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `sessions/${sessionId}`);
+    }
   },
 
   // Nộp câu trả lời (Quan trọng: Xử lý Transaction để cộng điểm chính xác)
@@ -729,6 +820,12 @@ export const gameService = {
       if (doc.exists()) {
         callback({ id: doc.id, ...doc.data() } as GameSession);
       }
+    }, (error) => {
+      if (error.message?.includes('Quota exceeded')) {
+        console.warn(`[GameService] Quota exceeded for session listener: ${sessionId}`);
+        return;
+      }
+      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}`);
     });
   },
 };

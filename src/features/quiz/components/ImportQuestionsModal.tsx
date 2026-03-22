@@ -3,6 +3,7 @@ import { Question } from '../../../types';
 import { parseQuestionsFromText } from '../../../utils/questionParser';
 import { X, FileText, CheckCircle, AlertCircle, ArrowRight, Upload } from 'lucide-react';
 import mammoth from 'mammoth';
+import { MathText } from '../../../components/MathText';
 
 interface ImportQuestionsModalProps {
   isOpen: boolean;
@@ -177,7 +178,7 @@ Trả lời:
                           </span>
                         )}
                       </div>
-                      <h3 className="font-bold text-gray-900 mb-3">{idx + 1}. {q.text}</h3>
+                      <h3 className="font-bold text-gray-900 mb-3">{idx + 1}. <MathText text={q.text} /></h3>
                       {q.imageUrl && (
                         <div className="mb-3">
                           <img src={q.imageUrl} alt="Question" className="max-h-32 rounded border border-gray-200" />
@@ -191,7 +192,7 @@ Trả lời:
                               <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${opt.isCorrect ? 'border-green-600 bg-green-600 text-white' : 'border-gray-400'}`}>
                                 {opt.isCorrect && <CheckCircle className="w-3 h-3" />}
                               </div>
-                              {opt.text}
+                              <MathText text={opt.text} />
                             </div>
                             {opt.imageUrl && (
                               <div className="pl-6">

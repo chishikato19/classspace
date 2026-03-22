@@ -53,131 +53,146 @@ export default function GamePlayerScreen() {
       // Handle Teacher-paced synchronization
       if (data.mode === 'TEACHER_PACED') {
         // Reset question state when moving to a new question
-        if (session && data.currentQuestionIndex !== session.currentQuestionIndex) {
-          setIsSubmitted(false);
-          setSelectedOptionId(null);
-          setIsCorrect(false);
-          setQuestionStartTime(Date.now());
-          setTimeLeft(shuffledQuestions[data.currentQuestionIndex]?.timeLimit || 30);
-        }
+        setSession(prevSession => {
+          if (prevSession && data.currentQuestionIndex !== prevSession.currentQuestionIndex) {
+            setIsSubmitted(false);
+            setSelectedOptionId(null);
+            setIsCorrect(false);
+            setQuestionStartTime(Date.now());
+            // Note: shuffledQuestions might not be available yet on first run, 
+            // but subsequent runs will have it.
+            setShuffledQuestions(prevQuestions => {
+              if (prevQuestions.length > 0) {
+                setTimeLeft(prevQuestions[data.currentQuestionIndex]?.timeLimit || 30);
+              }
+              return prevQuestions;
+            });
+          }
+          return data;
+        });
         
         // Sync current question index
         setCurrentQuestionIndex(data.currentQuestionIndex);
+      } else {
+        setSession(data);
       }
-
-      setSession(data);
       
       // Load quiz data only once
-      if (!quiz && data.quizId) {
-        const quizData = await quizService.getQuizById(data.quizId);
-        if (quizData) {
-          setQuiz(quizData);
-          
-          let questions = [...(quizData.questions || [])];
-          const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
-          
-          // Simple seeded random generator
-          const seededRandom = (seed: number) => {
-            let t = seed += 0x6D2B79F5;
-            t = Math.imul(t ^ t >>> 15, t | 1);
-            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-            return ((t ^ t >>> 14) >>> 0) / 4294967296;
-          };
+      setQuiz(prevQuiz => {
+        if (!prevQuiz && data.quizId) {
+          quizService.getQuizById(data.quizId).then(quizData => {
+            if (quizData) {
+              setQuiz(quizData);
+              
+              let questions = [...(quizData.questions || [])];
+              const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
+              
+              // Simple seeded random generator
+              const seededRandom = (seed: number) => {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+              };
 
-          // Generate a numeric seed from playerId or sessionId
-          const seedString = playerId || data.id;
-          let seed = 0;
-          for (let i = 0; i < seedString.length; i++) {
-            seed = Math.imul(31, seed) + seedString.charCodeAt(i) | 0;
-          }
+              // Generate a numeric seed from playerId or sessionId
+              const playerId = sessionStorage.getItem('currentPlayerId');
+              const seedString = playerId || data.id;
+              let seed = 0;
+              for (let i = 0; i < seedString.length; i++) {
+                seed = Math.imul(31, seed) + seedString.charCodeAt(i) | 0;
+              }
 
-          // Fisher-Yates shuffle function with seeded random
-          const shuffleArray = <T,>(array: T[], seedValue: number): T[] => {
-            const newArray = [...array];
-            let currentSeed = seedValue;
-            for (let i = newArray.length - 1; i > 0; i--) {
-              const randomVal = seededRandom(currentSeed++);
-              const j = Math.floor(randomVal * (i + 1));
-              [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-            }
-            return newArray;
-          };
+              // Fisher-Yates shuffle function with seeded random
+              const shuffleArray = <T,>(array: T[], seedValue: number): T[] => {
+                const newArray = [...array];
+                let currentSeed = seedValue;
+                for (let i = newArray.length - 1; i > 0; i--) {
+                  const randomVal = seededRandom(currentSeed++);
+                  const j = Math.floor(randomVal * (i + 1));
+                  [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+                }
+                return newArray;
+              };
 
-          // Only shuffle if NOT teacher-paced (everyone must see the same order in teacher-paced)
-          if (data.mode !== 'TEACHER_PACED') {
-            if (settings.shuffleQuestions) {
-              questions = shuffleArray(questions, seed);
-            }
-            
-            if (settings.shuffleAnswers) {
-              questions = questions.map((q, idx) => ({
-                ...q,
-                options: shuffleArray(q.options || [], seed + idx)
-              }));
-            }
-          }
-          
-          setShuffledQuestions(questions);
+              // Only shuffle if NOT teacher-paced (everyone must see the same order in teacher-paced)
+              if (data.mode !== 'TEACHER_PACED') {
+                if (settings.shuffleQuestions) {
+                  questions = shuffleArray(questions, seed);
+                }
+                
+                if (settings.shuffleAnswers) {
+                  questions = questions.map((q, idx) => ({
+                    ...q,
+                    options: shuffleArray(q.options || [], seed + idx)
+                  }));
+                }
+              }
+              
+              setShuffledQuestions(questions);
 
-          // Determine starting question index based on previous answers
-          const player = data.players.find(p => p.id === playerId);
-          let startIndex = 0;
-          
-          // Load local answers for ecoMode
-          let currentLocalAnswers = {};
-          if (data.settings?.ecoMode && playerId) {
-            const saved = localStorage.getItem(`ecoMode_${data.id}_${playerId}`);
-            if (saved) {
-              try {
-                currentLocalAnswers = JSON.parse(saved);
-                setLocalAnswers(currentLocalAnswers);
-              } catch (e) {}
+              // Determine starting question index based on previous answers
+              const player = data.players.find(p => p.id === playerId);
+              let startIndex = 0;
+              
+              // Load local answers for ecoMode
+              let currentLocalAnswers = {};
+              if (data.settings?.ecoMode && playerId) {
+                const saved = localStorage.getItem(`ecoMode_${data.id}_${playerId}`);
+                if (saved) {
+                  try {
+                    currentLocalAnswers = JSON.parse(saved);
+                    setLocalAnswers(currentLocalAnswers);
+                  } catch (e) {}
+                }
+              }
+              
+              if (data.mode !== 'TEACHER_PACED' && player) {
+                const combinedAnswers = { ...(player.answers || {}), ...currentLocalAnswers };
+                setPlayerAnswers(combinedAnswers);
+                
+                // Recalculate score and correct answers from combined answers
+                let loadedScore = 0;
+                let loadedCorrectCount = 0;
+                Object.values(combinedAnswers).forEach((ans: any) => {
+                  loadedScore += (ans.pointsAwarded || 0);
+                  if (ans.isCorrect) loadedCorrectCount++;
+                });
+                setScore(loadedScore);
+                setCorrectAnswersCount(loadedCorrectCount);
+                
+                const firstUnansweredIndex = questions.findIndex(q => !combinedAnswers[q.id]);
+                if (firstUnansweredIndex !== -1) {
+                  startIndex = firstUnansweredIndex;
+                } else {
+                  startIndex = questions.length;
+                  setFinished(true);
+                }
+              } else {
+                startIndex = data.currentQuestionIndex || 0;
+              }
+              
+              setCurrentQuestionIndex(startIndex);
+              setQuestionStartTime(Date.now());
+              
+              const getEffectiveTimeLimit = (q: Question) => {
+                if (data.settings?.forceTimeLimit !== undefined) {
+                  return data.settings.forceTimeLimit;
+                }
+                return q.timeLimit;
+              };
+              
+              const limit = getEffectiveTimeLimit(questions[startIndex]);
+              setTimeLeft(limit === 0 ? 0 : (limit || 30));
             }
-          }
-          
-          if (data.mode !== 'TEACHER_PACED' && player) {
-            const combinedAnswers = { ...(player.answers || {}), ...currentLocalAnswers };
-            setPlayerAnswers(combinedAnswers);
-            
-            // Recalculate score and correct answers from combined answers
-            let loadedScore = 0;
-            let loadedCorrectCount = 0;
-            Object.values(combinedAnswers).forEach((ans: any) => {
-              loadedScore += (ans.pointsAwarded || 0);
-              if (ans.isCorrect) loadedCorrectCount++;
-            });
-            setScore(loadedScore);
-            setCorrectAnswersCount(loadedCorrectCount);
-            
-            const firstUnansweredIndex = questions.findIndex(q => !combinedAnswers[q.id]);
-            if (firstUnansweredIndex !== -1) {
-              startIndex = firstUnansweredIndex;
-            } else {
-              startIndex = questions.length;
-              setFinished(true);
-            }
-          } else {
-            startIndex = data.currentQuestionIndex || 0;
-          }
-          
-          setCurrentQuestionIndex(startIndex);
-          setQuestionStartTime(Date.now());
-          
-          const getEffectiveTimeLimit = (q: Question) => {
-            if (data.settings?.forceTimeLimit !== undefined) {
-              return data.settings.forceTimeLimit;
-            }
-            return q.timeLimit;
-          };
-          
-          const limit = getEffectiveTimeLimit(questions[startIndex]);
-          setTimeLeft(limit === 0 ? 0 : (limit || 30));
+          });
         }
-      }
+        return prevQuiz;
+      });
     });
 
     return () => unsubscribe();
-  }, [sessionId, quiz, session?.currentQuestionIndex]);
+  }, [sessionId]);
 
   // Timer logic
   useEffect(() => {
@@ -441,9 +456,9 @@ export default function GamePlayerScreen() {
               return (
                 <div key={q.id} className={`bg-white p-6 rounded-2xl shadow-sm border-2 ${isCorrect ? 'border-green-200' : 'border-red-200'}`}>
                   <div className="flex justify-between items-start mb-4">
-                    <div className="text-lg font-bold text-gray-800 flex items-start gap-2">
-                      <span>Câu {idx + 1}:</span> <MathText text={q.text} className="flex-1" />
-                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">
+                      Câu {idx + 1}: <MathText text={q.text} />
+                    </h3>
                     <div className={`px-3 py-1 rounded-full text-sm font-bold ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {isCorrect ? 'Đúng' : 'Sai'}
                     </div>
@@ -473,7 +488,7 @@ export default function GamePlayerScreen() {
                             <div className="flex flex-wrap gap-2 mt-1">
                               {q.options?.map(opt => (
                                 <span key={opt.id} className="bg-green-50 text-green-700 px-3 py-1 rounded-md text-sm font-bold border border-green-200">
-                                  {opt.text}
+                                  <MathText text={opt.text} />
                                 </span>
                               ))}
                             </div>
@@ -630,7 +645,7 @@ export default function GamePlayerScreen() {
               onError={(e) => (e.currentTarget.style.display = 'none')}
             />
           )}
-          <div className="text-2xl font-bold text-gray-800"><MathText text={currentQuestion.text} /></div>
+          <h2 className="text-2xl font-bold text-gray-800"><MathText text={currentQuestion.text} /></h2>
         </div>
 
         {/* Options Grid */}
@@ -662,7 +677,7 @@ export default function GamePlayerScreen() {
                   <div className="flex flex-wrap gap-2 justify-center">
                      {currentQuestion.options?.map(opt => (
                         <span key={opt.id} className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
-                           {opt.text}
+                           <MathText text={opt.text} />
                         </span>
                      ))}
                   </div>

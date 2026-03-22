@@ -24,7 +24,7 @@ export const NoiseMonitorProvider: React.FC<{ children: ReactNode }> = ({ childr
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(0);
 
   const startMonitoring = async () => {
     try {

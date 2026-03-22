@@ -35,6 +35,8 @@ import { NoiseMonitorWidget } from './components/NoiseMonitorWidget';
 import { TimerProvider } from './contexts/TimerContext';
 import { TimerWidget } from './components/TimerWidget';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 export default function App() {
   useEffect(() => {
     if (isFirebaseConfigured) {
@@ -47,46 +49,48 @@ export default function App() {
   }
 
   return (
-    <NoiseMonitorProvider>
-      <TimerProvider>
-        <HashRouter>
-          <NoiseMonitorWidget />
-          <TimerWidget />
-          <Routes>
-          {/* Public Routes */}
-        <Route path="/" element={<GameJoinPage />} />
-        <Route path="/join" element={<GameJoinPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        
-        {/* Student Shop Route */}
-        <Route path="/student/shop/:studentId" element={<StudentDashboardWrapper />} />
+    <ErrorBoundary>
+      <NoiseMonitorProvider>
+        <TimerProvider>
+          <HashRouter>
+            <NoiseMonitorWidget />
+            <TimerWidget />
+            <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<GameJoinPage />} />
+            <Route path="/join" element={<GameJoinPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            
+            {/* Student Shop Route */}
+            <Route path="/student/shop/:studentId" element={<StudentDashboardWrapper />} />
 
-        {/* Game Routes (No Layout) */}
-        <Route path="/game/lobby/:sessionId" element={<GamePlayerLobby />} />
-        <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
-        
-        {/* Protected Game Routes */}
-        <Route path="/game/host/:quizId" element={<ProtectedRoute><GameHostLobby /></ProtectedRoute>} />
-        <Route path="/game/dashboard/:sessionId" element={<ProtectedRoute><GameHostDashboard /></ProtectedRoute>} />
-        <Route path="/game/scanner/:sessionId" element={<ProtectedRoute><PlickersScanner /></ProtectedRoute>} />
-        <Route path="/game/results/:sessionId" element={<ProtectedRoute><GameResults /></ProtectedRoute>} />
-        <Route path="/game/local-battle/:quizId" element={<ProtectedRoute><LocalBattleArena /></ProtectedRoute>} />
+            {/* Game Routes (No Layout) */}
+            <Route path="/game/lobby/:sessionId" element={<GamePlayerLobby />} />
+            <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
+            
+            {/* Protected Game Routes */}
+            <Route path="/game/host/:quizId" element={<ProtectedRoute><GameHostLobby /></ProtectedRoute>} />
+            <Route path="/game/dashboard/:sessionId" element={<ProtectedRoute><GameHostDashboard /></ProtectedRoute>} />
+            <Route path="/game/scanner/:sessionId" element={<ProtectedRoute><PlickersScanner /></ProtectedRoute>} />
+            <Route path="/game/results/:sessionId" element={<ProtectedRoute><GameResults /></ProtectedRoute>} />
+            <Route path="/game/local-battle/:quizId" element={<ProtectedRoute><LocalBattleArena /></ProtectedRoute>} />
 
-        {/* Protected Routes (Wrapped in Layout) */}
-        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-          <Route path="/teacher/shop" element={<ShopManager />} />
-          <Route path="/teacher/random-selector" element={<RandomSelector />} />
-          <Route path="/teacher/video-player" element={<VideoPlayer />} />
-          <Route path="/teacher/settings" element={<Settings />} />
-          <Route path="/teacher/quiz/new" element={<QuizEditor />} />
-          <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />
-          {/* Add more routes here later */}
-        </Route>
-      </Routes>
-    </HashRouter>
-    </TimerProvider>
+            {/* Protected Routes (Wrapped in Layout) */}
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+              <Route path="/teacher/shop" element={<ShopManager />} />
+              <Route path="/teacher/random-selector" element={<RandomSelector />} />
+              <Route path="/teacher/video-player" element={<VideoPlayer />} />
+              <Route path="/teacher/settings" element={<Settings />} />
+              <Route path="/teacher/quiz/new" element={<QuizEditor />} />
+              <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />
+              {/* Add more routes here later */}
+            </Route>
+          </Routes>
+        </HashRouter>
+      </TimerProvider>
     </NoiseMonitorProvider>
-  );
+  </ErrorBoundary>
+);
 }

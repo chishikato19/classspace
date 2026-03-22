@@ -414,20 +414,27 @@ export default function BattlePlayerScreen() {
               {/* Controls (A, B, C, D) */}
               <div className="grid grid-cols-2 gap-4 mb-8 flex-1">
                  {displayOptions.map((opt, idx) => (
-                   <button
+                   <div
                      key={opt.id}
-                     onClick={() => handleAnswer(opt.id)}
-                     disabled={isFrozen || isSubmitted}
+                     role="button"
+                     tabIndex={isFrozen || isSubmitted ? -1 : 0}
+                     onClick={() => !(isFrozen || isSubmitted) && handleAnswer(opt.id)}
+                     onKeyDown={(e) => {
+                       if (!(isFrozen || isSubmitted) && (e.key === 'Enter' || e.key === ' ')) {
+                         e.preventDefault();
+                         handleAnswer(opt.id);
+                       }
+                     }}
                      className={`rounded-2xl font-bold text-lg p-4 shadow-lg active:scale-95 transition-transform flex flex-col items-center justify-center gap-2 ${
                        idx === 0 ? 'bg-red-600 hover:bg-red-500' : 
                        idx === 1 ? 'bg-blue-600 hover:bg-blue-500' : 
                        idx === 2 ? 'bg-yellow-600 hover:bg-yellow-500' : 
                        'bg-green-600 hover:bg-green-500'
-                     } ${isFrozen || isSubmitted ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                     } ${isFrozen || isSubmitted ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
                    >
                      {opt.imageUrl && <img src={opt.imageUrl} className="h-16 object-contain rounded bg-white" />}
                      <MathText text={opt.text} />
-                   </button>
+                   </div>
                  ))}
               </div>
            </>

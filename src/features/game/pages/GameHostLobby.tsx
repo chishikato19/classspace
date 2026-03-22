@@ -24,6 +24,7 @@ export default function GameHostLobby() {
     maxAttempts: 0,
     requirePasscode: false,
     allowRetry: false,
+    redoWrongQuestions: false,
     effectDuration: 10,
     reviveCost: 1000,
     pacing: 'STUDENT'
@@ -67,7 +68,6 @@ export default function GameHostLobby() {
 
     setLoading(true);
     try {
-      // const hostId = auth?.currentUser?.uid || 'admin'; // Removed hostId param
       const { id: sessionId } = await gameService.createSession(
         quizId, 
         settings, 
@@ -81,17 +81,35 @@ export default function GameHostLobby() {
         }
       );
       
-      // Lắng nghe thay đổi
-      gameService.subscribeToSession(sessionId, (data) => {
+      // Lắng nghe thay đổi - Sẽ được dọn dẹp bởi useEffect khi component unmount
+      const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
         setSession(data);
         setLoading(false);
         setSetupMode(false);
       });
+
+      // Lưu unsubscribe để dọn dẹp nếu cần (nhưng ở đây handleCreateSession chỉ chạy 1 lần)
+      // Một cách tốt hơn là dùng useEffect để quản lý subscription dựa trên sessionId
+      setSessionIdState(sessionId);
     } catch (error) {
       console.error("Error creating session:", error);
       setLoading(false);
     }
   };
+
+  const [sessionIdState, setSessionIdState] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionIdState) return;
+
+    const unsubscribe = gameService.subscribeToSession(sessionIdState, (data) => {
+      setSession(data);
+      setLoading(false);
+      setSetupMode(false);
+    });
+
+    return () => unsubscribe();
+  }, [sessionIdState]);
 
   const handleStartGame = async () => {
     if (!session) return;

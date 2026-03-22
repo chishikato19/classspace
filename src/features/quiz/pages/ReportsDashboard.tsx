@@ -11,6 +11,7 @@ export default function ReportsDashboard() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<(GameSession & { quizTitle?: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSessions();
@@ -20,32 +21,30 @@ export default function ReportsDashboard() {
     if (!auth.currentUser) return;
     
     try {
+      setLoading(true);
+      setError(null);
       // Lấy danh sách các session do giáo viên này tạo
-      const q = query(
-        collection(db, 'sessions'),
-        where('hostId', '==', auth.currentUser.uid)
-      );
+      const sessionData = await gameService.getSessionsByTeacher(auth.currentUser.uid);
       
-      const snapshot = await getDocs(q);
-      const sessionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameSession));
+      // Tối ưu hóa: Lấy tất cả quiz của giáo viên một lần duy nhất thay vì gọi N lần getQuizById
+      const teacherQuizzes = await quizService.getQuizzesByTeacher(auth.currentUser.uid);
+      const quizMap = new Map(teacherQuizzes.map(q => [q.id, q]));
       
-      // Sắp xếp trên client để tránh lỗi thiếu index trên Firebase
-      sessionData.sort((a, b) => b.createdAt - a.createdAt);
-      
-      // Lấy thông tin quiz (tiêu đề) cho mỗi session
-      const sessionsWithQuiz = await Promise.all(sessionData.map(async (session) => {
-        if (session.quizId) {
-          const quiz = await quizService.getQuizById(session.quizId);
-          const quizTitle = quiz?.title || 'Bộ câu hỏi không xác định';
-          // Nếu session có title riêng thì dùng, không thì dùng title của quiz
-          return { ...session, quizTitle: session.title || quizTitle };
-        }
-        return { ...session, quizTitle: session.title || 'Không có bộ câu hỏi' };
-      }));
+      const sessionsWithQuiz = sessionData.map(session => {
+        const quiz = session.quizId ? quizMap.get(session.quizId) : null;
+        const quizTitle = quiz?.title || 'Bộ câu hỏi không xác định';
+        // Nếu session có title riêng thì dùng, không thì dùng title của quiz
+        return { ...session, quizTitle: session.title || quizTitle };
+      });
       
       setSessions(sessionsWithQuiz);
-    } catch (error) {
-      console.error("Error fetching sessions:", error);
+    } catch (err: any) {
+      console.error("Error fetching sessions:", err);
+      if (err.message?.includes('Quota exceeded')) {
+        setError("Giới hạn truy cập hàng ngày (Quota) đã hết. Vui lòng quay lại vào ngày mai.");
+      } else {
+        setError("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+      }
     } finally {
       setLoading(false);
     }
@@ -109,6 +108,16 @@ export default function ReportsDashboard() {
           Báo cáo & Lịch sử thi
         </h1>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+          <strong className="font-bold">Lỗi: </strong>
+          <span className="block sm:inline">{error}</span>
+          {error.includes('Quota') && (
+            <p className="text-sm mt-1 opacity-80">Đây là giới hạn của gói Firebase miễn phí. Hệ thống sẽ tự động khôi phục vào ngày mai.</p>
+          )}
+        </div>
+      )}
 
       {sessions.length === 0 ? (
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center">

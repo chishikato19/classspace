@@ -14,6 +14,7 @@ export default function QuizDashboard() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activePlickersSession, setActivePlickersSession] = useState<GameSession | null>(null);
   
   // Modals State
@@ -29,45 +30,56 @@ export default function QuizDashboard() {
   const loadData = async (userId: string) => {
     try {
       setLoading(true);
+      setError(null);
       const [quizzesData, foldersData] = await Promise.all([
         quizService.getQuizzesByTeacher(userId),
         quizService.getFoldersByTeacher(userId)
       ]);
       setQuizzes(quizzesData);
       setFolders(foldersData);
-    } catch (error) {
-      console.error("Failed to load data", error);
+    } catch (err: any) {
+      console.error("Failed to load data", err);
+      if (err.message?.includes('Quota exceeded')) {
+        setError("Giới hạn truy cập hàng ngày (Quota) đã hết. Vui lòng quay lại vào ngày mai.");
+      } else {
+        setError("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const [userId, setUserId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!auth) return;
-    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
+        setUserId(user.uid);
         loadData(user.uid);
-        
-        // Lắng nghe các phiên Plickers đang hoạt động
-        const unsubscribeSessions = gameService.subscribeToActivePlickersSessions(user.uid, (activeSession) => {
-          setActivePlickersSession(activeSession);
-          
-          // Tự động chuyển hướng nếu là thiết bị di động
-          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-          if (isMobile && activeSession) {
-            navigate(`/game/scanner/${activeSession.id}`);
-          }
-        });
-        
-        return () => unsubscribeSessions();
       } else {
+        setUserId(null);
         setLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    // Lắng nghe các phiên Plickers đang hoạt động
+    const unsubscribeSessions = gameService.subscribeToActivePlickersSessions(userId, (activeSession) => {
+      setActivePlickersSession(activeSession);
+      
+      // Tự động chuyển hướng nếu là thiết bị di động
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile && activeSession) {
+        navigate(`/game/scanner/${activeSession.id}`);
+      }
+    });
+    
+    return () => unsubscribeSessions();
+  }, [userId, navigate]);
 
   const handleDeleteQuiz = async (quizId: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa bộ câu hỏi này? Hành động này không thể hoàn tác.")) return;
@@ -148,6 +160,16 @@ export default function QuizDashboard() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+          <strong className="font-bold">Lỗi: </strong>
+          <span className="block sm:inline">{error}</span>
+          {error.includes('Quota') && (
+            <p className="text-sm mt-1 opacity-80">Đây là giới hạn của gói Firebase miễn phí. Hệ thống sẽ tự động khôi phục vào ngày mai.</p>
+          )}
+        </div>
+      )}
+
       {activePlickersSession && (
         <div className="bg-indigo-600 rounded-xl p-4 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center gap-3">

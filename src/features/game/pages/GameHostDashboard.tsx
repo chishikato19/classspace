@@ -21,13 +21,18 @@ export default function GameHostDashboard() {
     if (!sessionId) return;
     const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
-      if (!quiz && data.quizId) {
-        const quizData = await quizService.getQuizById(data.quizId);
-        setQuiz(quizData);
+      if (data.quizId) {
+        // Fetch quiz only if not already fetched
+        setQuiz(prevQuiz => {
+          if (!prevQuiz) {
+            quizService.getQuizById(data.quizId).then(setQuiz);
+          }
+          return prevQuiz;
+        });
       }
     });
     return () => unsubscribe();
-  }, [sessionId, quiz]);
+  }, [sessionId]);
 
   // Timer for Teacher-paced and Plickers mode
   useEffect(() => {
@@ -180,7 +185,7 @@ export default function GameHostDashboard() {
                 </div>
               </div>
 
-              <div className="text-4xl font-black mb-8 leading-tight flex flex-col items-center text-center">
+              <h2 className="text-4xl font-black mb-8 leading-tight flex flex-col items-center text-center">
                 {currentQuestion.imageUrl && (
                   <img 
                     src={currentQuestion.imageUrl} 
@@ -191,7 +196,7 @@ export default function GameHostDashboard() {
                   />
                 )}
                 <MathText text={currentQuestion.text} />
-              </div>
+              </h2>
               
               <div className="grid grid-cols-2 gap-4 mt-auto">
                 {currentQuestion.type === 'SHORT_ANSWER' ? (
@@ -200,7 +205,7 @@ export default function GameHostDashboard() {
                       <div className="flex flex-wrap gap-3 justify-center">
                          {currentQuestion.options.map(opt => (
                             <span key={opt.id} className="bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xl border-2 border-green-200 shadow-sm">
-                               {opt.text}
+                               <MathText text={opt.text} />
                             </span>
                          ))}
                       </div>

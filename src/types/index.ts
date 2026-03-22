@@ -31,7 +31,7 @@ export interface Student {
   id: string;
   name: string;
   classId: string;
-  wallet_points: number; // Điểm tích lũy đổi quà
+  wallet_points?: number; // Điểm tích lũy đổi quà
   avatarConfig?: AvatarConfig;
   inventory?: Inventory;
   passcode?: string; // Mật khẩu cá nhân để chống gian lận
@@ -118,6 +118,7 @@ export interface GameSession {
   mode: GameMode;
   createdAt: number;
   currentQuestionIndex: number; // Dùng cho chế độ Teacher-paced (nếu cần)
+  questionStartTime?: number; // Thời điểm bắt đầu câu hỏi (timestamp)
   settings: GameSettings;
   homeworkConfig?: HomeworkConfig;
   nameInputType?: 'MANUAL' | 'CLASS_LIST';

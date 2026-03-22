@@ -49,8 +49,15 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Special handling for Quota Exceeded
+  if (errorMessage.includes('Quota exceeded')) {
+    console.warn('[Firestore] Quota exceeded. This is a daily limit of the Firebase free tier. The app will have limited functionality until the quota resets tomorrow.');
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth?.currentUser?.uid,
       email: auth?.currentUser?.email,

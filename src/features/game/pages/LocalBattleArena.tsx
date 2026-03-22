@@ -929,20 +929,28 @@ export default function LocalBattleArena() {
                     const isEliminated = player.eliminatedOptions.includes(opt.id);
                     
                     return (
-                    <button
+                    <div
                       key={opt.id}
+                      role="button"
+                      tabIndex={player.isLocked || player.isFrozen || !!player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated ? -1 : 0}
                       onClick={() => {
                         if (player.isLocked || player.isFrozen || player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated) return;
                         handleAnswer(team, opt.id, opt.isCorrect);
                       }}
-                      disabled={player.isLocked || player.isFrozen || !!player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated}
+                      onKeyDown={(e) => {
+                        if (player.isLocked || player.isFrozen || player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleAnswer(team, opt.id, opt.isCorrect);
+                        }
+                      }}
                       className={`w-full p-4 rounded-xl border-2 font-bold text-lg flex items-center gap-4 transition-all active:scale-95 touch-manipulation ${
                         player.lastAnswer === opt.id
                           ? (player.isCorrect ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400')
                           : (player.showFeedback && opt.isCorrect) 
                             ? 'bg-green-900/50 border-green-500'
                             : 'bg-gray-700 border-gray-600 hover:bg-gray-600'
-                      } ${player.isBlinded ? 'blur-sm text-transparent' : ''} ${isEliminated ? 'opacity-20 grayscale cursor-not-allowed' : ''}`}
+                      } ${player.isBlinded ? 'blur-sm text-transparent' : ''} ${isEliminated ? 'opacity-20 grayscale cursor-not-allowed' : ''} ${player.isLocked || player.isFrozen || !!player.lastAnswer || player.showFeedback || player.isSelectingItem || isEliminated ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <div className="w-8 h-8 border-2 border-gray-500 rounded flex items-center justify-center text-sm shrink-0 text-white !blur-0">
                         {isRed 
@@ -961,7 +969,7 @@ export default function LocalBattleArena() {
                         )}
                         <div className="text-left w-full truncate"><MathText text={opt.text} /></div>
                       </div>
-                    </button>
+                    </div>
                   );
                   });
                 })()}
