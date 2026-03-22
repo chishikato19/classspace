@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { GameSession, Question, Quiz, AvatarConfig } from '../../../types';
+import { GameSession, Question, Quiz, AvatarConfig, Player } from '../../../types';
 import { quizService } from '../../quiz/services/quizService';
 import { gameService } from '../services/gameService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
@@ -31,12 +31,14 @@ export default function GamePlayerScreen() {
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>({});
   const [showReview, setShowReview] = useState(false);
   const [playerAnswers, setPlayerAnswers] = useState<Record<string, any>>({});
+  
+  const quizLoadingRef = useRef(false);
+  const initializationRef = useRef(false);
 
-  // Load session and quiz data
+  // Load player info from session storage
   useEffect(() => {
     const name = sessionStorage.getItem('currentPlayerName');
     if (name) setPlayerName(name);
-    const playerId = sessionStorage.getItem('currentPlayerId');
 
     const avatarJson = sessionStorage.getItem('currentPlayerAvatar');
     if (avatarJson) {
@@ -46,153 +48,194 @@ export default function GamePlayerScreen() {
         console.error("Error parsing avatar config", e);
       }
     }
+  }, []);
 
+  // 1. Subscribe to session data
+  useEffect(() => {
     if (!sessionId) return;
 
-    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
-      // Handle Teacher-paced synchronization
-      if (data.mode === 'TEACHER_PACED') {
-        // Reset question state when moving to a new question
-        setSession(prevSession => {
+    const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+      setSession(prevSession => {
+        // Handle Teacher-paced synchronization
+        if (data.mode === 'TEACHER_PACED') {
           if (prevSession && data.currentQuestionIndex !== prevSession.currentQuestionIndex) {
             setIsSubmitted(false);
             setSelectedOptionId(null);
             setIsCorrect(false);
             setQuestionStartTime(Date.now());
-            // Note: shuffledQuestions might not be available yet on first run, 
-            // but subsequent runs will have it.
-            setShuffledQuestions(prevQuestions => {
-              if (prevQuestions.length > 0) {
-                setTimeLeft(prevQuestions[data.currentQuestionIndex]?.timeLimit || 30);
+            
+            // Update time left for new question
+            if (shuffledQuestions.length > 0) {
+              const nextQuestion = shuffledQuestions[data.currentQuestionIndex];
+              if (nextQuestion) {
+                const getEffectiveTimeLimit = (q: Question) => {
+                  if (data.settings?.forceTimeLimit !== undefined) {
+                    return data.settings.forceTimeLimit;
+                  }
+                  return q.timeLimit;
+                };
+                const limit = getEffectiveTimeLimit(nextQuestion);
+                setTimeLeft(limit === 0 ? 0 : (limit || 30));
               }
-              return prevQuestions;
-            });
-          }
-          return data;
-        });
-        
-        // Sync current question index
-        setCurrentQuestionIndex(data.currentQuestionIndex);
-      } else {
-        setSession(data);
-      }
-      
-      // Load quiz data only once
-      setQuiz(prevQuiz => {
-        if (!prevQuiz && data.quizId) {
-          quizService.getQuizById(data.quizId).then(quizData => {
-            if (quizData) {
-              setQuiz(quizData);
-              
-              let questions = [...(quizData.questions || [])];
-              const settings = data.settings || { shuffleQuestions: false, shuffleAnswers: false };
-              
-              // Simple seeded random generator
-              const seededRandom = (seed: number) => {
-                let t = seed += 0x6D2B79F5;
-                t = Math.imul(t ^ t >>> 15, t | 1);
-                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-                return ((t ^ t >>> 14) >>> 0) / 4294967296;
-              };
-
-              // Generate a numeric seed from playerId or sessionId
-              const playerId = sessionStorage.getItem('currentPlayerId');
-              const seedString = playerId || data.id;
-              let seed = 0;
-              for (let i = 0; i < seedString.length; i++) {
-                seed = Math.imul(31, seed) + seedString.charCodeAt(i) | 0;
-              }
-
-              // Fisher-Yates shuffle function with seeded random
-              const shuffleArray = <T,>(array: T[], seedValue: number): T[] => {
-                const newArray = [...array];
-                let currentSeed = seedValue;
-                for (let i = newArray.length - 1; i > 0; i--) {
-                  const randomVal = seededRandom(currentSeed++);
-                  const j = Math.floor(randomVal * (i + 1));
-                  [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-                }
-                return newArray;
-              };
-
-              // Only shuffle if NOT teacher-paced (everyone must see the same order in teacher-paced)
-              if (data.mode !== 'TEACHER_PACED') {
-                if (settings.shuffleQuestions) {
-                  questions = shuffleArray(questions, seed);
-                }
-                
-                if (settings.shuffleAnswers) {
-                  questions = questions.map((q, idx) => ({
-                    ...q,
-                    options: shuffleArray(q.options || [], seed + idx)
-                  }));
-                }
-              }
-              
-              setShuffledQuestions(questions);
-
-              // Determine starting question index based on previous answers
-              const player = data.players.find(p => p.id === playerId);
-              let startIndex = 0;
-              
-              // Load local answers for ecoMode
-              let currentLocalAnswers = {};
-              if (data.settings?.ecoMode && playerId) {
-                const saved = localStorage.getItem(`ecoMode_${data.id}_${playerId}`);
-                if (saved) {
-                  try {
-                    currentLocalAnswers = JSON.parse(saved);
-                    setLocalAnswers(currentLocalAnswers);
-                  } catch (e) {}
-                }
-              }
-              
-              if (data.mode !== 'TEACHER_PACED' && player) {
-                const combinedAnswers = { ...(player.answers || {}), ...currentLocalAnswers };
-                setPlayerAnswers(combinedAnswers);
-                
-                // Recalculate score and correct answers from combined answers
-                let loadedScore = 0;
-                let loadedCorrectCount = 0;
-                Object.values(combinedAnswers).forEach((ans: any) => {
-                  loadedScore += (ans.pointsAwarded || 0);
-                  if (ans.isCorrect) loadedCorrectCount++;
-                });
-                setScore(loadedScore);
-                setCorrectAnswersCount(loadedCorrectCount);
-                
-                const firstUnansweredIndex = questions.findIndex(q => !combinedAnswers[q.id]);
-                if (firstUnansweredIndex !== -1) {
-                  startIndex = firstUnansweredIndex;
-                } else {
-                  startIndex = questions.length;
-                  setFinished(true);
-                }
-              } else {
-                startIndex = data.currentQuestionIndex || 0;
-              }
-              
-              setCurrentQuestionIndex(startIndex);
-              setQuestionStartTime(Date.now());
-              
-              const getEffectiveTimeLimit = (q: Question) => {
-                if (data.settings?.forceTimeLimit !== undefined) {
-                  return data.settings.forceTimeLimit;
-                }
-                return q.timeLimit;
-              };
-              
-              const limit = getEffectiveTimeLimit(questions[startIndex]);
-              setTimeLeft(limit === 0 ? 0 : (limit || 30));
             }
-          });
+          }
+          setCurrentQuestionIndex(data.currentQuestionIndex);
         }
-        return prevQuiz;
+        return data;
       });
     });
 
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [sessionId, shuffledQuestions.length]);
+
+  // 2. Load quiz data (with Eco Mode caching)
+  useEffect(() => {
+    if (!session?.quizId || quiz || quizLoadingRef.current) return;
+
+    const loadQuiz = async () => {
+      quizLoadingRef.current = true;
+      let quizData: Quiz | null = null;
+      
+      // Try to load from local storage if ecoMode is enabled
+      if (session.settings?.ecoMode) {
+        const cached = localStorage.getItem(`quizContent_${session.quizId}`);
+        if (cached) {
+          try {
+            quizData = JSON.parse(cached);
+            console.log("[EcoMode] Loaded quiz content from local storage");
+          } catch (e) {
+            console.error("[EcoMode] Error parsing cached quiz", e);
+          }
+        }
+      }
+      
+      // If not in cache or not ecoMode, fetch from service
+      if (!quizData) {
+        quizData = await quizService.getQuizById(session.quizId);
+        // Save to local storage if ecoMode is enabled
+        if (quizData && session.settings?.ecoMode) {
+          localStorage.setItem(`quizContent_${session.quizId}`, JSON.stringify(quizData));
+          console.log("[EcoMode] Saved quiz content to local storage");
+        }
+      }
+
+      if (quizData) {
+        setQuiz(quizData);
+      }
+      quizLoadingRef.current = false;
+    };
+
+    loadQuiz();
+  }, [session?.quizId, quiz]);
+
+  // 3. Initialize questions, shuffling, and progress
+  useEffect(() => {
+    if (!session || !quiz || initializationRef.current) return;
+    initializationRef.current = true;
+
+    let questions = [...(quiz.questions || [])];
+    const settings = session.settings || { shuffleQuestions: false, shuffleAnswers: false };
+    const playerId = sessionStorage.getItem('currentPlayerId');
+    
+    // Simple seeded random generator
+    const seededRandom = (seed: number) => {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+
+    // Generate a numeric seed from playerId or sessionId
+    const seedString = playerId || session.id;
+    let seed = 0;
+    for (let i = 0; i < seedString.length; i++) {
+      seed = Math.imul(31, seed) + seedString.charCodeAt(i) | 0;
+    }
+
+    // Fisher-Yates shuffle function with seeded random
+    const shuffleArray = <T,>(array: T[], seedValue: number): T[] => {
+      const newArray = [...array];
+      let currentSeed = seedValue;
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const randomVal = seededRandom(currentSeed++);
+        const j = Math.floor(randomVal * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    };
+
+    // Only shuffle if NOT teacher-paced
+    if (session.mode !== 'TEACHER_PACED') {
+      if (settings.shuffleQuestions) {
+        questions = shuffleArray(questions, seed);
+      }
+      
+      if (settings.shuffleAnswers) {
+        questions = questions.map((q, idx) => ({
+          ...q,
+          options: shuffleArray(q.options || [], seed + idx)
+        }));
+      }
+    }
+    
+    setShuffledQuestions(questions);
+
+    // Determine starting question index based on previous answers
+    const player = session.players?.find(p => p.id === playerId);
+    let startIndex = 0;
+    
+    // Load local answers for ecoMode
+    let currentLocalAnswers = {};
+    if (session.settings?.ecoMode && playerId) {
+      const saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
+      if (saved) {
+        try {
+          currentLocalAnswers = JSON.parse(saved);
+          setLocalAnswers(currentLocalAnswers);
+        } catch (e) {}
+      }
+    }
+    
+    if (session.mode !== 'TEACHER_PACED' && player) {
+      const combinedAnswers = { ...(player.answers || {}), ...currentLocalAnswers };
+      setPlayerAnswers(combinedAnswers);
+      
+      // Recalculate score and correct answers from combined answers
+      let loadedScore = 0;
+      let loadedCorrectCount = 0;
+      Object.values(combinedAnswers).forEach((ans: any) => {
+        loadedScore += (ans.pointsAwarded || 0);
+        if (ans.isCorrect) loadedCorrectCount++;
+      });
+      setScore(loadedScore);
+      setCorrectAnswersCount(loadedCorrectCount);
+      
+      const firstUnansweredIndex = questions.findIndex(q => !combinedAnswers[q.id]);
+      if (firstUnansweredIndex !== -1) {
+        startIndex = firstUnansweredIndex;
+      } else {
+        startIndex = questions.length;
+        setFinished(true);
+      }
+    } else {
+      startIndex = session.currentQuestionIndex || 0;
+    }
+    
+    setCurrentQuestionIndex(startIndex);
+    setQuestionStartTime(Date.now());
+    
+    const getEffectiveTimeLimit = (q: Question) => {
+      if (session.settings?.forceTimeLimit !== undefined) {
+        return session.settings.forceTimeLimit;
+      }
+      return q.timeLimit;
+    };
+    
+    if (questions[startIndex]) {
+      const limit = getEffectiveTimeLimit(questions[startIndex]);
+      setTimeLeft(limit === 0 ? 0 : (limit || 30));
+    }
+  }, [session, quiz]);
 
   // Timer logic
   useEffect(() => {
