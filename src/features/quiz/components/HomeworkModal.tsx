@@ -41,6 +41,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     forceTimeLimit: undefined,
     passingPercentage: 0,
     ecoMode: true, // Mặc định bật chế độ tiết kiệm cho bài tập về nhà
+    superEcoMode: false, // Chế độ siêu tiết kiệm (Offline)
     persistSession: true // Mặc định không cần nhập lại tên khi quay lại
   });
 
@@ -355,6 +356,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                 <div>
                   <label className="text-sm font-medium text-green-800 block">Chế độ Tiết kiệm dữ liệu (Eco Mode)</label>
                   <p className="text-xs text-green-600">Chỉ đồng bộ kết quả khi học sinh nộp bài. Giảm thiểu lượt ghi Firebase, phù hợp cho bài tập về nhà.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 md:col-span-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <input 
+                  type="checkbox"
+                  checked={settings.superEcoMode}
+                  onChange={(e) => setSettings({...settings, superEcoMode: e.target.checked, ecoMode: e.target.checked ? true : settings.ecoMode})}
+                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-600"
+                />
+                <div>
+                  <label className="text-sm font-medium text-orange-800 block">Chế độ Siêu tiết kiệm (Super Eco Mode)</label>
+                  <p className="text-xs text-orange-600">Tải dữ liệu 1 lần, làm bài Offline, nộp kết quả 1 lần duy nhất. Tiết kiệm tối đa lượt đọc/ghi Firebase.</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 md:col-span-2 p-3 bg-blue-50 rounded-lg border border-blue-200">

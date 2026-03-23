@@ -89,13 +89,37 @@ export default function GamePlayerScreen() {
 
     const initSession = async () => {
       try {
-        const initialData = await gameService.getSessionById(sessionId);
+        let initialData: GameSession | null = null;
+        
+        // Try to load from local storage if superEcoMode might be active
+        const cachedSession = localStorage.getItem(`session_${sessionId}`);
+        if (cachedSession) {
+          try {
+            const parsed = JSON.parse(cachedSession);
+            if (parsed.settings?.superEcoMode) {
+              initialData = parsed;
+              console.log("[SuperEcoMode] Loaded session from local storage");
+            }
+          } catch (e) {
+            console.error("[SuperEcoMode] Error parsing cached session", e);
+          }
+        }
+
+        // If not loaded from cache, fetch from service
+        if (!initialData) {
+          initialData = await gameService.getSessionById(sessionId);
+          if (initialData && initialData.settings?.superEcoMode) {
+            localStorage.setItem(`session_${sessionId}`, JSON.stringify(initialData));
+          }
+        }
+
         if (initialData) {
           handleSessionData(initialData);
           
-          // Only subscribe if NOT homework or student-paced (to save reads)
-          // For HOMEWORK, we don't need real-time updates from other players
-          if (initialData.mode !== 'HOMEWORK' && initialData.mode !== 'STUDENT_PACED') {
+          // Only subscribe if NOT homework or student-paced or superEcoMode (to save reads)
+          if (initialData.mode !== 'HOMEWORK' && 
+              initialData.mode !== 'STUDENT_PACED' && 
+              !initialData.settings?.superEcoMode) {
             unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
               handleSessionData(data);
             });
@@ -386,7 +410,7 @@ export default function GamePlayerScreen() {
         pointsAwarded: points // For ecoMode compatibility
       };
 
-      if (session.settings.ecoMode) {
+      if (session.settings.ecoMode || session.settings.superEcoMode) {
         // Save locally
         const newLocalAnswers = {
           ...localAnswers,
@@ -440,7 +464,7 @@ export default function GamePlayerScreen() {
           } else {
             setFinished(true);
             if (playerId) {
-              if (session.settings.ecoMode) {
+              if (session.settings.ecoMode || session.settings.superEcoMode) {
                 // Submit all accumulated progress
                 const saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
                 const finalAnswers = saved ? JSON.parse(saved) : localAnswers;
@@ -448,16 +472,28 @@ export default function GamePlayerScreen() {
                 // Calculate final score and progress
                 const finalScore = Object.values(finalAnswers).reduce((sum: number, ans: any) => sum + (ans.pointsAwarded || 0), 0) as number;
                 
-                await gameService.submitEcoModeProgress(session.id, playerId, {
-                  answers: finalAnswers,
-                  score: finalScore,
-                  progress: Object.keys(finalAnswers).length,
-                  streak: streak,
-                  finished: true
-                });
+                const submitResults = async () => {
+                  try {
+                    await gameService.submitEcoModeProgress(session.id, playerId, {
+                      answers: finalAnswers,
+                      score: finalScore,
+                      progress: Object.keys(finalAnswers).length,
+                      streak: streak,
+                      finished: true
+                    });
+                    
+                    // Clean up local storage
+                    localStorage.removeItem(`ecoMode_${session.id}_${playerId}`);
+                    if (session.settings.superEcoMode) {
+                      localStorage.removeItem(`session_${session.id}`);
+                    }
+                  } catch (e) {
+                    console.error("Failed to submit final results", e);
+                    alert("Không thể gửi kết quả. Vui lòng kiểm tra kết nối mạng và thử lại.");
+                  }
+                };
                 
-                // Clean up local storage
-                localStorage.removeItem(`ecoMode_${session.id}_${playerId}`);
+                submitResults();
               } else {
                 await gameService.finishPlayerSession(session.id, playerId);
               }
