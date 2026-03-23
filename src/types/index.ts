@@ -97,6 +97,7 @@ export interface GameSettings {
   redoWrongQuestions: boolean; // Must redo incorrect questions (no points)
   passingPercentage?: number; // Yêu cầu phần trăm làm đúng
   ecoMode?: boolean; // Chế độ tiết kiệm dữ liệu (gộp lượt ghi Firebase)
+  persistSession?: boolean; // Không cần nhập lại tên khi quay lại
   // Battle Mode settings
   pacing?: 'STUDENT' | 'TEACHER'; // Tốc độ (Học sinh tự làm) hoặc Đồng loạt (Giáo viên điều khiển)
   reviveCost?: number; // Điểm phí để hồi sinh

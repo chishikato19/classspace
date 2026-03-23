@@ -40,7 +40,8 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     redoWrongQuestions: false,
     forceTimeLimit: undefined,
     passingPercentage: 0,
-    ecoMode: true // Mặc định bật chế độ tiết kiệm cho bài tập về nhà
+    ecoMode: true, // Mặc định bật chế độ tiết kiệm cho bài tập về nhà
+    persistSession: true // Mặc định không cần nhập lại tên khi quay lại
   });
 
   useEffect(() => {
@@ -62,7 +63,14 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
         homeworkConfig.classId = selectedClassId;
       }
 
-      const { id: sessionId, pin } = await gameService.createSession(quizId, settings, 'HOMEWORK', homeworkConfig, sessionTitle);
+      const { id: sessionId, pin } = await gameService.createSession(
+        quizId, 
+        settings, 
+        'HOMEWORK', 
+        homeworkConfig, 
+        sessionTitle,
+        selectedClassId ? { type: 'CLASS_LIST', classId: selectedClassId } : { type: 'MANUAL' }
+      );
       
       setCreatedPin(pin);
     } catch (error) {
@@ -347,6 +355,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                 <div>
                   <label className="text-sm font-medium text-green-800 block">Chế độ Tiết kiệm dữ liệu (Eco Mode)</label>
                   <p className="text-xs text-green-600">Chỉ đồng bộ kết quả khi học sinh nộp bài. Giảm thiểu lượt ghi Firebase, phù hợp cho bài tập về nhà.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 md:col-span-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <input 
+                  type="checkbox"
+                  checked={settings.persistSession}
+                  onChange={(e) => setSettings({...settings, persistSession: e.target.checked})}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                />
+                <div>
+                  <label className="text-sm font-medium text-blue-800 block">Ghi nhớ người chơi (Persistent Session)</label>
+                  <p className="text-xs text-blue-600">Học sinh đã nhập tên lần 1, khi làm lại hoặc quay lại sẽ vào luôn bài thi, không cần nhập lại tên.</p>
                 </div>
               </div>
             </div>

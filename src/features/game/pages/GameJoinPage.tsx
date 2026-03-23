@@ -24,15 +24,11 @@ export default function GameJoinPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Auto-submit PIN if provided in URL
+  // 1. Auto-submit PIN if provided in URL
   useEffect(() => {
     const pinFromUrl = searchParams.get('pin');
     if (pinFromUrl && pinFromUrl.length === 6) {
-      // Small delay to let component mount
-      const timer = setTimeout(() => {
-        handlePinSubmit(new Event('submit') as any, pinFromUrl);
-      }, 500);
-      return () => clearTimeout(timer);
+      handlePinSubmit(undefined, pinFromUrl);
     }
   }, []);
 
@@ -48,6 +44,23 @@ export default function GameJoinPage() {
       const foundSession = await gameService.findSessionByPin(pinToUse);
       if (foundSession) {
         setSession(foundSession);
+
+        // Check for Auto-login if persistSession is enabled
+        if (foundSession.settings?.persistSession) {
+          const savedPlayerId = localStorage.getItem(`player_id_${foundSession.id}`);
+          const savedPlayerName = localStorage.getItem(`player_name_${foundSession.id}`);
+          const savedAvatar = localStorage.getItem(`player_avatar_${foundSession.id}`);
+          
+          if (savedPlayerId && savedPlayerName) {
+            sessionStorage.setItem('currentPlayerId', savedPlayerId);
+            sessionStorage.setItem('currentPlayerName', savedPlayerName);
+            if (savedAvatar) sessionStorage.setItem('currentPlayerAvatar', savedAvatar);
+            
+            console.log("[AutoLogin] Restored session for player:", savedPlayerName);
+            navigate(`/game/lobby/${foundSession.id}`, { replace: true });
+            return;
+          }
+        }
         
         // Prevent joining PLICKERS mode via web
         if (foundSession.mode === 'PLICKERS') {
@@ -226,6 +239,11 @@ export default function GameJoinPage() {
       sessionStorage.setItem('currentPlayerName', displayName);
       sessionStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
 
+      // Persist for "Redo" or "Return" functionality
+      localStorage.setItem(`player_id_${session.id}`, playerId);
+      localStorage.setItem(`player_name_${session.id}`, displayName);
+      localStorage.setItem(`player_avatar_${session.id}`, JSON.stringify(avatarConfig));
+
       await gameService.joinSession(session.id, {
         id: playerId,
         name: displayName,
@@ -321,14 +339,17 @@ export default function GameJoinPage() {
               Quay lại
             </button>
             
-            <div className="border-t border-gray-200 pt-4 mt-4">
-              <button
-                onClick={() => setStep('NAME_INPUT')}
-                className="w-full text-center text-indigo-600 font-bold hover:text-indigo-800 transition-colors"
-              >
-                Tham gia với tên tự do
-              </button>
-            </div>
+            {/* Hide manual name input button if class list is enforced */}
+            {session?.nameInputType !== 'CLASS_LIST' && (
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <button
+                  onClick={() => setStep('NAME_INPUT')}
+                  className="w-full text-center text-indigo-600 font-bold hover:text-indigo-800 transition-colors"
+                >
+                  Tham gia với tên tự do
+                </button>
+              </div>
+            )}
           </div>
         )}
 
