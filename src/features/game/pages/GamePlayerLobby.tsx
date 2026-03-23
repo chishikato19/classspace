@@ -31,15 +31,39 @@ export default function GamePlayerLobby() {
   useEffect(() => {
     if (!sessionId) return;
 
-    const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+    let unsubscribe: (() => void) | null = null;
+
+    const handleSessionData = (data: GameSession) => {
       setSession(data);
       // Only auto-redirect for LIVE games
       if (data.status === 'PLAYING' && data.mode !== 'HOMEWORK') {
         navigate(`/game/play/${sessionId}`);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    const initSession = async () => {
+      try {
+        const initialData = await gameService.getSessionById(sessionId);
+        if (initialData) {
+          handleSessionData(initialData);
+          
+          // Only subscribe if NOT homework (to save reads)
+          if (initialData.mode !== 'HOMEWORK') {
+            unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+              handleSessionData(data);
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing session:", error);
+      }
+    };
+
+    initSession();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [sessionId, navigate]);
 
   const handleStartHomework = () => {

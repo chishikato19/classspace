@@ -54,7 +54,9 @@ export default function GamePlayerScreen() {
   useEffect(() => {
     if (!sessionId) return;
 
-    const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+    let unsubscribe: (() => void) | null = null;
+
+    const handleSessionData = (data: GameSession) => {
       setSession(prevSession => {
         // Handle Teacher-paced synchronization
         if (data.mode === 'TEACHER_PACED') {
@@ -83,9 +85,32 @@ export default function GamePlayerScreen() {
         }
         return data;
       });
-    });
+    };
 
-    return () => unsubscribe();
+    const initSession = async () => {
+      try {
+        const initialData = await gameService.getSessionById(sessionId);
+        if (initialData) {
+          handleSessionData(initialData);
+          
+          // Only subscribe if NOT homework or student-paced (to save reads)
+          // For HOMEWORK, we don't need real-time updates from other players
+          if (initialData.mode !== 'HOMEWORK' && initialData.mode !== 'STUDENT_PACED') {
+            unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
+              handleSessionData(data);
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing session:", error);
+      }
+    };
+
+    initSession();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [sessionId, shuffledQuestions.length]);
 
   // 2. Load quiz data (with Eco Mode caching)
