@@ -767,20 +767,35 @@ export const gameService = {
       if (!sessionDoc.exists()) throw new Error("Session not found");
 
       const data = sessionDoc.data();
-      const players = data.players as Player[];
-      const playerIndex = players.findIndex((p) => p.id === playerId);
+      const players = [...(data.players || [])] as Player[];
+      let playerIndex = players.findIndex((p) => p.id === playerId);
 
-      if (playerIndex === -1) throw new Error("Player not found");
-
-      // Update player info
-      players[playerIndex] = {
-        ...players[playerIndex],
-        ...playerData,
-        answers: {
-          ...players[playerIndex].answers,
-          ...playerData.answers
-        }
-      };
+      // If player not found (Silent Join), add them
+      if (playerIndex === -1) {
+        const newPlayer: Player = {
+          id: playerId,
+          name: playerData.name || "Unknown",
+          studentIds: playerData.studentIds || [playerId],
+          score: 0,
+          streak: 0,
+          progress: 0,
+          finished: false,
+          answers: {},
+          ...playerData
+        };
+        players.push(newPlayer);
+        playerIndex = players.length - 1;
+      } else {
+        // Update existing player info
+        players[playerIndex] = {
+          ...players[playerIndex],
+          ...playerData,
+          answers: {
+            ...players[playerIndex].answers,
+            ...playerData.answers
+          }
+        };
+      }
 
       transaction.update(sessionRef, { players });
     });

@@ -244,17 +244,35 @@ export default function GameJoinPage() {
       localStorage.setItem(`player_name_${session.id}`, displayName);
       localStorage.setItem(`player_avatar_${session.id}`, JSON.stringify(avatarConfig));
 
-      await gameService.joinSession(session.id, {
-        id: playerId,
-        name: displayName,
-        studentIds: studentIds,
-        score: 0,
-        streak: 0,
-        progress: 0,
-        finished: false,
-        answers: {},
-        avatarConfig: avatarConfig
-      });
+      // 3. Silent Join for Homework + Eco Mode to reduce writes
+      // We skip the joinSession call (1 write) and only write when they finish (1 write)
+      const isEcoHomework = session.mode === 'HOMEWORK' && (session.settings?.ecoMode || session.settings?.superEcoMode);
+      
+      if (isEcoHomework) {
+        // Local check for maxAttempts/allowRetry since we skip the server-side check in joinSession
+        const existingPlayer = session.players?.find(p => p.id === playerId);
+        if (existingPlayer && existingPlayer.finished) {
+          const maxAttempts = session.settings?.maxAttempts || 1;
+          const allowRetry = session.settings?.allowRetry || maxAttempts > 1;
+          if (!allowRetry) {
+             throw new Error('Bạn đã hoàn thành bài tập này rồi.');
+          }
+        }
+        
+        console.log("[EcoMode] Silent join - skipping DB write until finish");
+      } else {
+        await gameService.joinSession(session.id, {
+          id: playerId,
+          name: displayName,
+          studentIds: studentIds,
+          score: 0,
+          streak: 0,
+          progress: 0,
+          finished: false,
+          answers: {},
+          avatarConfig: avatarConfig
+        });
+      }
       
       navigate(`/game/lobby/${session.id}`);
     } catch (err: any) {
