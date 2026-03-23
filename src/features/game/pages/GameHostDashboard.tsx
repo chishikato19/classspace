@@ -409,57 +409,74 @@ export default function GameHostDashboard() {
             <th className="px-6 py-4">Hạng</th>
             <th className="px-6 py-4">Tên</th>
             <th className="px-6 py-4">Tiến độ</th>
+            <th className="px-6 py-4 text-center">% Đúng</th>
             <th className="px-6 py-4 text-right">Điểm số</th>
             <th className="px-6 py-4 text-center">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
-          {sortedPlayers.map((player, index) => (
-            <tr key={player.id} className="hover:bg-gray-700/50 transition-colors group">
-              <td className="px-6 py-4 font-mono text-gray-400">#{index + 1}</td>
-              <td className="px-6 py-4 font-bold flex items-center gap-3">
-                <StudentAvatar 
-                  name={player.name} 
-                  avatarConfig={player.avatarConfig} 
-                  size={32} 
-                />
-                {player.name}
-              </td>
-              <td className="px-6 py-4">
-                <div className="w-full h-2.5 flex gap-1">
-                  {quiz.questions.map((q) => {
-                    const answer = player.answers?.[q.id];
-                    let bgColor = 'bg-gray-700'; // Chưa trả lời
-                    if (answer) {
-                      bgColor = answer.isCorrect ? 'bg-green-500' : 'bg-red-500';
-                    }
-                    return (
-                      <div 
-                        key={q.id}
-                        className={`${bgColor} h-2.5 rounded-full transition-all duration-500 flex-1`}
-                      ></div>
-                    );
-                  })}
-                </div>
-              </td>
-              <td className="px-6 py-4 text-right font-mono text-yellow-400 font-bold text-lg">
-                {player.score}
-              </td>
-              <td className="px-6 py-4 text-center">
-                <button
-                  onClick={async () => {
-                    if (window.confirm(`Bạn có chắc muốn xóa ${player.name} khỏi phòng?`)) {
-                      await gameService.removePlayer(session.id, player.id);
-                    }
-                  }}
-                  className="text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Xóa người chơi"
-                >
-                  ✕
-                </button>
-              </td>
-            </tr>
-          ))}
+          {sortedPlayers.map((player, index) => {
+            const nonSurveyQuestions = quiz.questions.filter(q => q.type !== 'SURVEY');
+            const correctCount = Object.values(player.answers || {}).filter(a => a.isCorrect).length;
+            const percentage = nonSurveyQuestions.length > 0 ? Math.round((correctCount / nonSurveyQuestions.length) * 100) : 0;
+            const totalAnswered = Object.keys(player.answers || {}).length;
+            
+            return (
+              <tr key={player.id} className="hover:bg-gray-700/50 transition-colors group">
+                <td className="px-6 py-4 font-mono text-gray-400">#{index + 1}</td>
+                <td className="px-6 py-4 font-bold flex items-center gap-3">
+                  <StudentAvatar 
+                    name={player.name} 
+                    avatarConfig={player.avatarConfig} 
+                    size={32} 
+                  />
+                  {player.name}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="w-full h-2.5 flex gap-1">
+                    {quiz.questions.map((q) => {
+                      const answer = player.answers?.[q.id];
+                      let bgColor = 'bg-gray-700'; // Chưa trả lời
+                      if (answer) {
+                        bgColor = answer.isCorrect ? 'bg-green-500' : 'bg-red-500';
+                      }
+                      return (
+                        <div 
+                          key={q.id}
+                          className={`${bgColor} h-2.5 rounded-full transition-all duration-500 flex-1`}
+                        ></div>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className={`font-bold px-2 py-1 rounded-md text-sm ${
+                    percentage >= 80 ? 'bg-green-900/30 text-green-400' :
+                    percentage >= 50 ? 'bg-yellow-900/30 text-yellow-400' :
+                    totalAnswered > 0 ? 'bg-red-900/30 text-red-400' : 'text-gray-500'
+                  }`}>
+                    {percentage}%
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right font-mono text-yellow-400 font-bold text-lg">
+                  {player.score}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <button
+                    onClick={async () => {
+                      if (window.confirm(`Bạn có chắc muốn xóa ${player.name} khỏi phòng?`)) {
+                        await gameService.removePlayer(session.id, player.id);
+                      }
+                    }}
+                    className="text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Xóa người chơi"
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

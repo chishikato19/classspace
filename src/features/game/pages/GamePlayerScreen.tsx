@@ -544,7 +544,14 @@ export default function GamePlayerScreen() {
       return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
           <div className="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-10">
-            <h1 className="text-xl font-bold text-gray-800">Xem lại bài làm</h1>
+            <div className="flex items-center gap-3">
+              <StudentAvatar 
+                name={playerName} 
+                avatarConfig={avatarConfig} 
+                size={32} 
+              />
+              <h1 className="text-xl font-bold text-gray-800">Xem lại: {playerName}</h1>
+            </div>
             <button 
               onClick={() => setShowReview(false)}
               className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-bold hover:bg-indigo-200 transition-colors"
@@ -641,8 +648,9 @@ export default function GamePlayerScreen() {
           name={playerName} 
           avatarConfig={avatarConfig} 
           size={120} 
-          className="border-4 border-yellow-400 shadow-lg mb-6"
+          className="border-4 border-yellow-400 shadow-lg mb-4"
         />
+        <div className="text-2xl font-bold text-yellow-400 mb-2">{playerName}</div>
         <h1 className="text-4xl font-bold mb-4">HOÀN THÀNH!</h1>
         {session?.settings?.showScore && (
           <div className="flex flex-col items-center gap-2 mb-8">
@@ -712,10 +720,15 @@ export default function GamePlayerScreen() {
             size={40} 
             className="border border-gray-200"
           />
-          <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
-            {currentQuestionIndex + 1}/{shuffledQuestions.length}
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-gray-800 leading-tight">{playerName}</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold">
+                {currentQuestionIndex + 1}/{shuffledQuestions.length}
+              </div>
+              <div className="text-xs font-medium text-gray-500">🔥 {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? streak : '?'}</div>
+            </div>
           </div>
-          <div className="text-sm font-medium text-gray-500">Streak: 🔥 {session?.settings?.showCorrectAnswers === 'IMMEDIATELY' ? streak : '?'}</div>
         </div>
         <div className="flex items-center gap-6">
           <div className={`text-2xl font-black ${timeLeft > 0 && timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-700'}`}>

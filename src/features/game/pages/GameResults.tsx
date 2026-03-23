@@ -173,7 +173,7 @@ export default function GameResults() {
                       <th className="px-6 py-3 font-medium">Tên học sinh</th>
                       <th className="px-6 py-3 font-medium text-center">Đúng</th>
                       <th className="px-6 py-3 font-medium text-center">Sai</th>
-                      <th className="px-6 py-3 font-medium text-center">Bỏ qua</th>
+                      <th className="px-6 py-3 font-medium text-center">% Đúng</th>
                       <th className="px-6 py-3 font-medium text-right">Điểm số</th>
                     </tr>
                   </thead>
@@ -182,6 +182,8 @@ export default function GameResults() {
                       let correct = 0;
                       let incorrect = 0;
                       let unanswered = 0;
+                      
+                      const nonSurveyQuestions = quiz.questions.filter(q => q.type !== 'SURVEY');
                       
                       quiz.questions.forEach(q => {
                         const ans = player.answers?.[q.id];
@@ -197,6 +199,10 @@ export default function GameResults() {
                         }
                       });
 
+                      const percentage = nonSurveyQuestions.length > 0 
+                        ? Math.round((correct / nonSurveyQuestions.length) * 100) 
+                        : 0;
+
                       return (
                         <tr key={player.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 font-medium text-gray-900">#{index + 1}</td>
@@ -210,7 +216,15 @@ export default function GameResults() {
                           </td>
                           <td className="px-6 py-4 text-center text-green-600 font-medium">{correct}</td>
                           <td className="px-6 py-4 text-center text-red-600 font-medium">{incorrect}</td>
-                          <td className="px-6 py-4 text-center text-gray-500">{unanswered}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`font-bold px-2 py-1 rounded-md text-xs ${
+                              percentage >= 80 ? 'bg-green-100 text-green-700' :
+                              percentage >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {percentage}%
+                            </span>
+                          </td>
                           <td className="px-6 py-4 text-right font-bold text-gray-900">{player.score}</td>
                         </tr>
                       );
