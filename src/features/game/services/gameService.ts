@@ -767,21 +767,28 @@ export const gameService = {
       if (!sessionDoc.exists()) throw new Error("Session not found");
 
       const data = sessionDoc.data();
+      const settings = data.settings || {};
       const players = [...(data.players || [])] as Player[];
       let playerIndex = players.findIndex((p) => p.id === playerId);
+
+      // If saveDetailedAnswers is false, strip the answers object from the incoming data
+      const finalPlayerData = { ...playerData };
+      if (settings.saveDetailedAnswers === false) {
+        finalPlayerData.answers = {};
+      }
 
       // If player not found (Silent Join), add them
       if (playerIndex === -1) {
         const newPlayer: Player = {
           id: playerId,
-          name: playerData.name || "Unknown",
-          studentIds: playerData.studentIds || [playerId],
+          name: finalPlayerData.name || "Unknown",
+          studentIds: finalPlayerData.studentIds || [playerId],
           score: 0,
           streak: 0,
           progress: 0,
           finished: false,
           answers: {},
-          ...playerData
+          ...finalPlayerData
         };
         players.push(newPlayer);
         playerIndex = players.length - 1;
@@ -789,10 +796,10 @@ export const gameService = {
         // Update existing player info
         players[playerIndex] = {
           ...players[playerIndex],
-          ...playerData,
-          answers: {
+          ...finalPlayerData,
+          answers: settings.saveDetailedAnswers === false ? {} : {
             ...players[playerIndex].answers,
-            ...playerData.answers
+            ...finalPlayerData.answers
           }
         };
       }

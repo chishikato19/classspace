@@ -370,6 +370,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                   <p className="text-xs text-orange-600">Tải dữ liệu 1 lần, làm bài Offline, nộp kết quả 1 lần duy nhất. Tiết kiệm tối đa lượt đọc/ghi Firebase.</p>
                 </div>
               </div>
+              <div className="flex items-center gap-2 md:col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <input 
+                  type="checkbox"
+                  checked={settings.saveDetailedAnswers !== false}
+                  onChange={(e) => setSettings({...settings, saveDetailedAnswers: e.target.checked})}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600"
+                />
+                <div>
+                  <label className="text-sm font-medium text-gray-800 block">Lưu chi tiết bài làm (Save Details)</label>
+                  <p className="text-xs text-gray-600">Nếu tắt, hệ thống chỉ lưu điểm và số câu đúng, không lưu chi tiết từng câu trả lời của học sinh.</p>
+                </div>
+              </div>
               <div className="flex items-center gap-2 md:col-span-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <input 
                   type="checkbox"

@@ -240,9 +240,13 @@ export default function GameJoinPage() {
       sessionStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
 
       // Persist for "Redo" or "Return" functionality
-      localStorage.setItem(`player_id_${session.id}`, playerId);
-      localStorage.setItem(`player_name_${session.id}`, displayName);
-      localStorage.setItem(`player_avatar_${session.id}`, JSON.stringify(avatarConfig));
+      try {
+        localStorage.setItem(`player_id_${session.id}`, playerId);
+        localStorage.setItem(`player_name_${session.id}`, displayName);
+        localStorage.setItem(`player_avatar_${session.id}`, JSON.stringify(avatarConfig));
+      } catch (e) {
+        console.warn("[GameJoin] localStorage blocked in this browser");
+      }
 
       // 3. Silent Join for Homework + Eco Mode to reduce writes
       // We skip the joinSession call (1 write) and only write when they finish (1 write)

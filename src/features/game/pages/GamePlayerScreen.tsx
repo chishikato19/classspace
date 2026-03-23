@@ -92,7 +92,13 @@ export default function GamePlayerScreen() {
         let initialData: GameSession | null = null;
         
         // Try to load from local storage if superEcoMode might be active
-        const cachedSession = localStorage.getItem(`session_${sessionId}`);
+        let cachedSession = null;
+        try {
+          cachedSession = localStorage.getItem(`session_${sessionId}`);
+        } catch (e) {
+          console.warn("[SuperEcoMode] localStorage blocked in this browser");
+        }
+
         if (cachedSession) {
           try {
             const parsed = JSON.parse(cachedSession);
@@ -109,7 +115,11 @@ export default function GamePlayerScreen() {
         if (!initialData) {
           initialData = await gameService.getSessionById(sessionId);
           if (initialData && initialData.settings?.superEcoMode) {
-            localStorage.setItem(`session_${sessionId}`, JSON.stringify(initialData));
+            try {
+              localStorage.setItem(`session_${sessionId}`, JSON.stringify(initialData));
+            } catch (e) {
+              console.warn("[SuperEcoMode] Could not cache session to localStorage");
+            }
           }
         }
 
@@ -147,7 +157,13 @@ export default function GamePlayerScreen() {
       
       // Try to load from local storage if ecoMode is enabled
       if (session.settings?.ecoMode) {
-        const cached = localStorage.getItem(`quizContent_${session.quizId}`);
+        let cached = null;
+        try {
+          cached = localStorage.getItem(`quizContent_${session.quizId}`);
+        } catch (e) {
+          console.warn("[EcoMode] localStorage blocked in this browser");
+        }
+        
         if (cached) {
           try {
             quizData = JSON.parse(cached);
@@ -163,8 +179,12 @@ export default function GamePlayerScreen() {
         quizData = await quizService.getQuizById(session.quizId);
         // Save to local storage if ecoMode is enabled
         if (quizData && session.settings?.ecoMode) {
-          localStorage.setItem(`quizContent_${session.quizId}`, JSON.stringify(quizData));
-          console.log("[EcoMode] Saved quiz content to local storage");
+          try {
+            localStorage.setItem(`quizContent_${session.quizId}`, JSON.stringify(quizData));
+            console.log("[EcoMode] Saved quiz content to local storage");
+          } catch (e) {
+            console.warn("[EcoMode] Could not save quiz content to localStorage");
+          }
         }
       }
 
@@ -236,7 +256,13 @@ export default function GamePlayerScreen() {
     // Load local answers for ecoMode
     let currentLocalAnswers = {};
     if (session.settings?.ecoMode && playerId) {
-      const saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
+      let saved = null;
+      try {
+        saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
+      } catch (e) {
+        console.warn("[EcoMode] localStorage blocked in this browser");
+      }
+      
       if (saved) {
         try {
           currentLocalAnswers = JSON.parse(saved);
@@ -355,10 +381,21 @@ export default function GamePlayerScreen() {
     setIsSubmitted(true);
     
     setIsCorrect(isAnswerCorrect);
-    if (isAnswerCorrect && currentQuestion.type !== 'SURVEY') {
-      soundService.play('correct');
-    } else if (!isAnswerCorrect) {
-      soundService.play('wrong');
+    
+    // Check if we should show correct/wrong feedback (including sound)
+    const showImmediately = session.settings.showCorrectAnswers === 'IMMEDIATELY';
+    
+    if (currentQuestion.type === 'SURVEY') {
+      soundService.play('correct'); // Neutral "submitted" sound for survey
+    } else if (showImmediately) {
+      if (isAnswerCorrect) {
+        soundService.play('correct');
+      } else {
+        soundService.play('wrong');
+      }
+    } else {
+      // Security mode: play a neutral sound so they can't guess from the audio
+      soundService.play('tick'); 
     }
     
     const timeTaken = (Date.now() - questionStartTime) / 1000; // in seconds
@@ -418,7 +455,11 @@ export default function GamePlayerScreen() {
         };
         setLocalAnswers(newLocalAnswers);
         setPlayerAnswers(prev => ({ ...prev, [currentQuestion.id]: answerData }));
-        localStorage.setItem(`ecoMode_${session.id}_${playerId}`, JSON.stringify(newLocalAnswers));
+        try {
+          localStorage.setItem(`ecoMode_${session.id}_${playerId}`, JSON.stringify(newLocalAnswers));
+        } catch (e) {
+          console.warn("[EcoMode] Could not save progress to localStorage");
+        }
       } else {
         // Submit to Firebase immediately
         setPlayerAnswers(prev => ({ ...prev, [currentQuestion.id]: answerData }));
@@ -466,16 +507,24 @@ export default function GamePlayerScreen() {
             if (playerId) {
               if (session.settings.ecoMode || session.settings.superEcoMode) {
                 // Submit all accumulated progress
-                const saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
-                const finalAnswers = saved ? JSON.parse(saved) : localAnswers;
+                let finalAnswers = localAnswers;
+                try {
+                  const saved = localStorage.getItem(`ecoMode_${session.id}_${playerId}`);
+                  if (saved) finalAnswers = JSON.parse(saved);
+                } catch (e) {
+                  console.warn("[EcoMode] Could not read progress from localStorage");
+                }
                 
                 // Calculate final score and progress
                 const finalScore = Object.values(finalAnswers).reduce((sum: number, ans: any) => sum + (ans.pointsAwarded || 0), 0) as number;
                 
                 const submitResults = async () => {
                   try {
+                    // If saveDetailedAnswers is false, don't send answers object to save bandwidth
+                    const answersToSubmit = session.settings.saveDetailedAnswers === false ? {} : finalAnswers;
+
                     await gameService.submitEcoModeProgress(session.id, playerId, {
-                      answers: finalAnswers,
+                      answers: answersToSubmit,
                       score: finalScore,
                       progress: Object.keys(finalAnswers).length,
                       streak: streak,
@@ -483,10 +532,12 @@ export default function GamePlayerScreen() {
                     });
                     
                     // Clean up local storage
-                    localStorage.removeItem(`ecoMode_${session.id}_${playerId}`);
-                    if (session.settings.superEcoMode) {
-                      localStorage.removeItem(`session_${session.id}`);
-                    }
+                    try {
+                      localStorage.removeItem(`ecoMode_${session.id}_${playerId}`);
+                      if (session.settings.superEcoMode) {
+                        localStorage.removeItem(`session_${session.id}`);
+                      }
+                    } catch (e) {}
                   } catch (e) {
                     console.error("Failed to submit final results", e);
                     alert("Không thể gửi kết quả. Vui lòng kiểm tra kết nối mạng và thử lại.");
@@ -788,7 +839,7 @@ export default function GamePlayerScreen() {
             >
               Gửi câu trả lời
             </button>
-            {isSubmitted && (
+            {isSubmitted && session?.settings?.showCorrectAnswers === 'IMMEDIATELY' && (
                <div className="mt-6 text-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   <p className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-2">Đáp án chấp nhận:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
