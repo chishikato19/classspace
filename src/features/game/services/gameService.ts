@@ -13,7 +13,8 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db, auth, handleFirestoreError, OperationType } from "../../../config/firebase";
+import { ref, uploadString, getDownloadURL } from "firebase/storage";
+import { db, auth, storage, handleFirestoreError, OperationType } from "../../../config/firebase";
 import {
   GameMode,
   GameSession,
@@ -22,6 +23,21 @@ import {
   Question,
 } from "../../../types";
 import { timeService } from "../../../services/timeService";
+import { quizService } from "../../quiz/services/quizService";
+
+// Helper function to remove undefined values recursively
+const removeUndefined = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, removeUndefined(v)])
+    );
+  }
+  return obj;
+};
 
 const getSessionsRef = () => collection(db, "sessions");
 
@@ -114,6 +130,25 @@ export const gameService = {
     const sanitizedData = JSON.parse(JSON.stringify(sessionData));
     const docRef = await addDoc(getSessionsRef(), sanitizedData);
     
+    // Nếu bật chế độ JSON (Quizizz Mode), tạo file JSON và lưu URL
+    if (settings?.jsonDeliveryMode && storage) {
+      try {
+        const quizData = await quizService.getQuizById(quizId);
+        if (quizData) {
+          const jsonString = JSON.stringify(quizData);
+          const storageRef = ref(storage, `quizzes/${quizId}_${docRef.id}.json`);
+          await uploadString(storageRef, jsonString, 'raw', { contentType: 'application/json' });
+          const downloadUrl = await getDownloadURL(storageRef);
+          
+          await updateDoc(docRef, { quizJsonUrl: downloadUrl });
+          sanitizedData.quizJsonUrl = downloadUrl;
+        }
+      } catch (error) {
+        console.error("Lỗi khi tạo file JSON cho đề thi:", error);
+        // Không throw error để game vẫn tiếp tục bằng cách đọc từ Firestore
+      }
+    }
+
     // Invalidate teacher sessions cache
     teacherSessionsCache.delete(hostId);
     
@@ -340,15 +375,15 @@ export const gameService = {
         }
 
         // Update player info but preserve progress
-        players[existingPlayerIndex] = {
+        players[existingPlayerIndex] = removeUndefined({
           ...existingPlayer,
           name: player.name,
           avatarConfig: player.avatarConfig,
           studentIds: player.studentIds,
-        };
+        });
       } else {
         // New player
-        players.push(player);
+        players.push(removeUndefined(player));
       }
 
       transaction.update(sessionRef, { players });
@@ -602,7 +637,26 @@ export const gameService = {
   deleteSession: async (sessionId: string): Promise<void> => {
     try {
       const docRef = doc(db, "sessions", sessionId);
-      const session = sessionCache.get(sessionId);
+      let session = sessionCache.get(sessionId);
+      
+      if (!session) {
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          session = { id: snap.id, ...snap.data() } as GameSession;
+        }
+      }
+
+      // Xóa file JSON nếu có
+      if (session?.settings?.jsonDeliveryMode && storage) {
+        try {
+          const { deleteObject } = await import('firebase/storage');
+          const storageRef = ref(storage, `quizzes/${session.quizId}_${sessionId}.json`);
+          await deleteObject(storageRef);
+        } catch (e) {
+          console.warn("Could not delete JSON file or it doesn't exist", e);
+        }
+      }
+
       await deleteDoc(docRef);
       sessionCache.delete(sessionId);
       if (session) {
@@ -613,6 +667,55 @@ export const gameService = {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `sessions/${sessionId}`);
     }
+  },
+
+  // Oral Quiz Mode: Submit Answer
+  submitOralAnswer: async (
+    sessionId: string,
+    playerId: string,
+    questionId: string,
+    isCorrect: boolean,
+    points: number = 1000,
+    optionId?: string
+  ) => {
+    const sessionRef = doc(db, "sessions", sessionId);
+
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw "Session not found";
+
+      const data = sessionDoc.data() as GameSession;
+      const players = [...(data.players || [])];
+      const playerIndex = players.findIndex((p) => p.id === playerId);
+
+      if (playerIndex === -1) throw "Player not found";
+
+      const player = { ...players[playerIndex] };
+      if (!player.answers) player.answers = {};
+
+      const pointsAwarded = isCorrect ? points : 0;
+      
+      const answerRecord: any = {
+        isCorrect,
+        pointsAwarded,
+        timeTaken: 0
+      };
+      if (optionId !== undefined) {
+        answerRecord.optionId = optionId;
+      }
+      
+      player.answers[questionId] = answerRecord;
+
+      player.score += pointsAwarded;
+      if (isCorrect) {
+        player.streak = (player.streak || 0) + 1;
+      } else {
+        player.streak = 0;
+      }
+
+      players[playerIndex] = player;
+      transaction.update(sessionRef, { players });
+    });
   },
 
   // Nộp câu trả lời (Quan trọng: Xử lý Transaction để cộng điểm chính xác)
@@ -719,10 +822,13 @@ export const gameService = {
 
       player.score += points;
       player.progress += 1;
+      
+      const sanitizedAnswerData = removeUndefined(answerData);
+
       player.answers = {
         ...player.answers,
         [questionId]: {
-          ...answerData,
+          ...sanitizedAnswerData,
           pointsAwarded: points,
         },
       };
@@ -772,7 +878,7 @@ export const gameService = {
       let playerIndex = players.findIndex((p) => p.id === playerId);
 
       // If saveDetailedAnswers is false, strip the answers object from the incoming data
-      const finalPlayerData = { ...playerData };
+      const finalPlayerData = removeUndefined({ ...playerData });
       if (settings.saveDetailedAnswers === false) {
         finalPlayerData.answers = {};
       }
@@ -827,7 +933,7 @@ export const gameService = {
       if (playerIndex === -1) throw "Player not found";
 
       // Cập nhật avatar
-      players[playerIndex].avatarConfig = avatarConfig;
+      players[playerIndex].avatarConfig = removeUndefined(avatarConfig);
 
       transaction.update(sessionRef, { players });
     });

@@ -1,14 +1,16 @@
-import { X, Check, SkipForward } from 'lucide-react';
+import { X, Check, SkipForward, Users } from 'lucide-react';
 import { StudentData } from '../services/classService';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { StudentGroup } from '../../../types';
 
 interface QueueListProps {
   queue: StudentData[];
-  onAwardPoints: (studentId: string, points: number) => void;
+  groups?: StudentGroup[];
+  onAwardPoints: (studentId: string, points: number, toGroup?: boolean) => void;
   onSkip: (studentId: string) => void;
 }
 
-export default function QueueList({ queue, onAwardPoints, onSkip }: QueueListProps) {
+export default function QueueList({ queue, groups = [], onAwardPoints, onSkip }: QueueListProps) {
   if (queue.length === 0) {
     return (
       <div className="p-4 text-center text-gray-500 text-sm">
@@ -33,6 +35,15 @@ export default function QueueList({ queue, onAwardPoints, onSkip }: QueueListPro
           </div>
           
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            {groups.some(g => g.studentIds.includes(student.id)) && (
+              <button
+                onClick={() => onAwardPoints(student.id, 10, true)}
+                className="p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors shadow-sm"
+                title="Cộng điểm cho cả nhóm"
+              >
+                <Users size={16} />
+              </button>
+            )}
             <button
               onClick={() => onAwardPoints(student.id, 10)}
               className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-sm"

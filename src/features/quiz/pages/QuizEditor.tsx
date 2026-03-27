@@ -323,7 +323,7 @@ export default function QuizEditor() {
             <input
               type="text"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
-              value={title}
+              value={title || ''}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="VD: Kiểm tra 15 phút - Đại số"
             />
@@ -332,7 +332,7 @@ export default function QuizEditor() {
             <label className="block text-sm font-medium text-gray-700">Mô tả (Tùy chọn)</label>
             <textarea
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
-              value={description}
+              value={description || ''}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
             />
@@ -378,7 +378,7 @@ export default function QuizEditor() {
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-400 font-bold">Câu {qIndex + 1}</div>
                 <select
-                  value={q.type}
+                  value={q.type || 'MULTIPLE_CHOICE'}
                   onChange={(e) => handleTypeChange(qIndex, e.target.value as QuestionType)}
                   className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
                 >
@@ -390,7 +390,7 @@ export default function QuizEditor() {
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700">Thời gian (giây):</label>
                   <select
-                    value={q.timeLimit}
+                    value={q.timeLimit || 30}
                     onChange={(e) => handleQuestionChange(qIndex, 'timeLimit', parseInt(e.target.value))}
                     className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
                   >
@@ -583,7 +583,7 @@ export default function QuizEditor() {
                             <input
                               type="text"
                               className={`block w-full rounded-md shadow-sm focus:ring-indigo-500 sm:text-sm border p-2 ${opt.isCorrect ? 'border-green-500 font-medium' : 'border-gray-300'}`}
-                              value={opt.text}
+                              value={opt.text || ''}
                               onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
                               placeholder={oIndex === 0 ? 'Đúng' : 'Sai'}
                               readOnly={true}

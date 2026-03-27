@@ -6,7 +6,7 @@ import { gameService } from '../../game/services/gameService';
 import { auth } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { HomeworkModal } from '../components/HomeworkModal';
-import { Play, Clock, Trash2, Swords, Folder as FolderIcon, FolderPlus, ArrowLeft, MoveRight, Camera } from 'lucide-react';
+import { Play, Clock, Trash2, Swords, Folder as FolderIcon, FolderPlus, ArrowLeft, MoveRight, Camera, Mic } from 'lucide-react';
 
 export default function QuizDashboard() {
   const navigate = useNavigate();
@@ -289,6 +289,20 @@ export default function QuizDashboard() {
                         className="flex-1 rounded-md bg-yellow-500 px-3 py-2 text-sm font-semibold text-black shadow-sm hover:bg-yellow-400 flex items-center justify-center gap-2"
                       >
                         <Swords size={16} /> Đấu trường tốc độ
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/game/face-control/${quiz.id}`)}
+                        className="flex-1 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 flex items-center justify-center gap-2"
+                      >
+                        <Camera size={16} /> Ghế Nóng (Khuôn Mặt)
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => navigate(`/game/oral-quiz-setup/${quiz.id}`)}
+                        className="flex-1 rounded-md bg-orange-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-400 flex items-center justify-center gap-2"
+                      >
+                        <Mic size={16} /> Kiểm tra miệng
                       </button>
                     </div>
                     <div className="flex items-center gap-2">

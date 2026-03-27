@@ -36,7 +36,7 @@ export default function GamePlayerLobby() {
     const handleSessionData = (data: GameSession) => {
       setSession(data);
       // Only auto-redirect for LIVE games
-      if (data.status === 'PLAYING' && data.mode !== 'HOMEWORK') {
+      if (data.status === 'PLAYING' && data.mode !== 'HOMEWORK' && data.mode !== 'ORAL_QUIZ') {
         navigate(`/game/play/${sessionId}`);
       }
     };
@@ -104,6 +104,8 @@ export default function GamePlayerLobby() {
       <p className="text-xl opacity-90 text-center max-w-md">
         {session?.mode === 'HOMEWORK' 
           ? 'Đây là bài tập về nhà. Bạn có thể bắt đầu bất cứ lúc nào.' 
+          : session?.mode === 'ORAL_QUIZ'
+          ? 'Chế độ Vấn đáp trực tiếp. Hãy sẵn sàng khi giáo viên gọi tên!'
           : 'Hãy nhìn lên màn hình của giáo viên. Trò chơi sẽ bắt đầu sớm thôi.'}
       </p>
       

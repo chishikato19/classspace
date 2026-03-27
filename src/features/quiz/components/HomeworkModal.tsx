@@ -370,6 +370,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                   <p className="text-xs text-orange-600">Tải dữ liệu 1 lần, làm bài Offline, nộp kết quả 1 lần duy nhất. Tiết kiệm tối đa lượt đọc/ghi Firebase.</p>
                 </div>
               </div>
+              <div className="flex items-center gap-2 md:col-span-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <input 
+                  type="checkbox"
+                  checked={settings.jsonDeliveryMode}
+                  onChange={(e) => setSettings({...settings, jsonDeliveryMode: e.target.checked, superEcoMode: e.target.checked ? true : settings.superEcoMode, ecoMode: e.target.checked ? true : settings.ecoMode})}
+                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600"
+                />
+                <div>
+                  <label className="text-sm font-medium text-purple-800 block">Chế độ Quizizz (Tải đề tĩnh JSON)</label>
+                  <p className="text-xs text-purple-600">Tối ưu cho hàng ngàn học sinh. Tải đề thi qua file tĩnh (0 lượt đọc), gom nộp đáp án (1 lượt ghi). Tự động bật Super Eco.</p>
+                </div>
+              </div>
               <div className="flex items-center gap-2 md:col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <input 
                   type="checkbox"

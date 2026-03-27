@@ -108,6 +108,23 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
+    function isValidGroup(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.classId is string &&
+             data.studentIds is list &&
+             data.points is number &&
+             data.teacherId is string &&
+             data.createdAt is number;
+    }
+
+    function isValidClassSession(data) {
+      return data.classId is string &&
+             data.teacherId is string &&
+             data.startTime is number &&
+             data.status in ['ACTIVE', 'COMPLETED'] &&
+             data.events is list;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -116,6 +133,13 @@ service cloud.firestore {
       allow read: if true; // Students need to see class list to join
       allow create: if isAuthenticated() && isValidClass(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
       allow update: if isAuthenticated() && isValidClass(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /classSessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidClassSession(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidClassSession(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
     }
 
@@ -145,6 +169,20 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidSession(request.resource.data);
       allow update: if true; // Players update their progress/answers
       allow delete: if isAuthenticated() && (isOwner(resource.data.hostId) || isAdmin());
+    }
+
+    match /groups/{groupId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidGroup(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidGroup(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /shop_items/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isAdmin();
+      allow update: if isAuthenticated() && isAdmin();
+      allow delete: if isAuthenticated() && isAdmin();
     }
 
     match /videos/{videoId} {

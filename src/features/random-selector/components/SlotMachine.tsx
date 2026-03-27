@@ -27,17 +27,20 @@ export default function SlotMachine({ students, onSelect, selectableIds, hideSel
     setIsSpinning(true);
     
     let counter = 0;
-    const interval = setInterval(() => {
-      // Random digits during spin
+    const maxCounter = 30; // Increased for better slowing effect
+    
+    const runSpin = (delay: number) => {
       setDisplayDigits([
         Math.floor(Math.random() * 10).toString(),
         Math.floor(Math.random() * 10).toString()
       ]);
       counter++;
       
-      if (counter > 20) {
-        clearInterval(interval);
-        
+      if (counter < maxCounter) {
+        // Increase delay as we get closer to the end
+        const nextDelay = counter > 20 ? delay + 40 : delay;
+        setTimeout(() => runSpin(nextDelay), nextDelay);
+      } else {
         // Pick winner from selectable students
         const winner = selectableStudents[Math.floor(Math.random() * selectableStudents.length)];
         // Find its index in the full students array for the number display
@@ -56,7 +59,9 @@ export default function SlotMachine({ students, onSelect, selectableIds, hideSel
           }
         }, 1000);
       }
-    }, 100);
+    };
+
+    runSpin(50); // Start fast
   };
 
   const reset = () => {
@@ -84,7 +89,7 @@ export default function SlotMachine({ students, onSelect, selectableIds, hideSel
             <div className="flex gap-4 mt-4 bg-gray-900 p-4 rounded-xl border-4 border-gray-600">
               {displayDigits.map((digit, i) => (
                 <div key={i} className="w-32 h-40 bg-white rounded-lg flex items-center justify-center overflow-hidden border-4 border-gray-300 shadow-inner">
-                  <span className={`text-8xl font-black text-gray-800 text-center ${isSpinning ? 'animate-bounce blur-sm' : ''}`}>
+                  <span className={`text-8xl font-black text-gray-800 text-center ${isSpinning ? 'animate-bounce' : ''}`}>
                     {digit}
                   </span>
                 </div>

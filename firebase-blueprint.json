@@ -83,6 +83,48 @@
         }
       },
       "required": ["pin", "quizId", "hostId", "status", "players", "createdAt"]
+    },
+    "StudentGroup": {
+      "title": "StudentGroup",
+      "description": "A group of students within a class",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the group" },
+        "classId": { "type": "string", "description": "ID of the class this group belongs to" },
+        "studentIds": { "type": "array", "items": { "type": "string" }, "description": "List of student IDs in this group" },
+        "points": { "type": "number", "description": "Points earned by the group" },
+        "teacherId": { "type": "string", "description": "UID of the teacher who created this group" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["name", "classId", "studentIds", "points", "teacherId", "createdAt"]
+    },
+    "ClassSession": {
+      "title": "ClassSession",
+      "description": "A live class session",
+      "type": "object",
+      "properties": {
+        "classId": { "type": "string", "description": "ID of the class" },
+        "teacherId": { "type": "string", "description": "UID of the teacher" },
+        "startTime": { "type": "number", "description": "Timestamp of start time" },
+        "endTime": { "type": "number", "description": "Timestamp of end time" },
+        "status": { "type": "string", "description": "Status of the session" },
+        "events": { "type": "array", "description": "List of point events" }
+      },
+      "required": ["classId", "teacherId", "startTime", "status", "events"]
+    },
+    "ShopItem": {
+      "title": "ShopItem",
+      "description": "An item in the shop",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "description": "Type of the item" },
+        "name": { "type": "string", "description": "Name of the item" },
+        "price": { "type": "number", "description": "Price of the item" },
+        "config": { "type": "object", "description": "Configuration for the item" },
+        "requiredLevel": { "type": "number", "description": "Required level to purchase" },
+        "imageUrl": { "type": "string", "description": "URL of the item image" }
+      },
+      "required": ["type", "name", "price", "config", "requiredLevel", "imageUrl"]
     }
   },
   "firestore": {
@@ -90,6 +132,9 @@
     "/students": { "schema": "Student", "description": "Collection of students" },
     "/folders": { "schema": "Folder", "description": "Collection of folders" },
     "/quizzes": { "schema": "Quiz", "description": "Collection of quizzes" },
-    "/sessions": { "schema": "GameSession", "description": "Collection of game sessions" }
+    "/sessions": { "schema": "GameSession", "description": "Collection of game sessions" },
+    "/groups": { "schema": "StudentGroup", "description": "Collection of student groups" },
+    "/classSessions": { "schema": "ClassSession", "description": "Collection of class sessions" },
+    "/shop_items": { "schema": "ShopItem", "description": "Collection of shop items" }
   }
 }

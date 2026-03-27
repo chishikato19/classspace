@@ -138,7 +138,7 @@ export default function Elimination({ students, onSelect, selectableIds, hideSel
         </motion.div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-6xl px-4 overflow-y-auto max-h-[60vh] p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 w-full max-w-full px-4 overflow-y-auto flex-1 p-4">
         <AnimatePresence>
           {students.map((student) => {
             const isEliminated = eliminatedIds.has(student.id);

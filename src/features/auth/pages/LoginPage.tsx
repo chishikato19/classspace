@@ -46,6 +46,8 @@ export default function LoginPage() {
         setError('Trình duyệt của bạn đã chặn cửa sổ đăng nhập. Vui lòng cho phép hiển thị popup (cửa sổ bật lên) cho trang web này.');
       } else if (err.code === 'auth/unauthorized-domain') {
         setError('Tên miền này chưa được cấp quyền đăng nhập Firebase. Vui lòng kiểm tra lại cấu hình Firebase.');
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Lỗi kết nối mạng hoặc yêu cầu bị chặn. Vui lòng kiểm tra lại kết nối internet, tắt các trình chặn quảng cáo (Ad-blocker) hoặc thử trình duyệt khác.');
       } else {
         setError(err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
       }

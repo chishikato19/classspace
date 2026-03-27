@@ -176,7 +176,23 @@ export default function GamePlayerScreen() {
       
       // If not in cache or not ecoMode, fetch from service
       if (!quizData) {
-        quizData = await quizService.getQuizById(session.quizId);
+        if (session.quizJsonUrl) {
+          try {
+            console.log("[JsonMode] Fetching quiz from static JSON URL");
+            const response = await fetch(session.quizJsonUrl);
+            if (response.ok) {
+              quizData = await response.json();
+            } else {
+              throw new Error("Failed to fetch JSON");
+            }
+          } catch (e) {
+            console.error("[JsonMode] Error fetching JSON, falling back to Firestore", e);
+            quizData = await quizService.getQuizById(session.quizId);
+          }
+        } else {
+          quizData = await quizService.getQuizById(session.quizId);
+        }
+        
         // Save to local storage if ecoMode is enabled
         if (quizData && session.settings?.ecoMode) {
           try {
@@ -821,7 +837,7 @@ export default function GamePlayerScreen() {
           <div className="w-full max-w-md mx-auto">
             <input
               type="text"
-              value={shortAnswerText}
+              value={shortAnswerText || ''}
               onChange={(e) => setShortAnswerText(e.target.value)}
               disabled={isSubmitted}
               placeholder="Nhập câu trả lời của bạn..."

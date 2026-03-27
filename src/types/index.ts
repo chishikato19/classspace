@@ -27,6 +27,16 @@ export interface ShopItem {
   imageUrl?: string;
 }
 
+export interface StudentGroup {
+  id: string;
+  name: string;
+  classId: string;
+  studentIds: string[];
+  points: number;
+  teacherId: string;
+  createdAt: number;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -79,7 +89,7 @@ export interface Quiz {
 }
 
 export type GameStatus = 'WAITING' | 'STARTING' | 'QUESTION' | 'LEADERBOARD' | 'PLAYING' | 'FINISHED' | 'EXPIRED';
-export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK' | 'BATTLE' | 'PLICKERS';
+export type GameMode = 'STUDENT_PACED' | 'TEACHER_PACED' | 'HOMEWORK' | 'BATTLE' | 'PLICKERS' | 'ORAL_QUIZ';
 
 export interface GameSettings {
   shuffleQuestions: boolean;
@@ -104,6 +114,11 @@ export interface GameSettings {
   pacing?: 'STUDENT' | 'TEACHER'; // Tốc độ (Học sinh tự làm) hoặc Đồng loạt (Giáo viên điều khiển)
   reviveCost?: number; // Điểm phí để hồi sinh
   effectDuration?: number; // Thời gian tác dụng của vật phẩm (giây)
+  // Oral Quiz settings
+  showQuestionBeforeSelection?: boolean;
+  randomMethod?: string;
+  // Eco Mode settings
+  jsonDeliveryMode?: boolean; // Chế độ phân phối JSON (Tải trực tiếp hay qua server)
 }
 
 export interface HomeworkConfig {
@@ -115,6 +130,7 @@ export interface GameSession {
   id: string;
   pin: string; // Mã PIN 6 số
   quizId: string;
+  quizJsonUrl?: string; // URL file JSON chứa toàn bộ câu hỏi (cho Eco Mode)
   title?: string; // Tên phiên làm việc (VD: Lớp 12A1 - Kiểm tra 15p)
   hostId: string; // ID giáo viên tạo phòng
   status: GameStatus;
@@ -155,4 +171,25 @@ export interface Player {
     expiresAt: number; // timestamp
     sourceId?: string; // who attacked
   }[];
+}
+
+export type PointEventType = 'INDIVIDUAL_POINT' | 'GROUP_POINT' | 'QUIZ_RANK' | 'SPEED_ARENA' | 'QUIZ_SCORE';
+
+export interface PointEvent {
+  id: string;
+  type: PointEventType;
+  targetId: string; // studentId or groupId depending on type
+  points: number;
+  reason?: string;
+  timestamp: number;
+}
+
+export interface ClassSession {
+  id: string;
+  classId: string;
+  teacherId: string;
+  startTime: number;
+  endTime?: number;
+  status: 'ACTIVE' | 'COMPLETED';
+  events: PointEvent[];
 }

@@ -143,18 +143,18 @@ export default function Settings() {
                 <div>
                   <label className="block text-sm font-medium text-red-800 mb-2">Phím di chuyển/chọn đáp án</label>
                   <div className="grid grid-cols-3 gap-2 max-w-[150px]">
-                    <input type="text" maxLength={1} value={redKeys.up} onChange={e => setRedKeys(p => ({...p, up: e.target.value}))} className="col-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Lên" />
-                    <input type="text" maxLength={1} value={redKeys.left} onChange={e => setRedKeys(p => ({...p, left: e.target.value}))} className="col-start-1 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Trái" />
-                    <input type="text" maxLength={1} value={redKeys.down} onChange={e => setRedKeys(p => ({...p, down: e.target.value}))} className="col-start-2 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Xuống" />
-                    <input type="text" maxLength={1} value={redKeys.right} onChange={e => setRedKeys(p => ({...p, right: e.target.value}))} className="col-start-3 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Phải" />
+                    <input type="text" maxLength={1} value={redKeys.up || ''} onChange={e => setRedKeys(p => ({...p, up: e.target.value}))} className="col-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Lên" />
+                    <input type="text" maxLength={1} value={redKeys.left || ''} onChange={e => setRedKeys(p => ({...p, left: e.target.value}))} className="col-start-1 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Trái" />
+                    <input type="text" maxLength={1} value={redKeys.down || ''} onChange={e => setRedKeys(p => ({...p, down: e.target.value}))} className="col-start-2 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Xuống" />
+                    <input type="text" maxLength={1} value={redKeys.right || ''} onChange={e => setRedKeys(p => ({...p, right: e.target.value}))} className="col-start-3 row-start-2 w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Phải" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-red-800 mb-2">Phím sử dụng vật phẩm</label>
                   <div className="flex gap-2">
-                    <input type="text" maxLength={1} value={redKeys.item1} onChange={e => setRedKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 1" />
-                    <input type="text" maxLength={1} value={redKeys.item2} onChange={e => setRedKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 2" />
-                    <input type="text" maxLength={1} value={redKeys.item3} onChange={e => setRedKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 3" />
+                    <input type="text" maxLength={1} value={redKeys.item1 || ''} onChange={e => setRedKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 1" />
+                    <input type="text" maxLength={1} value={redKeys.item2 || ''} onChange={e => setRedKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 2" />
+                    <input type="text" maxLength={1} value={redKeys.item3 || ''} onChange={e => setRedKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-white border border-red-300 rounded font-bold uppercase focus:ring-2 focus:ring-red-500 focus:border-red-500" title="Vật phẩm 3" />
                   </div>
                 </div>
               </div>
@@ -167,19 +167,19 @@ export default function Settings() {
                 <div>
                   <label className="block text-sm font-medium text-blue-800 mb-2">Phím di chuyển/chọn đáp án</label>
                   <div className="grid grid-cols-3 gap-2 max-w-[150px]">
-                    <input type="text" maxLength={10} value={blueKeys.up} onChange={e => setBlueKeys(p => ({...p, up: e.target.value}))} className="col-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Lên (ArrowUp)" />
-                    <input type="text" maxLength={10} value={blueKeys.left} onChange={e => setBlueKeys(p => ({...p, left: e.target.value}))} className="col-start-1 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Trái (ArrowLeft)" />
-                    <input type="text" maxLength={10} value={blueKeys.down} onChange={e => setBlueKeys(p => ({...p, down: e.target.value}))} className="col-start-2 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Xuống (ArrowDown)" />
-                    <input type="text" maxLength={10} value={blueKeys.right} onChange={e => setBlueKeys(p => ({...p, right: e.target.value}))} className="col-start-3 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Phải (ArrowRight)" />
+                    <input type="text" maxLength={10} value={blueKeys.up || ''} onChange={e => setBlueKeys(p => ({...p, up: e.target.value}))} className="col-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Lên (ArrowUp)" />
+                    <input type="text" maxLength={10} value={blueKeys.left || ''} onChange={e => setBlueKeys(p => ({...p, left: e.target.value}))} className="col-start-1 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Trái (ArrowLeft)" />
+                    <input type="text" maxLength={10} value={blueKeys.down || ''} onChange={e => setBlueKeys(p => ({...p, down: e.target.value}))} className="col-start-2 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Xuống (ArrowDown)" />
+                    <input type="text" maxLength={10} value={blueKeys.right || ''} onChange={e => setBlueKeys(p => ({...p, right: e.target.value}))} className="col-start-3 row-start-2 w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Phải (ArrowRight)" />
                   </div>
                   <p className="text-xs text-blue-500 mt-1">Gợi ý: ArrowUp, ArrowLeft...</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-blue-800 mb-2">Phím sử dụng vật phẩm</label>
                   <div className="flex gap-2">
-                    <input type="text" maxLength={1} value={blueKeys.item1} onChange={e => setBlueKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 1" />
-                    <input type="text" maxLength={1} value={blueKeys.item2} onChange={e => setBlueKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 2" />
-                    <input type="text" maxLength={1} value={blueKeys.item3} onChange={e => setBlueKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 3" />
+                    <input type="text" maxLength={1} value={blueKeys.item1 || ''} onChange={e => setBlueKeys(p => ({...p, item1: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 1" />
+                    <input type="text" maxLength={1} value={blueKeys.item2 || ''} onChange={e => setBlueKeys(p => ({...p, item2: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 2" />
+                    <input type="text" maxLength={1} value={blueKeys.item3 || ''} onChange={e => setBlueKeys(p => ({...p, item3: e.target.value}))} className="w-10 h-10 text-center bg-white border border-blue-300 rounded font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Vật phẩm 3" />
                   </div>
                 </div>
               </div>

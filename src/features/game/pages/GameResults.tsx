@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { GameSession, Quiz, Player } from '../../../types';
+import { GameSession, Quiz, Player, ClassSession, StudentGroup } from '../../../types';
 import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
-import { CheckCircle, XCircle, Clock, Award, ChevronLeft } from 'lucide-react';
+import { classSessionService } from '../../../services/classSessionService';
+import { groupService } from '../../teacher/services/groupService';
+import { CheckCircle, XCircle, Clock, Award, ChevronLeft, RefreshCw } from 'lucide-react';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { MathText } from '../../../components/MathText';
 
@@ -15,6 +17,11 @@ export default function GameResults() {
   const [activeTab, setActiveTab] = useState<'overview' | 'questions'>('overview');
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
 
+  // Sync state
+  const [activeClassSession, setActiveClassSession] = useState<ClassSession | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
     const loadData = async () => {
@@ -25,10 +32,80 @@ export default function GameResults() {
           const quizData = await quizService.getQuizById(sessionData.quizId);
           setQuiz(quizData);
         }
+        
+        // Check for active class session
+        if (sessionData.selectedClassId) {
+          const activeSession = await classSessionService.getActiveSessionForClass(sessionData.selectedClassId);
+          if (activeSession) {
+            setActiveClassSession(activeSession);
+            // Check if already synced (we can check if there's an event with reason containing this sessionId)
+            const hasSynced = activeSession.events.some(e => e.reason?.includes(sessionId));
+            setIsSynced(hasSynced);
+          }
+        }
       }
     };
     loadData();
   }, [sessionId]);
+
+  const handleSyncToClassSession = async () => {
+    if (!session || !activeClassSession || !quiz) return;
+    setIsSyncing(true);
+
+    try {
+      const groups = await groupService.getGroupsByClass(session.selectedClassId!);
+      const groupScores: Record<string, number> = {};
+      groups.forEach(g => groupScores[g.id] = 0);
+
+      // 1. Sync Individual Scores
+      for (const player of session.players || []) {
+        if (!session.isGroupPlay) {
+          // Individual play: add QUIZ_SCORE to student
+          await classSessionService.addEvent(activeClassSession.id, {
+            type: 'QUIZ_SCORE',
+            targetId: player.id,
+            points: player.score,
+            reason: `Điểm thi: ${quiz.title} (${sessionId})`
+          });
+
+          // Add to group total for ranking
+          const studentGroup = groups.find(g => g.studentIds.includes(player.id));
+          if (studentGroup) {
+            groupScores[studentGroup.id] += player.score;
+          }
+        } else {
+          // Group play: player.id is actually the groupId
+          groupScores[player.id] = player.score;
+        }
+      }
+
+      // 2. Rank Groups and award QUIZ_RANK points
+      const sortedGroups = Object.entries(groupScores)
+        .filter(([_, score]) => score > 0) // Only rank groups that participated/scored
+        .sort((a, b) => b[1] - a[1]);
+
+      const rankPoints = [100, 80, 60, 40, 20]; // Points for 1st, 2nd, 3rd, etc.
+
+      for (let i = 0; i < sortedGroups.length; i++) {
+        const [groupId, _] = sortedGroups[i];
+        const points = rankPoints[i] || 10; // Default 10 points for lower ranks
+        await classSessionService.addEvent(activeClassSession.id, {
+          type: 'QUIZ_RANK',
+          targetId: groupId,
+          points: points,
+          reason: `Hạng ${i + 1} thi: ${quiz.title} (${sessionId})`
+        });
+      }
+
+      setIsSynced(true);
+      alert('Đồng bộ điểm thành công!');
+    } catch (error) {
+      console.error('Error syncing points:', error);
+      alert('Có lỗi xảy ra khi đồng bộ điểm.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   if (!session || !quiz) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50">Đang tải dữ liệu...</div>;
@@ -85,7 +162,21 @@ export default function GameResults() {
                 Thống kê: {quiz.title}
               </h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {activeClassSession && (
+                <button
+                  onClick={handleSyncToClassSession}
+                  disabled={isSyncing || isSynced}
+                  className={`mr-4 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                    isSynced 
+                      ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSynced ? 'Đã đồng bộ vào Tiết học' : 'Đồng bộ điểm vào Tiết học'}
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${

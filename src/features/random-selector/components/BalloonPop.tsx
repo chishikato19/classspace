@@ -39,30 +39,16 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayStudentIds]);
 
-  const handleStart = () => {
-    if (selectableIds.length === 0 || gameState !== 'idle') return;
+  const handlePop = (balloonId: string) => {
+    if (gameState !== 'idle') return;
 
-    const randomIndex = Math.floor(Math.random() * selectableIds.length);
-    const selectedId = selectableIds[randomIndex];
-    const student = students.find(s => s.id === selectedId)!;
-    
+    const balloon = balloons.find(b => b.id === balloonId);
+    if (!balloon) return;
+
+    const student = balloon.student;
     setSelectedStudent(student);
+    setTargetPos({ x: balloon.x, y: balloon.y });
     setGameState('aiming');
-
-    // Find if student is in visual balloons, if not, pretend one of them is the target
-    let targetBalloon = balloons.find(b => b.id === selectedId);
-    if (!targetBalloon && balloons.length > 0) {
-      targetBalloon = balloons[Math.floor(Math.random() * balloons.length)];
-      // Swap the data so it pops the right name
-      targetBalloon.student = student;
-      targetBalloon.id = student.id;
-    }
-
-    if (targetBalloon) {
-      setTargetPos({ x: targetBalloon.x, y: targetBalloon.y });
-    } else {
-      setTargetPos({ x: 50, y: 50 });
-    }
 
     setTimeout(() => {
       setGameState('popped');
@@ -72,7 +58,7 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
           onSelect(student);
         }, 1500);
       }, 1000);
-    }, 1500); // Aiming duration
+    }, 800); // Shorter aiming duration for manual click
   };
 
   const handleReset = () => {
@@ -98,8 +84,9 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
           return (
             <motion.div
               key={balloon.id}
-              className="absolute flex flex-col items-center"
+              className={`absolute flex flex-col items-center ${gameState === 'idle' ? 'cursor-pointer hover:scale-110' : ''}`}
               initial={{ left: `${balloon.x}%`, top: `${balloon.y}%` }}
+              onClick={() => handlePop(balloon.id)}
               animate={
                 isPopped 
                   ? { scale: 2, opacity: 0 } 
@@ -172,27 +159,23 @@ export default function BalloonPop({ students, onSelect, selectableIds, hideSele
       {/* Controls */}
       <div className="flex gap-4">
         {gameState === 'idle' || gameState === 'done' ? (
-          <button
-            onClick={gameState === 'done' ? handleReset : handleStart}
-            disabled={selectableIds.length === 0}
-            className={`flex items-center gap-2 px-8 py-4 rounded-full font-bold text-white text-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 ${
-              gameState === 'done' 
-                ? 'bg-gray-600 hover:bg-gray-700' 
-                : 'bg-pink-500 hover:bg-pink-600'
-            } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
-          >
-            {gameState === 'done' ? (
-              <>
+          <div className="flex items-center gap-4">
+            {gameState === 'done' && (
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 px-8 py-4 rounded-full font-bold text-white text-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 bg-gray-600 hover:bg-gray-700"
+              >
                 <RotateCcw className="w-6 h-6" />
                 Chơi lại
-              </>
-            ) : (
-              <>
-                <Play className="w-6 h-6" />
-                Bắn bóng
-              </>
+              </button>
             )}
-          </button>
+            {gameState === 'idle' && (
+              <div className="px-8 py-4 rounded-full font-bold text-sky-600 bg-sky-100 text-lg shadow-inner flex items-center gap-2">
+                <Play className="w-6 h-6" />
+                Hãy nhấn vào một bong bóng để chọn!
+              </div>
+            )}
+          </div>
         ) : (
           <div className="px-8 py-4 rounded-full font-bold text-pink-600 bg-pink-100 text-lg shadow-inner">
             Đang ngắm bắn...

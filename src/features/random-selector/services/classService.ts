@@ -23,6 +23,15 @@ export const classService = {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassData));
   },
 
+  getClassById: async (classId: string): Promise<ClassData | null> => {
+    const classRef = doc(db, 'classes', classId);
+    const snapshot = await getDocs(query(collection(db, 'classes'), where('__name__', '==', classId)));
+    if (!snapshot.empty) {
+      return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as ClassData;
+    }
+    return null;
+  },
+
   getClassesByTeacher: async (teacherId: string): Promise<ClassData[]> => {
     // Fetch classes for the specific teacher
     const q1 = query(collection(db, 'classes'), where('teacherId', '==', teacherId));

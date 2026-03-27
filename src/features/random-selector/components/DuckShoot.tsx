@@ -11,7 +11,8 @@ interface DuckShootProps {
 }
 
 interface Duck {
-  id: string;
+  uniqueId: string;
+  studentId: string;
   name: string;
   row: number;
   x: number;
@@ -30,6 +31,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
   const requestRef = useRef<number>(0);
   
   const [isShooting, setIsShooting] = useState(false);
+  const [, forceRender] = useState({});
   
   const shootStateRef = useRef<{
     active: boolean;
@@ -63,39 +65,86 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
     initDucks();
   }, [students, selectableIds, hideSelected]);
 
+  const DUCK_SPACING = 260;
+
   const initDucks = () => {
     if (!containerRef.current) return;
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    const rows = 3;
+    const rows = 2;
     const rowHeight = height / rows;
     
-    const newDucks: Duck[] = activeStudents.map((student, index) => {
-      const row = index % rows;
-      const direction = row % 2 === 0 ? 1 : -1;
-      
-      const spacing = 250; // Fixed spacing to prevent overlap
-      const indexInRow = Math.floor(index / rows);
-      
-      const startX = direction === 1 
-        ? (indexInRow * spacing) - 200 
-        : width + (indexInRow * spacing) + 200;
+    let extendedStudents = [...activeStudents];
+    if (extendedStudents.length === 0) return;
 
-      return {
-        id: student.id,
-        name: student.name,
-        row,
-        x: startX,
-        y: row * rowHeight + (rowHeight / 2) - 40,
-        speed: 0.8 + (row * 0.3), // Slower, constant speed per row to prevent overlapping
-        direction,
-        ref: React.createRef<HTMLDivElement>(),
-        isShot: false,
-      };
-    });
+    // Ensure enough ducks to cover the screen plus a large buffer
+    const requiredDucksPerRow = Math.max(20, Math.ceil((width + 2000) / DUCK_SPACING));
+    const totalRequiredDucks = requiredDucksPerRow * rows;
+    
+    while (extendedStudents.length < totalRequiredDucks) {
+      extendedStudents = [...extendedStudents, ...activeStudents];
+    }
+    
+    // Trim to exactly totalRequiredDucks to ensure equal ducks per row
+    extendedStudents = extendedStudents.slice(0, totalRequiredDucks);
 
-    ducksRef.current = newDucks;
+    if (ducksRef.current.length !== totalRequiredDucks) {
+      const newDucks: Duck[] = extendedStudents.map((student, index) => {
+        const row = index % rows;
+        const direction = row % 2 === 0 ? 1 : -1;
+        const indexInRow = Math.floor(index / rows);
+        
+        const startX = direction === 1 
+          ? (indexInRow * DUCK_SPACING) - 300 
+          : width + (indexInRow * DUCK_SPACING) + 300;
+
+        return {
+          uniqueId: `duck-${index}`,
+          studentId: student.id,
+          name: student.name,
+          row,
+          x: startX,
+          y: row * rowHeight + (rowHeight / 2) - 80,
+          speed: 1.2 + (row * 0.3),
+          direction,
+          ref: React.createRef<HTMLDivElement>(),
+          isShot: false,
+        };
+      });
+
+      ducksRef.current = newDucks;
+    } else {
+      // Update existing ducks to maintain positions
+      ducksRef.current.forEach((duck, index) => {
+        const student = extendedStudents[index];
+        duck.studentId = student.id;
+        duck.name = student.name;
+        
+        if (duck.isShot) {
+          duck.isShot = false;
+          // Move to the back of the line
+          if (duck.direction === 1) {
+            const rowDucks = ducksRef.current.filter(d => d.row === duck.row && d.uniqueId !== duck.uniqueId && !d.isShot);
+            const minX = rowDucks.length > 0 ? Math.min(...rowDucks.map(d => d.x)) : width;
+            duck.x = minX - DUCK_SPACING;
+          } else {
+            const rowDucks = ducksRef.current.filter(d => d.row === duck.row && d.uniqueId !== duck.uniqueId && !d.isShot);
+            const maxX = rowDucks.length > 0 ? Math.max(...rowDucks.map(d => d.x)) : 0;
+            duck.x = maxX + DUCK_SPACING;
+          }
+          
+          if (duck.ref.current) {
+            duck.ref.current.style.transition = 'none';
+            duck.ref.current.style.opacity = '1';
+            duck.ref.current.style.transform = `translate3d(${duck.x}px, ${duck.y}px, 0)`;
+            // Force reflow
+            void duck.ref.current.offsetHeight;
+          }
+        }
+      });
+    }
+    forceRender({});
   };
 
   const easeInOutCubic = (x: number): number => {
@@ -108,11 +157,11 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
     const observer = new ResizeObserver(() => {
       if (!containerRef.current) return;
       const height = containerRef.current.clientHeight;
-      const rows = 3;
+      const rows = 2;
       const rowHeight = height / rows;
       
       ducksRef.current.forEach(duck => {
-        duck.y = duck.row * rowHeight + (rowHeight / 2) - 40;
+        duck.y = duck.row * rowHeight + (rowHeight / 2) - 80;
       });
     });
     
@@ -127,7 +176,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
     }
 
     const width = containerRef.current.clientWidth;
-    const duckWidth = 120;
+    const duckWidth = 240;
 
     // 1. Move Ducks
     ducksRef.current.forEach(duck => {
@@ -136,14 +185,14 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
       duck.x += duck.speed * duck.direction;
 
       // Wrap around screen with buffer and maintain spacing
-      if (duck.direction === 1 && duck.x > width) {
-        const rowDucks = ducksRef.current.filter(d => d.row === duck.row && d.id !== duck.id);
+      if (duck.direction === 1 && duck.x > width + 240) {
+        const rowDucks = ducksRef.current.filter(d => d.row === duck.row && d.uniqueId !== duck.uniqueId && !d.isShot);
         const minX = rowDucks.length > 0 ? Math.min(...rowDucks.map(d => d.x)) : width;
-        duck.x = Math.min(-120, minX - 250);
-      } else if (duck.direction === -1 && duck.x < -120) {
-        const rowDucks = ducksRef.current.filter(d => d.row === duck.row && d.id !== duck.id);
+        duck.x = minX - DUCK_SPACING;
+      } else if (duck.direction === -1 && duck.x < -240) {
+        const rowDucks = ducksRef.current.filter(d => d.row === duck.row && d.uniqueId !== duck.uniqueId && !d.isShot);
         const maxX = rowDucks.length > 0 ? Math.max(...rowDucks.map(d => d.x)) : 0;
-        duck.x = Math.max(width, maxX + 250);
+        duck.x = maxX + DUCK_SPACING;
       }
 
       if (duck.ref.current) {
@@ -158,9 +207,9 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
       let elapsedSinceJump = now - shootState.lastJumpTime;
 
       if (elapsedSinceJump >= shootState.jumpDuration) {
-        if (shootState.jumpsRemaining <= 0 && shootState.currentTargetId === shootState.finalTargetId) {
+        if (shootState.jumpsRemaining <= 0 && shootState.finalTargetId && shootState.currentTargetId === shootState.finalTargetId) {
           shootState.active = false;
-          const targetDuck = ducksRef.current.find(d => d.id === shootState.finalTargetId);
+          const targetDuck = ducksRef.current.find(d => d.uniqueId === shootState.finalTargetId);
 
           if (targetDuck) {
             soundService.play('correct');
@@ -171,7 +220,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
               targetDuck.ref.current.style.transition = 'all 0.5s ease-out';
             }
 
-            const winningStudent = activeStudents.find(s => s.id === targetDuck.id);
+            const winningStudent = activeStudents.find(s => s.id === targetDuck.studentId);
             if (winningStudent) {
               setTimeout(() => {
                 setIsShooting(false);
@@ -196,45 +245,36 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
 
           if (shootState.jumpsRemaining > 0) {
             shootState.jumpsRemaining--;
-            const safeDucks = ducksRef.current.filter(d => isSafe(d) && d.id !== shootState.finalTargetId);
+            const safeDucks = ducksRef.current.filter(d => isSafe(d) && d.uniqueId !== shootState.finalTargetId && !d.isShot);
             if (safeDucks.length > 0) {
-              shootState.currentTargetId = safeDucks[Math.floor(Math.random() * safeDucks.length)].id;
+              shootState.currentTargetId = safeDucks[Math.floor(Math.random() * safeDucks.length)].uniqueId;
             } else {
               // Fallback to any duck on screen or just any duck
-              const onScreen = ducksRef.current.filter(d => d.x > 0 && d.x < width - duckWidth);
+              const onScreen = ducksRef.current.filter(d => d.x > 0 && d.x < width - duckWidth && !d.isShot);
               shootState.currentTargetId = onScreen.length > 0 
-                ? onScreen[Math.floor(Math.random() * onScreen.length)].id
-                : ducksRef.current[Math.floor(Math.random() * ducksRef.current.length)].id;
+                ? onScreen[Math.floor(Math.random() * onScreen.length)].uniqueId
+                : ducksRef.current[Math.floor(Math.random() * ducksRef.current.length)].uniqueId;
             }
           } else {
-            const finalDuck = ducksRef.current.find(d => d.id === shootState.finalTargetId);
-            
-            if (!finalDuck) {
-              shootState.active = false;
-              setIsShooting(false);
-              if (spotlightRef.current && crosshairRef.current) {
-                spotlightRef.current.classList.add('hidden');
-                crosshairRef.current.classList.add('hidden');
+            if (!shootState.finalTargetId) {
+              // Find all valid students that are currently safe
+              let safeValidDucks = ducksRef.current.filter(d => isSafe(d) && selectableIds.includes(d.studentId) && !d.isShot);
+              
+              if (safeValidDucks.length === 0) {
+                // If no valid duck is safe right now, force one to be safe by teleporting it
+                const validDucks = ducksRef.current.filter(d => selectableIds.includes(d.studentId) && !d.isShot);
+                const forcedDuck = validDucks[Math.floor(Math.random() * validDucks.length)];
+                if (forcedDuck) {
+                  forcedDuck.x = width / 2 - duckWidth / 2; // Teleport to center
+                  safeValidDucks = [forcedDuck];
+                }
               }
-              return;
-            }
-
-            // If final duck is safe OR we've been waiting too long, lock on
-            if (isSafe(finalDuck) || shootState.waitingJumps > 15) {
-              shootState.currentTargetId = shootState.finalTargetId;
-            } else {
-              // Final duck not safe yet, keep jumping to other safe ducks
-              shootState.waitingJumps++;
-              const safeDucks = ducksRef.current.filter(d => isSafe(d));
-              if (safeDucks.length > 0) {
-                shootState.currentTargetId = safeDucks[Math.floor(Math.random() * safeDucks.length)].id;
-              } else {
-                const onScreen = ducksRef.current.filter(d => d.x > 0 && d.x < width - duckWidth);
-                shootState.currentTargetId = onScreen.length > 0 
-                  ? onScreen[Math.floor(Math.random() * onScreen.length)].id
-                  : ducksRef.current[Math.floor(Math.random() * ducksRef.current.length)].id;
+              
+              if (safeValidDucks.length > 0) {
+                shootState.finalTargetId = safeValidDucks[Math.floor(Math.random() * safeValidDucks.length)].uniqueId;
               }
             }
+            shootState.currentTargetId = shootState.finalTargetId;
           }
         }
       }
@@ -244,13 +284,13 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
         const progress = Math.min(elapsedSinceJump / moveDuration, 1);
         const easedProgress = easeInOutCubic(progress);
 
-        const targetDuck = ducksRef.current.find(d => d.id === shootState.currentTargetId);
+        const targetDuck = ducksRef.current.find(d => d.uniqueId === shootState.currentTargetId);
         let endX = shootState.startX;
         let endY = shootState.startY;
 
         if (targetDuck) {
           endX = targetDuck.x + duckWidth / 2;
-          endY = targetDuck.y + 25; // Shifted up from 40 to avoid covering the name
+          endY = targetDuck.y + 50; // Shifted up to avoid covering the name
         }
 
         shootState.currentX = shootState.startX + (endX - shootState.startX) * easedProgress;
@@ -260,7 +300,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
         const clampedX = Math.max(40, Math.min(width - 40, shootState.currentX));
         const clampedY = Math.max(40, Math.min(containerRef.current.clientHeight - 40, shootState.currentY));
 
-        spotlightRef.current.style.background = `radial-gradient(circle at ${clampedX}px ${clampedY}px, transparent 60px, rgba(0,0,0,0.95) 150px)`;
+        spotlightRef.current.style.background = `radial-gradient(circle at ${clampedX}px ${clampedY}px, transparent 150px, rgba(0,0,0,0.95) 300px)`;
         crosshairRef.current.style.transform = `translate3d(${clampedX - 32}px, ${clampedY - 32}px, 0)`;
       }
     }
@@ -283,25 +323,26 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    const finalStudent = validStudents[Math.floor(Math.random() * validStudents.length)];
-    
-    const duckWidth = 120;
+    const duckWidth = 240;
     const safePadding = Math.max(width * 0.2, 100);
-    const isSafe = (d: Duck) => d.x > safePadding && d.x < width - duckWidth - safePadding;
+    const isSafe = (d: Duck) => d.x > safePadding && d.x < width - duckWidth - safePadding && !d.isShot;
 
-    const safeDucks = ducksRef.current.filter(isSafe);
+    const validDucks = ducksRef.current.filter(d => selectableIds.includes(d.studentId) && !d.isShot);
+    if (validDucks.length === 0) return;
+
+    const safeDucks = validDucks.filter(isSafe);
     const firstTarget = safeDucks.length > 0 
       ? safeDucks[Math.floor(Math.random() * safeDucks.length)] 
-      : ducksRef.current[0];
+      : validDucks[0];
 
     shootStateRef.current = {
       active: true,
       lastJumpTime: performance.now(),
-      jumpDuration: 1200, // Longer duration to allow for a distinct "stay" phase
-      jumpsRemaining: 5 + Math.floor(Math.random() * 3),
+      jumpDuration: 700, // Faster jumps
+      jumpsRemaining: 4 + Math.floor(Math.random() * 3), // Fewer jumps
       waitingJumps: 0,
-      currentTargetId: firstTarget?.id || null,
-      finalTargetId: finalStudent.id,
+      currentTargetId: firstTarget?.uniqueId || null,
+      finalTargetId: null,
       startX: width / 2,
       startY: height / 2,
       currentX: width / 2,
@@ -313,7 +354,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
     if (spotlightRef.current && crosshairRef.current) {
       spotlightRef.current.classList.remove('hidden');
       crosshairRef.current.classList.remove('hidden');
-      spotlightRef.current.style.background = `radial-gradient(circle at ${width/2}px ${height/2}px, transparent 60px, rgba(0,0,0,0.95) 150px)`;
+      spotlightRef.current.style.background = `radial-gradient(circle at ${width/2}px ${height/2}px, transparent 150px, rgba(0,0,0,0.95) 300px)`;
       crosshairRef.current.style.transform = `translate3d(${width/2 - 32}px, ${height/2 - 32}px, 0)`;
     }
   };
@@ -325,18 +366,18 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {ducksRef.current.map(duck => (
           <div
-            key={duck.id}
+            key={duck.uniqueId}
             ref={duck.ref}
             className="absolute top-0 left-0 flex flex-col items-center justify-center will-change-transform"
-            style={{ width: 120, height: 80 }}
+            style={{ width: 240, height: 160 }}
           >
             <div 
-              className="text-5xl drop-shadow-lg"
+              className="text-[96px] drop-shadow-lg leading-none"
               style={{ transform: duck.direction === 1 ? 'scaleX(-1)' : 'scaleX(1)' }}
             >
               🦆
             </div>
-            <div className="bg-white/90 px-3 py-1 rounded-full text-sm font-bold text-gray-800 shadow-sm border border-gray-200 whitespace-nowrap mt-1">
+            <div className="bg-white/90 px-6 py-2 rounded-full text-2xl font-bold text-gray-800 shadow-sm border border-gray-200 whitespace-nowrap mt-2">
               {duck.name}
             </div>
           </div>

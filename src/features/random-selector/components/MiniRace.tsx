@@ -33,15 +33,15 @@ export default function MiniRace({ students, onSelect, selectableIds, hideSelect
     const winnerStudent = students.find(s => s.id === winnerId)!;
     setWinner(winnerStudent);
 
-    // Pick 4 other random students for the race (or fewer if not enough)
+    // Pick 7 other random students for the race (total 8)
     const otherIds = selectableIds.filter(id => id !== winnerId);
     // Shuffle otherIds
     const shuffledOthers = [...otherIds].sort(() => 0.5 - Math.random());
-    const selectedOthers = shuffledOthers.slice(0, 4).map(id => students.find(s => s.id === id)!);
+    const selectedOthers = shuffledOthers.slice(0, 7).map(id => students.find(s => s.id === id)!);
     
     // If we don't have enough in selectable, fill from all students
-    if (selectedOthers.length < 4) {
-      const remainingNeeded = 4 - selectedOthers.length;
+    if (selectedOthers.length < 7) {
+      const remainingNeeded = 7 - selectedOthers.length;
       const fillerStudents = students.filter(s => s.id !== winnerId && !selectedOthers.find(o => o.id === s.id));
       const shuffledFillers = [...fillerStudents].sort(() => 0.5 - Math.random());
       selectedOthers.push(...shuffledFillers.slice(0, remainingNeeded));
@@ -54,11 +54,11 @@ export default function MiniRace({ students, onSelect, selectableIds, hideSelect
     const newRacers: Racer[] = allRaceStudents.map((student, index) => {
       const isWinner = student.id === winnerId;
       return {
-        id: student.id + '-' + index, // Ensure unique key if duplicates somehow happen
+        id: student.id + '-' + index,
         student,
         color: colors[index % colors.length],
-        targetProgress: isWinner ? 100 : 60 + Math.random() * 35, // Winner goes to 100%, others 60-95%
-        duration: isWinner ? 4 : 4 + Math.random() * 1 // Winner takes exactly 4s, others take slightly longer to reach their shorter target
+        targetProgress: isWinner ? 100 : 70 + Math.random() * 25,
+        duration: 5 // Fixed duration, but we'll use keyframes for speed variation
       };
     });
 
@@ -75,8 +75,8 @@ export default function MiniRace({ students, onSelect, selectableIds, hideSelect
         setTimeout(() => {
           onSelect(winnerStudent);
         }, 2000);
-      }, 4500); // Wait for winner to cross (4s) + a little buffer
-    }, 1500); // Ready delay
+      }, 5500); // Wait for racers to finish
+    }, 1500);
   };
 
   const handleReset = () => {
@@ -125,12 +125,19 @@ export default function MiniRace({ students, onSelect, selectableIds, hideSelect
                 <motion.div
                   className={`absolute left-2 h-10 rounded-full flex items-center px-3 shadow-lg ${racer.color} text-white font-bold whitespace-nowrap z-10`}
                   initial={{ width: '15%' }}
-                  animate={{ 
-                    width: raceState === 'racing' || raceState === 'done' ? `${racer.targetProgress}%` : '15%' 
-                  }}
+                  animate={raceState === 'racing' || raceState === 'done' ? { 
+                    width: [
+                      '15%', 
+                      `${Math.min(racer.targetProgress, 30 + Math.random() * 20)}%`, 
+                      `${Math.min(racer.targetProgress, 50 + Math.random() * 20)}%`, 
+                      `${Math.min(racer.targetProgress, 20 + Math.random() * 40)}%`, // Slow down/fall back
+                      `${racer.targetProgress}%`
+                    ] 
+                  } : { width: '15%' }}
                   transition={{ 
                     duration: raceState === 'racing' ? racer.duration : 0.5, 
-                    ease: raceState === 'racing' ? "circOut" : "easeInOut" 
+                    ease: "easeInOut",
+                    times: [0, 0.2, 0.5, 0.8, 1]
                   }}
                 >
                   <span className="truncate max-w-full drop-shadow-md">

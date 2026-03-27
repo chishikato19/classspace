@@ -114,6 +114,10 @@ export default function GameHostLobby() {
   const handleStartGame = async () => {
     if (!session) return;
     await gameService.startGame(session.id);
+    if (gameMode === 'ORAL_QUIZ') {
+      navigate(`/game/oral-quiz/${session.id}`);
+      return;
+    }
     navigate(`/game/dashboard/${session.id}`);
   };
 
@@ -190,6 +194,21 @@ export default function GameHostLobby() {
                   >
                     Quét thẻ Plickers
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGameMode('ORAL_QUIZ');
+                      setNameInputType('CLASS_LIST');
+                      setIsGroupPlay(false);
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                      gameMode === 'ORAL_QUIZ'
+                        ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Vấn đáp trực tiếp
+                  </button>
                 </div>
                 <p className="text-xs text-gray-500 italic">
                   {gameMode === 'STUDENT_PACED' 
@@ -198,7 +217,9 @@ export default function GameHostLobby() {
                     ? 'Cả lớp cùng làm một câu hỏi. Giáo viên bấm nút để sang câu tiếp theo.'
                     : gameMode === 'BATTLE'
                     ? 'Chế độ chiến đấu nhiều người chơi. Sử dụng vật phẩm để tấn công đối thủ!'
-                    : 'Học sinh dùng thẻ giấy để trả lời. Giáo viên dùng điện thoại quét thẻ.'}
+                    : gameMode === 'PLICKERS'
+                    ? 'Học sinh dùng thẻ giấy để trả lời. Giáo viên dùng điện thoại quét thẻ.'
+                    : 'Giáo viên chọn ngẫu nhiên học sinh trả lời vấn đáp.'}
                 </p>
               </div>
 
@@ -372,7 +393,7 @@ export default function GameHostLobby() {
                         type="number"
                         min="0"
                         step="100"
-                        value={settings.reviveCost || 1000}
+                        value={settings.reviveCost ?? 1000}
                         onChange={(e) => setSettings({ ...settings, reviveCost: parseInt(e.target.value) || 0 })}
                         className="w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
                       />
@@ -389,7 +410,7 @@ export default function GameHostLobby() {
                         type="number"
                         min="1"
                         max="60"
-                        value={settings.effectDuration || 10}
+                        value={settings.effectDuration ?? 10}
                         onChange={(e) => setSettings({ ...settings, effectDuration: parseInt(e.target.value) || 1 })}
                         className="w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
                       />

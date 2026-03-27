@@ -18,7 +18,7 @@ export const RichTextarea: React.FC<RichTextareaProps> = ({
   return (
     <textarea
       className={className}
-      value={value}
+      value={value || ''}
       onChange={(e) => onChangeValue(e.target.value)}
       rows={rows}
       placeholder={placeholder}

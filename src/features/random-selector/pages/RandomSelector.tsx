@@ -13,19 +13,23 @@ import BalloonPop from '../components/BalloonPop';
 import MiniRace from '../components/MiniRace';
 import ScratchCard from '../components/ScratchCard';
 import DuckShoot from '../components/DuckShoot';
+import BingoCage from '../components/BingoCage';
+import MagicCardFlip from '../components/MagicCardFlip';
 import StudentActionModal from '../components/StudentActionModal';
 import QueueList from '../components/QueueList';
 import { StudentData, ClassData, classService } from '../services/classService';
+import { groupService } from '../../teacher/services/groupService';
+import { StudentGroup } from '../../../types';
 import { auth } from '../../../config/firebase';
 
 type SelectionMode = 'random' | 'targeted';
-type RandomMethod = 'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'duck' | 'random';
+type RandomMethod = 'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard' | 'random';
 type ListSource = 'manual' | 'class';
 
 export default function RandomSelector() {
   const [mode, setMode] = useState<SelectionMode>('random');
   const [randomMethod, setRandomMethod] = useState<RandomMethod>('wheel');
-  const [activeRandomMethod, setActiveRandomMethod] = useState<'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'duck'>('wheel');
+  const [activeRandomMethod, setActiveRandomMethod] = useState<'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard'>('wheel');
   const [isSelecting, setIsSelecting] = useState(false);
   const [students, setStudents] = useState<StudentData[]>([]);
   const [manualInput, setManualInput] = useState('');
@@ -36,6 +40,7 @@ export default function RandomSelector() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [groups, setGroups] = useState<StudentGroup[]>([]);
 
   // New state for Action Modal and Queue
   const [currentSelectedStudent, setCurrentSelectedStudent] = useState<StudentData | null>(null);
@@ -106,10 +111,14 @@ export default function RandomSelector() {
     } else if (listSource === 'class' && selectedClassId) {
       const fetchStudents = async () => {
         try {
-          const fetchedStudents = await classService.getStudentsByClass(selectedClassId);
+          const [fetchedStudents, fetchedGroups] = await Promise.all([
+            classService.getStudentsByClass(selectedClassId),
+            groupService.getGroupsByClass(selectedClassId)
+          ]);
           setStudents(fetchedStudents);
+          setGroups(fetchedGroups);
         } catch (error) {
-          console.error("Error fetching students:", error);
+          console.error("Error fetching students and groups:", error);
         }
       };
       fetchStudents();
@@ -133,7 +142,7 @@ export default function RandomSelector() {
     }
 
     if (randomMethod === 'random') {
-      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'claw' | 'balloon' | 'race' | 'scratch' | 'duck')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'claw', 'balloon', 'race', 'scratch', 'duck'];
+      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck', 'bingo', 'magiccard'];
       const randomIndex = Math.floor(Math.random() * methods.length);
       setActiveRandomMethod(methods[randomIndex]);
     }
@@ -195,8 +204,20 @@ export default function RandomSelector() {
     }, 500);
   };
 
-  const handleAwardPoints = async (studentId: string, points: number) => {
-    await classService.updateStudentPoints(studentId, points);
+  const handleAwardPoints = async (studentId: string, points: number, awardToGroup: boolean = false) => {
+    const studentGroup = groups.find(g => g.studentIds.includes(studentId));
+    
+    if (awardToGroup && studentGroup) {
+      // Award points to the group and ALL members
+      await groupService.awardPoints(studentGroup.id, points, studentGroup.studentIds);
+    } else if (studentGroup) {
+      // Award points to the student AND the group
+      await groupService.awardIndividualAndGroupPoints(studentId, studentGroup.id, points);
+    } else {
+      // Just individual points
+      await classService.updateStudentPoints(studentId, points);
+    }
+    
     setCurrentSelectedStudent(null);
     
     // Also remove from queue if present
@@ -406,14 +427,6 @@ export default function RandomSelector() {
                       Loại trừ
                     </button>
                     <button
-                      onClick={() => setRandomMethod('claw')}
-                      className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                        randomMethod === 'claw' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Gắp thú
-                    </button>
-                    <button
                       onClick={() => setRandomMethod('balloon')}
                       className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                         randomMethod === 'balloon' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -444,6 +457,22 @@ export default function RandomSelector() {
                       }`}
                     >
                       Bắn vịt
+                    </button>
+                    <button
+                      onClick={() => setRandomMethod('bingo')}
+                      className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        randomMethod === 'bingo' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Lồng cầu
+                    </button>
+                    <button
+                      onClick={() => setRandomMethod('magiccard')}
+                      className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        randomMethod === 'magiccard' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Bài ma thuật
                     </button>
                     <button
                       onClick={() => setRandomMethod('random')}
@@ -539,11 +568,12 @@ export default function RandomSelector() {
                   {activeRandomMethod === 'magic' && <MagicHat students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'slot' && <SlotMachine students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'elimination' && <Elimination students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
-                  {activeRandomMethod === 'claw' && <ClawMachine students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'balloon' && <BalloonPop students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'race' && <MiniRace students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'scratch' && <ScratchCard students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'duck' && <DuckShoot students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'bingo' && <BingoCage students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'magiccard' && <MagicCardFlip students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                 </div>
               </div>
             )
@@ -570,6 +600,7 @@ export default function RandomSelector() {
             <div className="max-h-80 overflow-y-auto">
               <QueueList 
                 queue={queue} 
+                groups={groups}
                 onAwardPoints={handleAwardPoints}
                 onSkip={handleSkip}
               />
@@ -594,8 +625,9 @@ export default function RandomSelector() {
       {currentSelectedStudent && (
         <StudentActionModal 
           student={currentSelectedStudent}
+          groupName={groups.find(g => g.studentIds.includes(currentSelectedStudent.id))?.name}
           onClose={() => handleSkip()}
-          onAwardPoints={(points) => handleAwardPoints(currentSelectedStudent.id, points)}
+          onAwardPoints={(points, toGroup) => handleAwardPoints(currentSelectedStudent.id, points, toGroup)}
           onAddToQueue={handleAddToQueue}
           onSkip={() => handleSkip()}
         />
