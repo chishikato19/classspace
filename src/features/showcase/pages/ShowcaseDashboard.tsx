@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Image as ImageIcon, Maximize2, X, Trash2, Columns, LayoutGrid, PenTool, RotateCcw } from 'lucide-react';
+import { Camera, Image as ImageIcon, Maximize2, X, Trash2, Columns, LayoutGrid, PenTool, RotateCcw, MousePointer2, Circle, Minus, Type, Sun, ZoomIn, ZoomOut } from 'lucide-react';
 import { authService } from '../../auth/services/authService';
 import { showcaseService, ShowcaseImage } from '../services/showcaseService';
 import ImageCropper from '../components/ImageCropper';
-import DrawingCanvas from '../components/DrawingCanvas';
+import DrawingCanvas, { ToolType } from '../components/DrawingCanvas';
 
 export default function ShowcaseDashboard() {
   const [images, setImages] = useState<ShowcaseImage[]>([]);
   const [viewMode, setViewMode] = useState<'projector' | 'camera'>('projector');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [shouldCompress, setShouldCompress] = useState(true);
   
   // Cropper state
   const [selectedImageForCrop, setSelectedImageForCrop] = useState<string | null>(null);
@@ -17,6 +18,32 @@ export default function ShowcaseDashboard() {
   // Drawing state (for camera mode remote control)
   const [activeDrawingImage, setActiveDrawingImage] = useState<ShowcaseImage | null>(null);
   const [penColor, setPenColor] = useState('#ef4444');
+  const [activeTool, setActiveTool] = useState<ToolType>('pen');
+
+  // Projector state
+  const projectorRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [projectorTool, setProjectorTool] = useState<ToolType | 'pointer'>('pointer');
+  const [projectorColor, setProjectorColor] = useState('#ef4444');
+  const [projectorZoom, setProjectorZoom] = useState(1);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      projectorRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   useEffect(() => {
     const user = authService.getCurrentUser();
@@ -29,46 +56,41 @@ export default function ShowcaseDashboard() {
     return () => unsubscribe();
   }, []);
 
-  const compressImage = (file: File): Promise<string> => {
+  const compressImageBase64 = (base64Str: string, compress: boolean): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          // Max dimensions (Full HD)
-          const MAX_WIDTH = 1920;
-          const MAX_HEIGHT = 1080;
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Max dimensions
+        const MAX_WIDTH = compress ? 1920 : 4000;
+        const MAX_HEIGHT = compress ? 1080 : 4000;
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
           }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          // Compress to JPEG with 80% quality
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          resolve(dataUrl);
-        };
-        img.onerror = (error) => reject(error);
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG
+        const dataUrl = canvas.toDataURL('image/jpeg', compress ? 0.8 : 0.95);
+        resolve(dataUrl);
       };
-      reader.onerror = (error) => reject(error);
+      img.onerror = (error) => reject(error);
     });
   };
 
@@ -96,9 +118,29 @@ export default function ShowcaseDashboard() {
     setSelectedImageForCrop(null);
     try {
       setIsUploading(true);
+      const finalImage = await compressImageBase64(croppedImageBase64, shouldCompress);
       const user = authService.getCurrentUser();
       if (user) {
-        await showcaseService.addImage(user.uid, croppedImageBase64, 'gallery');
+        await showcaseService.addImage(user.uid, finalImage, 'gallery');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Có lỗi xảy ra khi tải ảnh lên.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCropSkip = async () => {
+    if (!selectedImageForCrop) return;
+    const originalImage = selectedImageForCrop;
+    setSelectedImageForCrop(null);
+    try {
+      setIsUploading(true);
+      const finalImage = await compressImageBase64(originalImage, shouldCompress);
+      const user = authService.getCurrentUser();
+      if (user) {
+        await showcaseService.addImage(user.uid, finalImage, 'gallery');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -151,6 +193,8 @@ export default function ShowcaseDashboard() {
           imageSrc={selectedImageForCrop}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
+          onSkip={handleCropSkip}
+          quality={shouldCompress ? 0.8 : 0.95}
         />
       )}
       <div className="flex items-center justify-between">
@@ -214,7 +258,21 @@ export default function ShowcaseDashboard() {
                 </>
               )}
             </label>
-            <p className="mt-4 text-gray-500">Ảnh sẽ được tự động nén và gửi lên máy chiếu.</p>
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <input 
+                type="checkbox" 
+                id="compress-toggle" 
+                checked={shouldCompress} 
+                onChange={(e) => setShouldCompress(e.target.checked)}
+                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+              />
+              <label htmlFor="compress-toggle" className="text-sm text-gray-700">
+                Nén ảnh (tiết kiệm dung lượng, tải nhanh hơn)
+              </label>
+            </div>
+            <p className="mt-4 text-gray-500">
+              Sử dụng điện thoại để chụp ảnh bài làm, sau đó chuyển sang chế độ máy chiếu trên máy tính.
+            </p>
           </div>
 
           {/* Quick Gallery for Camera Mode */}
@@ -277,6 +335,38 @@ export default function ShowcaseDashboard() {
                 />
               ))}
             </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTool('pen')}
+                className={`p-2 rounded-lg ${activeTool === 'pen' ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+              >
+                <PenTool className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setActiveTool('laser')}
+                className={`p-2 rounded-lg ${activeTool === 'laser' ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+              >
+                <Sun className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setActiveTool('circle')}
+                className={`p-2 rounded-lg ${activeTool === 'circle' ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+              >
+                <Circle className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setActiveTool('line')}
+                className={`p-2 rounded-lg ${activeTool === 'line' ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+              >
+                <Minus className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setActiveTool('text')}
+                className={`p-2 rounded-lg ${activeTool === 'text' ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+              >
+                <Type className="w-5 h-5" />
+              </button>
+            </div>
             <div className="flex gap-4">
               <button
                 onClick={() => showcaseService.updateAnnotations(activeDrawingImage.id, '[]')}
@@ -297,14 +387,13 @@ export default function ShowcaseDashboard() {
             />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative" style={{ 
-                // We need the canvas to exactly match the image dimensions to align strokes.
-                // For simplicity, we make the canvas cover the whole area and rely on relative coordinates.
                 width: '100%', height: '100%' 
               }}>
                 <DrawingCanvas
                   annotations={images.find(i => i.id === activeDrawingImage.id)?.annotations || '[]'}
                   onAddStroke={(newAnnotations) => showcaseService.updateAnnotations(activeDrawingImage.id, newAnnotations)}
                   color={penColor}
+                  tool={activeTool}
                 />
               </div>
             </div>
@@ -315,37 +404,71 @@ export default function ShowcaseDashboard() {
       {viewMode === 'projector' && (
         <div className="space-y-6">
           {/* Main Projection Area */}
-          <div className="bg-black rounded-xl shadow-lg overflow-hidden min-h-[500px] flex items-center justify-center relative">
+          <div 
+            ref={projectorRef}
+            className={`bg-black rounded-xl shadow-lg overflow-hidden flex items-center justify-center relative ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'min-h-[500px]'}`}
+          >
             {projectingImages.length > 0 ? (
-              <div className="w-full h-full flex items-center justify-center p-4">
-                <img 
-                  src={projectingImages[0].imageUrl} 
-                  alt="Projected work" 
-                  className="max-w-full max-h-[70vh] object-contain rounded shadow-2xl"
-                />
-                <button 
-                  onClick={() => setStatus(projectingImages[0].id, 'gallery')}
-                  className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+              <div className="w-full h-full flex items-center justify-center p-4 relative group overflow-hidden">
+                <div 
+                  className="relative transition-transform duration-200 ease-out"
+                  style={{ transform: `scale(${projectorZoom})` }}
                 >
-                  <X className="w-6 h-6" />
-                </button>
+                  <img 
+                    src={projectingImages[0].imageUrl} 
+                    alt="Projected work" 
+                    className="max-w-full max-h-[90vh] object-contain rounded shadow-2xl pointer-events-none"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative w-full h-full">
+                      <DrawingCanvas
+                        annotations={projectingImages[0].annotations || '[]'}
+                        onAddStroke={(newAnnotations) => showcaseService.updateAnnotations(projectingImages[0].id, newAnnotations)}
+                        readOnly={projectorTool === 'pointer'}
+                        color={projectorColor}
+                        tool={projectorTool === 'pointer' ? 'pen' : projectorTool}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {!isFullscreen && (
+                  <button 
+                    onClick={() => setStatus(projectingImages[0].id, 'gallery')}
+                    className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                )}
               </div>
             ) : comparingImages.length > 0 ? (
-              <div className="w-full h-full p-4">
+              <div className="w-full h-full p-4 relative">
                 <div className={`grid gap-4 h-full ${comparingImages.length === 1 ? 'grid-cols-1' : comparingImages.length === 2 ? 'grid-cols-2' : comparingImages.length <= 4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-3'}`}>
                   {comparingImages.map(img => (
-                    <div key={img.id} className="relative flex items-center justify-center bg-gray-900 rounded-lg p-2">
+                    <div key={img.id} className="relative flex items-center justify-center bg-gray-900 rounded-lg p-2 group">
                       <img 
                         src={img.imageUrl} 
                         alt="Compared work" 
-                        className="max-w-full max-h-[65vh] object-contain rounded shadow-lg"
+                        className="max-w-full max-h-[85vh] object-contain rounded shadow-lg pointer-events-none"
                       />
-                      <button 
-                        onClick={() => setStatus(img.id, 'gallery')}
-                        className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="relative w-full h-full">
+                          <DrawingCanvas
+                            annotations={img.annotations || '[]'}
+                            onAddStroke={(newAnnotations) => showcaseService.updateAnnotations(img.id, newAnnotations)}
+                            readOnly={projectorTool === 'pointer'}
+                            color={projectorColor}
+                            tool={projectorTool === 'pointer' ? 'pen' : projectorTool}
+                          />
+                        </div>
+                      </div>
+                      {!isFullscreen && (
+                        <button 
+                          onClick={() => setStatus(img.id, 'gallery')}
+                          className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -355,6 +478,102 @@ export default function ShowcaseDashboard() {
                 <ImageIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg">Chưa có ảnh nào đang được trình chiếu.</p>
                 <p className="text-sm">Chọn ảnh từ khay bên dưới hoặc dùng điện thoại để chụp.</p>
+              </div>
+            )}
+
+            {/* Projector Toolbar (Visible on hover or when projecting) */}
+            {(projectingImages.length > 0 || comparingImages.length > 0) && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-6 py-3 rounded-full flex items-center gap-4 opacity-0 hover:opacity-100 transition-opacity z-20 shadow-xl border border-gray-700">
+                <button
+                  onClick={toggleFullscreen}
+                  className="p-2 hover:bg-gray-700 rounded-full transition-colors"
+                  title="Toàn màn hình"
+                >
+                  <Maximize2 className="w-5 h-5" />
+                </button>
+                <div className="w-px h-6 bg-gray-700 mx-2" />
+                <button
+                  onClick={() => setProjectorTool('pointer')}
+                  className={`p-2 rounded-full transition-colors ${projectorTool === 'pointer' ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                  title="Con trỏ chuột"
+                >
+                  <MousePointer2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setProjectorTool('laser')}
+                  className={`p-2 rounded-full transition-colors ${projectorTool === 'laser' ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                  title="Bút Laser"
+                >
+                  <Sun className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setProjectorTool('pen')}
+                  className={`p-2 rounded-full transition-colors ${projectorTool === 'pen' ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                  title="Bút vẽ"
+                >
+                  <PenTool className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setProjectorTool('circle')}
+                  className={`p-2 rounded-full transition-colors ${projectorTool === 'circle' ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                  title="Khoanh tròn"
+                >
+                  <Circle className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setProjectorTool('line')}
+                  className={`p-2 rounded-full transition-colors ${projectorTool === 'line' ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                  title="Gạch chân / Đường thẳng"
+                >
+                  <Minus className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setProjectorTool('text')}
+                  className={`p-2 rounded-full transition-colors ${projectorTool === 'text' ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                  title="Viết chữ"
+                >
+                  <Type className="w-5 h-5" />
+                </button>
+                <div className="w-px h-6 bg-gray-700 mx-2" />
+                <div className="flex gap-1 items-center">
+                  <button
+                    onClick={() => setProjectorZoom(prev => Math.max(0.5, prev - 0.1))}
+                    className="p-1 hover:bg-gray-700 rounded transition-colors"
+                    title="Thu nhỏ"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-medium w-8 text-center">{Math.round(projectorZoom * 100)}%</span>
+                  <button
+                    onClick={() => setProjectorZoom(prev => Math.min(3, prev + 0.1))}
+                    className="p-1 hover:bg-gray-700 rounded transition-colors"
+                    title="Phóng to"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="w-px h-6 bg-gray-700 mx-2" />
+                <div className="flex gap-1">
+                  {['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#ffffff'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setProjectorColor(c)}
+                      className={`w-6 h-6 rounded-full border-2 ${projectorColor === c ? 'border-white' : 'border-transparent'}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+                <div className="w-px h-6 bg-gray-700 mx-2" />
+                <button
+                  onClick={() => {
+                    projectingImages.forEach(img => showcaseService.updateAnnotations(img.id, '[]'));
+                    comparingImages.forEach(img => showcaseService.updateAnnotations(img.id, '[]'));
+                  }}
+                  className="p-2 hover:bg-gray-700 rounded-full transition-colors text-red-400 hover:text-red-300"
+                  title="Xóa tất cả nét vẽ"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
               </div>
             )}
           </div>
