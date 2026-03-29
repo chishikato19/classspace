@@ -483,36 +483,44 @@ export default function ShowcaseDashboard() {
                 )}
               </div>
             ) : comparingImages.length > 0 ? (
-              <div className="w-full h-full p-4 relative">
-                <div className={`grid gap-4 h-full ${comparingImages.length === 1 ? 'grid-cols-1' : comparingImages.length === 2 ? 'grid-cols-2' : comparingImages.length <= 4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-3'}`}>
-                  {comparingImages.map(img => (
-                    <div key={img.id} className="relative flex items-center justify-center bg-gray-900 rounded-lg p-2 group">
-                      <img 
-                        src={img.imageUrl} 
-                        alt="Compared work" 
-                        className="max-w-full max-h-[85vh] object-contain rounded shadow-lg pointer-events-none"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="relative w-full h-full">
-                          <DrawingCanvas
-                            annotations={img.annotations || '[]'}
-                            onAddStroke={(newAnnotations) => showcaseService.updateAnnotations(img.id, newAnnotations)}
-                            readOnly={projectorTool === 'pointer'}
-                            color={projectorColor}
-                            tool={projectorTool === 'pointer' ? 'pen' : projectorTool}
-                          />
+              <div className="w-full h-full p-4 relative overflow-hidden">
+                <div 
+                  className="w-full h-full transition-transform duration-200 ease-out"
+                  style={{ 
+                    transform: `scale(${projectorZoom}) translate(${panOffset.x / projectorZoom}px, ${panOffset.y / projectorZoom}px)`,
+                    cursor: projectorZoom > 1 && projectorTool === 'pointer' ? (isPanning ? 'grabbing' : 'grab') : 'default'
+                  }}
+                >
+                  <div className={`grid gap-4 h-full ${comparingImages.length === 1 ? 'grid-cols-1' : comparingImages.length === 2 ? 'grid-cols-2' : comparingImages.length <= 4 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-3'}`}>
+                    {comparingImages.map(img => (
+                      <div key={img.id} className="relative flex items-center justify-center bg-gray-900 rounded-lg p-2 group">
+                        <img 
+                          src={img.imageUrl} 
+                          alt="Compared work" 
+                          className="max-w-full max-h-[85vh] object-contain rounded shadow-lg pointer-events-none"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="relative w-full h-full">
+                            <DrawingCanvas
+                              annotations={img.annotations || '[]'}
+                              onAddStroke={(newAnnotations) => showcaseService.updateAnnotations(img.id, newAnnotations)}
+                              readOnly={projectorTool === 'pointer'}
+                              color={projectorColor}
+                              tool={projectorTool === 'pointer' ? 'pen' : projectorTool}
+                            />
+                          </div>
                         </div>
+                        {!isFullscreen && (
+                          <button 
+                            onClick={() => setStatus(img.id, 'gallery')}
+                            className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      {!isFullscreen && (
-                        <button 
-                          onClick={() => setStatus(img.id, 'gallery')}
-                          className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -651,30 +659,32 @@ export default function ShowcaseDashboard() {
             ) : (
               <div className="flex gap-4 overflow-x-auto pb-2 snap-x">
                 {galleryImages.map(img => (
-                  <div key={img.id} className="flex-none w-48 relative group rounded-lg overflow-hidden border border-gray-200 aspect-video bg-gray-100 snap-start">
-                    <img src={img.imageUrl} alt="Student work thumbnail" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                  <div key={img.id} className="flex-none w-56 relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-100 snap-start flex flex-col">
+                    <div className="aspect-video relative">
+                      <img src={img.imageUrl} alt="Student work thumbnail" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => handleDelete(img.id)}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="p-2 bg-white border-t flex gap-2 justify-center">
                       <button
                         onClick={() => {
                           // If projecting, replace the current projected image
                           projectingImages.forEach(pImg => setStatus(pImg.id, 'gallery'));
                           setStatus(img.id, 'projecting');
                         }}
-                        className="w-full py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 flex items-center justify-center gap-1"
                       >
-                        <Maximize2 className="w-4 h-4" /> Chiếu
+                        <Maximize2 className="w-3.5 h-3.5" /> Chiếu
                       </button>
                       <button
                         onClick={() => setStatus(img.id, 'comparing')}
-                        className="w-full py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 flex items-center justify-center gap-1"
                       >
-                        <Columns className="w-4 h-4" /> So sánh
-                      </button>
-                      <button
-                        onClick={() => handleDelete(img.id)}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      >
-                        <Trash2 className="w-3 h-3" />
+                        <Columns className="w-3.5 h-3.5" /> So sánh
                       </button>
                     </div>
                   </div>
