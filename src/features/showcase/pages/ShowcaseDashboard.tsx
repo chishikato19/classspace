@@ -37,7 +37,12 @@ export default function ShowcaseDashboard() {
   }, [projectorZoom]);
 
   const handlePanStart = (e: React.PointerEvent) => {
+    // Don't pan if clicking on a button or interactive element
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input')) return;
+
     if (projectorZoom > 1 && projectorTool === 'pointer') {
+      e.preventDefault();
       setIsPanning(true);
       lastPanPoint.current = { x: e.clientX, y: e.clientY };
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -46,6 +51,7 @@ export default function ShowcaseDashboard() {
 
   const handlePanMove = (e: React.PointerEvent) => {
     if (isPanning) {
+      e.preventDefault();
       const dx = e.clientX - lastPanPoint.current.x;
       const dy = e.clientY - lastPanPoint.current.y;
       setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -441,7 +447,7 @@ export default function ShowcaseDashboard() {
           {/* Main Projection Area */}
           <div 
             ref={projectorRef}
-            className={`group bg-black rounded-xl shadow-lg overflow-hidden flex items-center justify-center relative ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'min-h-[500px]'}`}
+            className={`group bg-black rounded-xl shadow-lg overflow-hidden flex items-center justify-center relative touch-none ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'min-h-[500px]'}`}
             onPointerDown={handlePanStart}
             onPointerMove={handlePanMove}
             onPointerUp={handlePanEnd}
@@ -536,6 +542,7 @@ export default function ShowcaseDashboard() {
               <div 
                 className="hide-scrollbar absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-4 md:px-6 py-2 md:py-3 rounded-2xl md:rounded-full flex items-center gap-2 md:gap-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20 shadow-xl border border-gray-700 max-w-[95%] overflow-x-auto"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <style>{`
                   .hide-scrollbar::-webkit-scrollbar {
