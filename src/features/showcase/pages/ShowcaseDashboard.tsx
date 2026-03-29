@@ -441,7 +441,7 @@ export default function ShowcaseDashboard() {
           {/* Main Projection Area */}
           <div 
             ref={projectorRef}
-            className={`bg-black rounded-xl shadow-lg overflow-hidden flex items-center justify-center relative ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'min-h-[500px]'}`}
+            className={`group bg-black rounded-xl shadow-lg overflow-hidden flex items-center justify-center relative ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'min-h-[500px]'}`}
             onPointerDown={handlePanStart}
             onPointerMove={handlePanMove}
             onPointerUp={handlePanEnd}
@@ -525,7 +525,15 @@ export default function ShowcaseDashboard() {
 
             {/* Projector Toolbar (Visible on hover or when projecting) */}
             {(projectingImages.length > 0 || comparingImages.length > 0) && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-6 py-3 rounded-full flex items-center gap-4 opacity-0 hover:opacity-100 transition-opacity z-20 shadow-xl border border-gray-700">
+              <div 
+                className="hide-scrollbar absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-4 md:px-6 py-2 md:py-3 rounded-2xl md:rounded-full flex items-center gap-2 md:gap-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20 shadow-xl border border-gray-700 max-w-[95%] overflow-x-auto"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <style>{`
+                  .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
                 <button
                   onClick={toggleFullscreen}
                   className="p-2 hover:bg-gray-700 rounded-full transition-colors"
