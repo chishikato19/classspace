@@ -117,6 +117,7 @@ export interface GameSettings {
   // Oral Quiz settings
   showQuestionBeforeSelection?: boolean;
   randomMethod?: string;
+  selectionTarget?: 'student' | 'group';
   // Eco Mode settings
   jsonDeliveryMode?: boolean; // Chế độ phân phối JSON (Tải trực tiếp hay qua server)
 }

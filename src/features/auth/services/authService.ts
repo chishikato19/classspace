@@ -13,5 +13,9 @@ export const authService = {
   logout: async () => {
     if (!auth) return;
     await signOut(auth);
+  },
+
+  getCurrentUser: () => {
+    return auth?.currentUser;
   }
 };

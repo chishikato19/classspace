@@ -125,6 +125,18 @@
         "imageUrl": { "type": "string", "description": "URL of the item image" }
       },
       "required": ["type", "name", "price", "config", "requiredLevel", "imageUrl"]
+    },
+    "ShowcaseImage": {
+      "title": "ShowcaseImage",
+      "description": "An image captured for student work showcase",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string", "description": "UID of the teacher who captured the image" },
+        "imageUrl": { "type": "string", "description": "Base64 encoded image data" },
+        "status": { "type": "string", "description": "Status of the image (gallery, projecting, comparing)" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["teacherId", "imageUrl", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -135,6 +147,7 @@
     "/sessions": { "schema": "GameSession", "description": "Collection of game sessions" },
     "/groups": { "schema": "StudentGroup", "description": "Collection of student groups" },
     "/classSessions": { "schema": "ClassSession", "description": "Collection of class sessions" },
-    "/shop_items": { "schema": "ShopItem", "description": "Collection of shop items" }
+    "/shop_items": { "schema": "ShopItem", "description": "Collection of shop items" },
+    "/showcase_images": { "schema": "ShowcaseImage", "description": "Collection of showcase images" }
   }
 }

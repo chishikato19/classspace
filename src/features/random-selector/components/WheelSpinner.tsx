@@ -51,7 +51,7 @@ export default function WheelSpinner({ students, onSelect, selectableIds, hideSe
   };
 
   if (students.length === 0) {
-    return <div className="text-center p-8 text-gray-500">Chưa có học sinh nào để quay.</div>;
+    return <div className="text-center p-8 text-gray-500">Chưa có danh sách để quay.</div>;
   }
 
   // Colors for wheel slices

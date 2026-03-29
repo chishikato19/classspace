@@ -44,7 +44,7 @@ export default function MysteryBox({ students, onSelect, selectableIds, hideSele
   };
 
   if (students.length === 0) {
-    return <div className="text-center p-8 text-gray-500">Chưa có học sinh nào để mở hộp.</div>;
+    return <div className="text-center p-8 text-gray-500">Chưa có danh sách để mở hộp.</div>;
   }
 
   return (

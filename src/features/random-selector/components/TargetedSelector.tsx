@@ -12,7 +12,7 @@ export default function TargetedSelector({ students, onSelect, selectableIds, hi
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
 
   if (students.length === 0) {
-    return <div className="text-center p-8 text-gray-500">Chưa có học sinh nào.</div>;
+    return <div className="text-center p-8 text-gray-500">Chưa có danh sách.</div>;
   }
 
   return (

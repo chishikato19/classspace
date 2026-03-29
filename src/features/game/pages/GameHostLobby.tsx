@@ -194,21 +194,6 @@ export default function GameHostLobby() {
                   >
                     Quét thẻ Plickers
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGameMode('ORAL_QUIZ');
-                      setNameInputType('CLASS_LIST');
-                      setIsGroupPlay(false);
-                    }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                      gameMode === 'ORAL_QUIZ'
-                        ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    Vấn đáp trực tiếp
-                  </button>
                 </div>
                 <p className="text-xs text-gray-500 italic">
                   {gameMode === 'STUDENT_PACED' 
@@ -217,9 +202,7 @@ export default function GameHostLobby() {
                     ? 'Cả lớp cùng làm một câu hỏi. Giáo viên bấm nút để sang câu tiếp theo.'
                     : gameMode === 'BATTLE'
                     ? 'Chế độ chiến đấu nhiều người chơi. Sử dụng vật phẩm để tấn công đối thủ!'
-                    : gameMode === 'PLICKERS'
-                    ? 'Học sinh dùng thẻ giấy để trả lời. Giáo viên dùng điện thoại quét thẻ.'
-                    : 'Giáo viên chọn ngẫu nhiên học sinh trả lời vấn đáp.'}
+                    : 'Học sinh dùng thẻ giấy để trả lời. Giáo viên dùng điện thoại quét thẻ.'}
                 </p>
               </div>
 

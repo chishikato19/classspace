@@ -72,32 +72,51 @@ export const gameService = {
 
     // Nếu chọn từ danh sách lớp và không phải chơi nhóm, khởi tạo sẵn danh sách học sinh
     if (nameInputConfig?.classId && !nameInputConfig.isGroupPlay) {
-      const studentsRef = collection(db, "students");
-      const q = query(studentsRef, where("classId", "==", nameInputConfig.classId));
-      const studentsSnap = await getDocs(q);
-      initialPlayers = studentsSnap.docs.map((doc) => {
-        const data = doc.data();
-        const player: any = {
-          id: doc.id,
-          name: data.name,
-          studentIds: [doc.id],
-          score: 0,
-          streak: 0,
-          progress: 0,
-          finished: false,
-          answers: {},
-        };
-        
-        if (data.order !== undefined && data.order !== null) {
-          player.cardNumber = data.order.toString();
-        }
-        
-        if (data.avatarConfig) {
-          player.avatarConfig = data.avatarConfig;
-        }
-        
-        return player;
-      });
+      if (settings?.selectionTarget === 'group') {
+        const groupsRef = collection(db, "groups");
+        const q = query(groupsRef, where("classId", "==", nameInputConfig.classId));
+        const groupsSnap = await getDocs(q);
+        initialPlayers = groupsSnap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            studentIds: data.studentIds || [],
+            score: 0,
+            streak: 0,
+            progress: 0,
+            finished: false,
+            answers: {},
+          };
+        });
+      } else {
+        const studentsRef = collection(db, "students");
+        const q = query(studentsRef, where("classId", "==", nameInputConfig.classId));
+        const studentsSnap = await getDocs(q);
+        initialPlayers = studentsSnap.docs.map((doc) => {
+          const data = doc.data();
+          const player: any = {
+            id: doc.id,
+            name: data.name,
+            studentIds: [doc.id],
+            score: 0,
+            streak: 0,
+            progress: 0,
+            finished: false,
+            answers: {},
+          };
+          
+          if (data.order !== undefined && data.order !== null) {
+            player.cardNumber = data.order.toString();
+          }
+          
+          if (data.avatarConfig) {
+            player.avatarConfig = data.avatarConfig;
+          }
+          
+          return player;
+        });
+      }
     }
 
     const sessionData: any = {

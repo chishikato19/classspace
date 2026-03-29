@@ -19,6 +19,7 @@ export default function OralQuizSetup() {
   // Settings
   const [showQuestionBeforeSelection, setShowQuestionBeforeSelection] = useState(true);
   const [randomMethod, setRandomMethod] = useState('wheel');
+  const [selectionTarget, setSelectionTarget] = useState<'student' | 'group'>('student');
 
   useEffect(() => {
     if (!quizId) return;
@@ -54,6 +55,7 @@ export default function OralQuizSetup() {
         {
           showQuestionBeforeSelection,
           randomMethod,
+          selectionTarget,
           shuffleQuestions: false,
           shuffleAnswers: false,
           equalPoints: true,
@@ -97,7 +99,8 @@ export default function OralQuizSetup() {
     { id: 'balloon', name: 'Bắn bóng', icon: <Target size={20} /> },
     { id: 'race', name: 'Đua xe', icon: <Play size={20} /> },
     { id: 'scratch', name: 'Thẻ cào', icon: <Settings size={20} /> },
-    { id: 'duck', name: 'Bắn vịt', icon: <Shuffle size={20} /> }
+    { id: 'duck', name: 'Bắn vịt', icon: <Shuffle size={20} /> },
+    { id: 'random', name: 'Ngẫu nhiên', icon: <Shuffle size={20} /> }
   ];
 
   return (
@@ -141,6 +144,31 @@ export default function OralQuizSetup() {
 
             {/* Game Settings */}
             <section className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-500" />
+                  ĐỐI TƯỢNG CHỌN
+                </label>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setSelectionTarget('student')}
+                    className={`flex-1 py-3 text-sm font-bold rounded-md transition-colors ${
+                      selectionTarget === 'student' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Cá nhân
+                  </button>
+                  <button
+                    onClick={() => setSelectionTarget('group')}
+                    className={`flex-1 py-3 text-sm font-bold rounded-md transition-colors ${
+                      selectionTarget === 'group' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Nhóm
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">

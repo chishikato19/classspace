@@ -37,6 +37,7 @@ export default function RandomSelector() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   const [listSource, setListSource] = useState<ListSource>('manual');
+  const [selectionTarget, setSelectionTarget] = useState<'student' | 'group'>('student');
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
@@ -115,15 +116,24 @@ export default function RandomSelector() {
             classService.getStudentsByClass(selectedClassId),
             groupService.getGroupsByClass(selectedClassId)
           ]);
-          setStudents(fetchedStudents);
           setGroups(fetchedGroups);
+          
+          if (selectionTarget === 'group') {
+            setStudents(fetchedGroups.map(g => ({
+              id: g.id,
+              name: g.name,
+              classId: g.classId
+            })));
+          } else {
+            setStudents(fetchedStudents);
+          }
         } catch (error) {
           console.error("Error fetching students and groups:", error);
         }
       };
       fetchStudents();
     }
-  }, [manualInput, listSource, selectedClassId]);
+  }, [manualInput, listSource, selectedClassId, selectionTarget]);
 
   // Handle random method selection
   useEffect(() => {
@@ -132,10 +142,19 @@ export default function RandomSelector() {
     }
   }, [randomMethod]);
 
+  // Auto-change method after selection if 'random' is selected
+  useEffect(() => {
+    if (!currentSelectedStudent && isSelecting && randomMethod === 'random') {
+      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck', 'bingo', 'magiccard'];
+      const randomIndex = Math.floor(Math.random() * methods.length);
+      setActiveRandomMethod(methods[randomIndex]);
+    }
+  }, [currentSelectedStudent, isSelecting, randomMethod]);
+
   const handleStartSelection = () => {
     if (availableStudents.length === 0) {
       if (noDuplicate && students.length > 0) {
-        alert("Đã chọn hết tất cả học sinh trong phiên làm việc này!");
+        alert(`Đã chọn hết tất cả ${listSource === 'class' && selectionTarget === 'group' ? 'nhóm' : 'học sinh'} trong phiên làm việc này!`);
         return;
       }
       return;
@@ -205,17 +224,24 @@ export default function RandomSelector() {
   };
 
   const handleAwardPoints = async (studentId: string, points: number, awardToGroup: boolean = false) => {
-    const studentGroup = groups.find(g => g.studentIds.includes(studentId));
-    
-    if (awardToGroup && studentGroup) {
-      // Award points to the group and ALL members
-      await groupService.awardPoints(studentGroup.id, points, studentGroup.studentIds);
-    } else if (studentGroup) {
-      // Award points to the student AND the group
-      await groupService.awardIndividualAndGroupPoints(studentId, studentGroup.id, points);
+    if (selectionTarget === 'group') {
+      const group = groups.find(g => g.id === studentId);
+      if (group) {
+        await groupService.awardPoints(group.id, points, group.studentIds);
+      }
     } else {
-      // Just individual points
-      await classService.updateStudentPoints(studentId, points);
+      const studentGroup = groups.find(g => g.studentIds.includes(studentId));
+      
+      if (awardToGroup && studentGroup) {
+        // Award points to the group and ALL members
+        await groupService.awardPoints(studentGroup.id, points, studentGroup.studentIds);
+      } else if (studentGroup) {
+        // Award points to the student AND the group
+        await groupService.awardIndividualAndGroupPoints(studentId, studentGroup.id, points);
+      } else {
+        // Just individual points
+        await classService.updateStudentPoints(studentId, points);
+      }
     }
     
     setCurrentSelectedStudent(null);
@@ -251,7 +277,7 @@ export default function RandomSelector() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Users className="w-6 h-6 text-indigo-600" />
-            Chọn học sinh
+            Chọn ngẫu nhiên
           </h1>
           <div className="flex items-center gap-2">
             <button
@@ -318,15 +344,39 @@ export default function RandomSelector() {
                   {isLoadingClasses ? (
                     <p className="text-sm text-gray-500">Đang tải danh sách lớp...</p>
                   ) : classes.length > 0 ? (
-                    <select
-                      value={selectedClassId}
-                      onChange={(e) => setSelectedClassId(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    >
-                      {classes.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+                    <div className="space-y-4">
+                      <select
+                        value={selectedClassId}
+                        onChange={(e) => setSelectedClassId(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      >
+                        {classes.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      
+                      <div>
+                        <p className="text-sm text-gray-500 mb-2">Đối tượng chọn:</p>
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                          <button
+                            onClick={() => setSelectionTarget('student')}
+                            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                              selectionTarget === 'student' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            Cá nhân
+                          </button>
+                          <button
+                            onClick={() => setSelectionTarget('group')}
+                            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                              selectionTarget === 'group' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            Nhóm
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-sm text-red-500">Chưa có lớp học nào trên hệ thống.</p>
                   )}
@@ -334,7 +384,7 @@ export default function RandomSelector() {
               )}
               
               <div className="mt-4 text-sm text-gray-500 text-right">
-                Tổng cộng: <span className="font-bold text-indigo-600">{students.length}</span> học sinh
+                Tổng cộng: <span className="font-bold text-indigo-600">{students.length}</span> {listSource === 'class' && selectionTarget === 'group' ? 'nhóm' : 'học sinh'}
                 {noDuplicate && (
                   <span className="block text-xs text-gray-400 mt-1">
                     (Còn lại: {availableStudents.length})
@@ -510,7 +560,7 @@ export default function RandomSelector() {
                 <div className="text-center space-y-2">
                   <h2 className="text-3xl font-bold text-gray-900">Sẵn sàng chọn ngẫu nhiên?</h2>
                   <p className="text-gray-500">
-                    Danh sách hiện tại có <span className="font-bold text-indigo-600">{availableStudents.length}</span> học sinh.
+                    Danh sách hiện tại có <span className="font-bold text-indigo-600">{availableStudents.length}</span> {listSource === 'class' && selectionTarget === 'group' ? 'nhóm' : 'học sinh'}.
                   </p>
                   {noDuplicate && (
                     <p className="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full inline-block">
@@ -537,7 +587,7 @@ export default function RandomSelector() {
                 {availableStudents.length === 0 && (
                   <p className="text-red-500 text-sm animate-bounce">
                     {noDuplicate && students.length > 0 
-                      ? "Đã chọn hết học sinh! Vui lòng làm mới hoặc tắt chế độ không trùng lặp."
+                      ? `Đã chọn hết ${listSource === 'class' && selectionTarget === 'group' ? 'nhóm' : 'học sinh'}! Vui lòng làm mới hoặc tắt chế độ không trùng lặp.`
                       : "Vui lòng nhập danh sách hoặc chọn lớp học để bắt đầu!"}
                   </p>
                 )}
@@ -626,6 +676,7 @@ export default function RandomSelector() {
         <StudentActionModal 
           student={currentSelectedStudent}
           groupName={groups.find(g => g.studentIds.includes(currentSelectedStudent.id))?.name}
+          isGroup={selectionTarget === 'group'}
           onClose={() => handleSkip()}
           onAwardPoints={(points, toGroup) => handleAwardPoints(currentSelectedStudent.id, points, toGroup)}
           onAddToQueue={handleAddToQueue}

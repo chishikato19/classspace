@@ -290,12 +290,6 @@ export default function QuizDashboard() {
                       >
                         <Swords size={16} /> Đấu trường tốc độ
                       </button>
-                      <button 
-                        onClick={() => navigate(`/game/face-control/${quiz.id}`)}
-                        className="flex-1 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 flex items-center justify-center gap-2"
-                      >
-                        <Camera size={16} /> Ghế Nóng (Khuôn Mặt)
-                      </button>
                     </div>
                     <div className="flex items-center gap-2">
                       <button 

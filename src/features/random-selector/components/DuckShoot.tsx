@@ -97,7 +97,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
         
         const startX = direction === 1 
           ? (indexInRow * DUCK_SPACING) - 300 
-          : width + (indexInRow * DUCK_SPACING) + 300;
+          : width + 300 - (indexInRow * DUCK_SPACING);
 
         return {
           uniqueId: `duck-${index}`,
@@ -230,6 +230,26 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
                   spotlightRef.current.classList.add('hidden');
                   crosshairRef.current.classList.add('hidden');
                 }
+                
+                // Reset the shot duck so it respawns
+                targetDuck.isShot = false;
+                if (targetDuck.direction === 1) {
+                  const rowDucks = ducksRef.current.filter(d => d.row === targetDuck.row && d.uniqueId !== targetDuck.uniqueId && !d.isShot);
+                  const minX = rowDucks.length > 0 ? Math.min(...rowDucks.map(d => d.x)) : (containerRef.current?.clientWidth || 1000);
+                  targetDuck.x = minX - 260; // DUCK_SPACING
+                } else {
+                  const rowDucks = ducksRef.current.filter(d => d.row === targetDuck.row && d.uniqueId !== targetDuck.uniqueId && !d.isShot);
+                  const maxX = rowDucks.length > 0 ? Math.max(...rowDucks.map(d => d.x)) : 0;
+                  targetDuck.x = maxX + 260; // DUCK_SPACING
+                }
+                
+                if (targetDuck.ref.current) {
+                  targetDuck.ref.current.style.transition = 'none';
+                  targetDuck.ref.current.style.opacity = '1';
+                  targetDuck.ref.current.style.transform = `translate3d(${targetDuck.x}px, ${targetDuck.y}px, 0)`;
+                  // Force reflow
+                  void targetDuck.ref.current.offsetHeight;
+                }
               }, 1000); // Wait 1s before showing modal
             }
           }
@@ -300,7 +320,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
         const clampedX = Math.max(40, Math.min(width - 40, shootState.currentX));
         const clampedY = Math.max(40, Math.min(containerRef.current.clientHeight - 40, shootState.currentY));
 
-        spotlightRef.current.style.background = `radial-gradient(circle at ${clampedX}px ${clampedY}px, transparent 150px, rgba(0,0,0,0.95) 300px)`;
+        spotlightRef.current.style.background = `radial-gradient(circle at ${clampedX}px ${clampedY}px, transparent 250px, rgba(0,0,0,0.95) 450px)`;
         crosshairRef.current.style.transform = `translate3d(${clampedX - 32}px, ${clampedY - 32}px, 0)`;
       }
     }
@@ -354,7 +374,7 @@ export default function DuckShoot({ students, onSelect, selectableIds, hideSelec
     if (spotlightRef.current && crosshairRef.current) {
       spotlightRef.current.classList.remove('hidden');
       crosshairRef.current.classList.remove('hidden');
-      spotlightRef.current.style.background = `radial-gradient(circle at ${width/2}px ${height/2}px, transparent 150px, rgba(0,0,0,0.95) 300px)`;
+      spotlightRef.current.style.background = `radial-gradient(circle at ${width/2}px ${height/2}px, transparent 250px, rgba(0,0,0,0.95) 450px)`;
       crosshairRef.current.style.transform = `translate3d(${width/2 - 32}px, ${height/2 - 32}px, 0)`;
     }
   };

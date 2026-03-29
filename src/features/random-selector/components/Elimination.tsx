@@ -90,7 +90,7 @@ export default function Elimination({ students, onSelect, selectableIds, hideSel
   };
 
   if (students.length === 0) {
-    return <div className="text-center p-8 text-gray-500">Chưa có học sinh nào để loại trừ.</div>;
+    return <div className="text-center p-8 text-gray-500">Chưa có danh sách để loại trừ.</div>;
   }
 
   return (

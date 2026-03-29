@@ -38,6 +38,7 @@ export default function OralQuizDashboard() {
   const [awardToGroup, setAwardToGroup] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   
+  const [activeRandomMethod, setActiveRandomMethod] = useState<string>('wheel');
   const [isSelecting, setIsSelecting] = useState(false);
   const [lastSelectedName, setLastSelectedName] = useState('');
 
@@ -92,12 +93,26 @@ export default function OralQuizDashboard() {
     return () => unsubscribe();
   }, [sessionId]);
 
+  useEffect(() => {
+    if (session?.settings?.randomMethod === 'random') {
+      if (gameState === 'selecting') {
+        const methods = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck'];
+        const randomIndex = Math.floor(Math.random() * methods.length);
+        setActiveRandomMethod(methods[randomIndex]);
+      }
+    } else if (session?.settings?.randomMethod) {
+      setActiveRandomMethod(session.settings.randomMethod);
+    }
+  }, [gameState, session?.settings?.randomMethod]);
+
   if (!session || !quiz) return <div className="flex h-screen items-center justify-center text-white bg-gray-900">Đang tải...</div>;
+
 
   const currentQuestion = quiz.questions[session.currentQuestionIndex];
   const players = session.players || [];
 
-  // Map players to StudentData for random selectors
+  // Map players or groups to StudentData for random selectors
+  const isGroupSelection = session.settings?.selectionTarget === 'group';
   const studentDataList = players.map(p => ({
     id: p.id,
     name: p.name,
@@ -120,14 +135,25 @@ export default function OralQuizDashboard() {
 
     const points = 1000;
     
-    // Handle group points if selected
-    if (isCorrect && awardToGroup) {
-      const playerGroup = groups.find(g => g.studentIds.includes(selectedPlayer.id));
-      if (playerGroup) {
-        await groupService.awardIndividualAndGroupPoints(selectedPlayer.id, playerGroup.id, points);
+    if (isGroupSelection) {
+      // Award points to the group in the class
+      if (isCorrect) {
+        const group = groups.find(g => g.id === selectedPlayer.id);
+        if (group) {
+          await groupService.awardPoints(group.id, points, group.studentIds);
+        }
+      }
+    } else {
+      // Handle group points if selected (for individual selection)
+      if (isCorrect && awardToGroup) {
+        const playerGroup = groups.find(g => g.studentIds.includes(selectedPlayer.id));
+        if (playerGroup) {
+          await groupService.awardIndividualAndGroupPoints(selectedPlayer.id, playerGroup.id, points);
+        }
       }
     }
 
+    // Always submit oral answer to update session score
     await gameService.submitOralAnswer(
       sessionId,
       selectedPlayer.id,
@@ -175,7 +201,7 @@ export default function OralQuizDashboard() {
   };
 
   const renderRandomSelector = () => {
-    const method = session.settings?.randomMethod || 'wheel';
+    const method = activeRandomMethod;
     const props = {
       students: studentDataList,
       onSelect: handleStudentSelected,
@@ -319,7 +345,7 @@ export default function OralQuizDashboard() {
                       <Eye className="w-16 h-16 text-indigo-400" />
                     </div>
                     <h3 className="text-3xl font-black">Đang xem trước câu hỏi</h3>
-                    <p className="text-gray-400 font-medium max-w-md mx-auto">Giáo viên có thể thảo luận câu hỏi với cả lớp trước khi chọn học sinh trả lời.</p>
+                    <p className="text-gray-400 font-medium max-w-md mx-auto">Giáo viên có thể thảo luận câu hỏi với cả lớp trước khi chọn {isGroupSelection ? 'nhóm' : 'học sinh'} trả lời.</p>
                     <button
                       onClick={() => {
                         setGameState('selecting');
@@ -374,22 +400,24 @@ export default function OralQuizDashboard() {
 
                     <div className="flex flex-col gap-6 w-full max-w-md">
                       <p className="text-center text-gray-300 font-medium">
-                        Giáo viên hãy chọn đáp án mà học sinh đã chọn ở phần câu hỏi bên trên.
+                        Giáo viên hãy chọn đáp án mà {isGroupSelection ? 'nhóm' : 'học sinh'} đã chọn ở phần câu hỏi bên trên.
                       </p>
 
                       {/* Group Points Option */}
-                      <div className="bg-gray-700/50 p-4 rounded-xl border border-gray-600 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Users className="text-indigo-400" size={20} />
-                          <span className="font-bold text-sm">Cộng điểm cho cả nhóm</span>
+                      {!isGroupSelection && (
+                        <div className="bg-gray-700/50 p-4 rounded-xl border border-gray-600 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Users className="text-indigo-400" size={20} />
+                            <span className="font-bold text-sm">Cộng điểm cho cả nhóm</span>
+                          </div>
+                          <button 
+                            onClick={() => setAwardToGroup(!awardToGroup)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${awardToGroup ? 'bg-indigo-600' : 'bg-gray-500'}`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${awardToGroup ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
                         </div>
-                        <button 
-                          onClick={() => setAwardToGroup(!awardToGroup)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${awardToGroup ? 'bg-indigo-600' : 'bg-gray-500'}`}
-                        >
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${awardToGroup ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                      </div>
+                      )}
                     </div>
                     
                     <button 
@@ -399,7 +427,7 @@ export default function OralQuizDashboard() {
                       }}
                       className="mt-8 text-gray-400 hover:text-white font-bold underline underline-offset-4 transition-colors"
                     >
-                      Chọn lại học sinh khác
+                      Chọn lại {isGroupSelection ? 'nhóm' : 'học sinh'} khác
                     </button>
                   </motion.div>
                 )}
@@ -459,7 +487,7 @@ export default function OralQuizDashboard() {
               
               {players.length === 0 && (
                 <div className="text-center py-12 text-gray-500 font-medium italic">
-                  Chưa có học sinh tham gia
+                  Chưa có {isGroupSelection ? 'nhóm' : 'học sinh'} tham gia
                 </div>
               )}
             </div>

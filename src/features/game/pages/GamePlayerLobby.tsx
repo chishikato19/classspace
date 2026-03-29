@@ -105,7 +105,7 @@ export default function GamePlayerLobby() {
         {session?.mode === 'HOMEWORK' 
           ? 'Đây là bài tập về nhà. Bạn có thể bắt đầu bất cứ lúc nào.' 
           : session?.mode === 'ORAL_QUIZ'
-          ? 'Chế độ Vấn đáp trực tiếp. Hãy sẵn sàng khi giáo viên gọi tên!'
+          ? 'Chế độ Kiểm tra miệng. Hãy sẵn sàng khi giáo viên gọi tên!'
           : 'Hãy nhìn lên màn hình của giáo viên. Trò chơi sẽ bắt đầu sớm thôi.'}
       </p>
       

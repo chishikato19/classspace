@@ -42,29 +42,37 @@ export default function MagicCardFlip({ students, onSelect, selectableIds, hideS
   const handleShuffle = () => {
     if (displayStudents.length === 0) return;
     
-    // 1. Reset selected card to flip it back down
-    setSelectedCardId(null);
-    // 2. Gather cards to center
-    setPhase('gathering');
-    soundService.play('tick');
-
     // Determine winner now
     const availableStudents = displayStudents.filter(s => selectableIds.includes(s.id));
     const targetList = availableStudents.length > 0 ? availableStudents : displayStudents;
     const selectedWinner = targetList[Math.floor(Math.random() * targetList.length)];
     setWinner(selectedWinner);
 
-    // 3. Start shuffling animation after gathering
-    setTimeout(() => {
-      setPhase('shuffling');
+    // 1. If a card is revealed, flip it back down and return to spread position
+    if (phase === 'revealed') {
+      setSelectedCardId(null);
+      setPhase('spread');
       soundService.play('tick');
-      
-      // 4. Spread cards after shuffling
+    }
+
+    // Wait for the card to flip back down before gathering
+    setTimeout(() => {
+      // 2. Gather cards to center
+      setPhase('gathering');
+      soundService.play('tick');
+
+      // 3. Start shuffling animation after gathering
       setTimeout(() => {
-        setPhase('spread');
-        soundService.play('item');
-      }, 1500);
-    }, 400);
+        setPhase('shuffling');
+        soundService.play('tick');
+        
+        // 4. Spread cards after shuffling
+        setTimeout(() => {
+          setPhase('spread');
+          soundService.play('item');
+        }, 1500);
+      }, 400);
+    }, phase === 'revealed' ? 600 : 0);
   };
 
   const handleCardClick = (cardId: string) => {
@@ -166,29 +174,35 @@ export default function MagicCardFlip({ students, onSelect, selectableIds, hideS
                 ? {
                     x: [
                       0, 
-                      index % 2 === 0 ? -90 : 90, 
-                      0, 
-                      index % 3 === 0 ? -90 : 90, 
+                      index < cards.length / 2 ? -120 : 120, 
+                      index % 2 === 0 ? -20 : 20, 
+                      index < cards.length / 2 ? 120 : -120, 
                       0
                     ],
                     y: [
                       0, 
-                      card.shuffleY[0], 
+                      index < cards.length / 2 ? 20 : -20, 
                       0, 
-                      card.shuffleY[1], 
+                      index < cards.length / 2 ? -20 : 20, 
                       0
                     ],
                     rotate: [
                       0, 
-                      index % 2 === 0 ? -15 : 15, 
+                      index < cards.length / 2 ? -15 : 15, 
                       0, 
-                      index % 3 === 0 ? -15 : 15, 
+                      index < cards.length / 2 ? 15 : -15, 
                       0
                     ],
                     scale: 1,
                     opacity: 1,
                     rotateY: 0,
-                    zIndex: index
+                    zIndex: [
+                      index,
+                      index,
+                      index % 2 === 0 ? index + 10 : index,
+                      index,
+                      index
+                    ]
                   }
                 : {
                     x: pos.x,

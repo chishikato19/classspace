@@ -6,6 +6,7 @@ import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 interface StudentActionModalProps {
   student: StudentData;
   groupName?: string;
+  isGroup?: boolean;
   onClose: () => void;
   onAwardPoints: (points: number, toGroup?: boolean) => void;
   onAddToQueue: () => void;
@@ -15,6 +16,7 @@ interface StudentActionModalProps {
 export default function StudentActionModal({ 
   student, 
   groupName,
+  isGroup,
   onClose, 
   onAwardPoints, 
   onAddToQueue, 
@@ -44,8 +46,8 @@ export default function StudentActionModal({
           </div>
           
           <h2 className="text-2xl font-bold text-white mb-1">{student.name}</h2>
-          <p className="text-indigo-200">Đã được chọn!</p>
-          {groupName && (
+          <p className="text-indigo-200">{isGroup ? 'Nhóm đã được chọn!' : 'Đã được chọn!'}</p>
+          {groupName && !isGroup && (
             <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-white/20 rounded-full text-xs text-white font-medium">
               <Users size={12} />
               {groupName}
@@ -54,7 +56,7 @@ export default function StudentActionModal({
         </div>
         
         <div className="p-6 space-y-4">
-          {groupName && (
+          {groupName && !isGroup && (
             <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
               <input
                 type="checkbox"

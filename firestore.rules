@@ -125,6 +125,14 @@ service cloud.firestore {
              data.events is list;
     }
 
+    function isValidShowcaseImage(data) {
+      return data.teacherId is string &&
+             data.imageUrl is string && data.imageUrl.size() < 1048576 && // 1MB limit roughly
+             data.status in ['gallery', 'projecting', 'comparing'] &&
+             (!('annotations' in data) || (data.annotations is string && data.annotations.size() < 1048576)) &&
+             data.createdAt is number;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -190,6 +198,13 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
+    }
+
+    match /showcase_images/{imageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidShowcaseImage(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidShowcaseImage(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
     }
 
     match /time_sync/{docId} {

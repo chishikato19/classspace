@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../features/auth/services/authService';
 import { useNoiseMonitor } from '../../contexts/NoiseMonitorContext';
 import { useTimer } from '../../contexts/TimerContext';
-import { Settings, Youtube, Shuffle, Mic, Timer, LogOut } from 'lucide-react';
+import { Settings, Youtube, Shuffle, Mic, Timer, LogOut, Camera } from 'lucide-react';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -74,6 +74,13 @@ export default function Layout() {
                 title="Video YouTube"
               >
                 <Youtube className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/showcase')}
+                className={`p-2 rounded-lg transition-colors ${location.pathname === '/teacher/showcase' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Trình chiếu bài làm"
+              >
+                <Camera className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => navigate('/teacher/settings')}
