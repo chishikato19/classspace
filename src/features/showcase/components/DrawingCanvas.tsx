@@ -38,6 +38,9 @@ export default function DrawingCanvas({
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
   const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const pendingStrokesRef = useRef<Stroke[]>([]);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Parse annotations safely
   const parsedStrokes: Stroke[] = React.useMemo(() => {
@@ -47,6 +50,19 @@ export default function DrawingCanvas({
       return [];
     }
   }, [annotations]);
+
+  const parsedStrokesRef = useRef<Stroke[]>(parsedStrokes);
+  useEffect(() => {
+    parsedStrokesRef.current = parsedStrokes;
+    
+    // If annotations are cleared externally, clear pending strokes and timeout
+    if (annotations === '[]' || annotations === '') {
+      pendingStrokesRef.current = [];
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    }
+  }, [parsedStrokes, annotations]);
 
   // Handle Resize and Redraw
   useEffect(() => {
@@ -75,7 +91,10 @@ export default function DrawingCanvas({
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    const allStrokes = currentStroke ? [...parsedStrokes, currentStroke] : parsedStrokes;
+    const allStrokes = [...parsedStrokes, ...pendingStrokesRef.current];
+    if (currentStroke) {
+      allStrokes.push(currentStroke);
+    }
 
     allStrokes.forEach((stroke) => {
       if (stroke.points.length === 0) return;
@@ -201,8 +220,17 @@ export default function DrawingCanvas({
     }
 
     if (currentStroke.points.length > 1 && onAddStroke) {
-      const newStrokes = [...parsedStrokes, currentStroke];
-      onAddStroke(JSON.stringify(newStrokes));
+      pendingStrokesRef.current.push(currentStroke);
+      
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      
+      saveTimeoutRef.current = setTimeout(() => {
+        const newStrokes = [...parsedStrokesRef.current, ...pendingStrokesRef.current];
+        onAddStroke(JSON.stringify(newStrokes));
+        pendingStrokesRef.current = [];
+      }, 1000);
     }
     setCurrentStroke(null);
   };
@@ -216,8 +244,17 @@ export default function DrawingCanvas({
         points: [{ x: textInput.x, y: textInput.y }],
         text: textInput.value,
       };
-      const newStrokes = [...parsedStrokes, newStroke];
-      onAddStroke(JSON.stringify(newStrokes));
+      pendingStrokesRef.current.push(newStroke);
+      
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      
+      saveTimeoutRef.current = setTimeout(() => {
+        const newStrokes = [...parsedStrokesRef.current, ...pendingStrokesRef.current];
+        onAddStroke(JSON.stringify(newStrokes));
+        pendingStrokesRef.current = [];
+      }, 1000);
     }
     setTextInput(null);
   };
