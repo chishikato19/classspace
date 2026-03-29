@@ -26,6 +26,39 @@ export default function ShowcaseDashboard() {
   const [projectorTool, setProjectorTool] = useState<ToolType | 'pointer'>('pointer');
   const [projectorColor, setProjectorColor] = useState('#ef4444');
   const [projectorZoom, setProjectorZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const lastPanPoint = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (projectorZoom <= 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [projectorZoom]);
+
+  const handlePanStart = (e: React.PointerEvent) => {
+    if (projectorZoom > 1 && projectorTool === 'pointer') {
+      setIsPanning(true);
+      lastPanPoint.current = { x: e.clientX, y: e.clientY };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+  };
+
+  const handlePanMove = (e: React.PointerEvent) => {
+    if (isPanning) {
+      const dx = e.clientX - lastPanPoint.current.x;
+      const dy = e.clientY - lastPanPoint.current.y;
+      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastPanPoint.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handlePanEnd = (e: React.PointerEvent) => {
+    if (isPanning) {
+      setIsPanning(false);
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -280,21 +313,29 @@ export default function ShowcaseDashboard() {
             <h3 className="text-lg font-semibold mb-4">Ảnh vừa chụp ({images.length})</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {images.map(img => (
-                <div key={img.id} className="relative group rounded-lg overflow-hidden border border-gray-200 aspect-video bg-gray-100">
-                  <img src={img.imageUrl} alt="Student work" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                <div key={img.id} className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex flex-col">
+                  <div className="aspect-video relative">
+                    <img src={img.imageUrl} alt="Student work" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => handleDelete(img.id)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-2 bg-white border-t flex flex-wrap gap-2 justify-center">
                     <button
                       onClick={() => setStatus(img.id, img.status === 'projecting' ? 'gallery' : 'projecting')}
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        img.status === 'projecting' ? 'bg-green-500 text-white' : 'bg-white text-gray-900'
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium flex-1 ${
+                        img.status === 'projecting' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
                       {img.status === 'projecting' ? 'Đang chiếu' : 'Chiếu ngay'}
                     </button>
                     <button
                       onClick={() => setStatus(img.id, img.status === 'comparing' ? 'gallery' : 'comparing')}
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        img.status === 'comparing' ? 'bg-blue-500 text-white' : 'bg-white text-gray-900'
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium flex-1 ${
+                        img.status === 'comparing' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
                       {img.status === 'comparing' ? 'Đang so sánh' : 'So sánh'}
@@ -302,17 +343,11 @@ export default function ShowcaseDashboard() {
                     {(img.status === 'projecting' || img.status === 'comparing') && (
                       <button
                         onClick={() => setActiveDrawingImage(img)}
-                        className="px-3 py-1 rounded-full text-sm font-medium bg-purple-500 text-white flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-purple-500 text-white flex items-center justify-center gap-1 w-full mt-1"
                       >
-                        <PenTool className="w-4 h-4" /> Vẽ
+                        <PenTool className="w-3.5 h-3.5" /> Chỉnh sửa / Vẽ
                       </button>
                     )}
-                    <button
-                      onClick={() => handleDelete(img.id)}
-                      className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               ))}
@@ -407,12 +442,19 @@ export default function ShowcaseDashboard() {
           <div 
             ref={projectorRef}
             className={`bg-black rounded-xl shadow-lg overflow-hidden flex items-center justify-center relative ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'min-h-[500px]'}`}
+            onPointerDown={handlePanStart}
+            onPointerMove={handlePanMove}
+            onPointerUp={handlePanEnd}
+            onPointerLeave={handlePanEnd}
           >
             {projectingImages.length > 0 ? (
               <div className="w-full h-full flex items-center justify-center p-4 relative group overflow-hidden">
                 <div 
                   className="relative transition-transform duration-200 ease-out"
-                  style={{ transform: `scale(${projectorZoom})` }}
+                  style={{ 
+                    transform: `scale(${projectorZoom}) translate(${panOffset.x / projectorZoom}px, ${panOffset.y / projectorZoom}px)`,
+                    cursor: projectorZoom > 1 && projectorTool === 'pointer' ? (isPanning ? 'grabbing' : 'grab') : 'default'
+                  }}
                 >
                   <img 
                     src={projectingImages[0].imageUrl} 
