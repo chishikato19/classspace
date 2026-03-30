@@ -14,6 +14,13 @@ export default function ResourceRepository() {
   
   const currentFolderId = breadcrumbs[breadcrumbs.length - 1].id;
 
+  useEffect(() => {
+    if (driveService.getAccessToken()) {
+      setIsConnected(true);
+      loadFiles('root');
+    }
+  }, []);
+
   const handleConnect = async () => {
     setIsLoading(true);
     setError(null);
