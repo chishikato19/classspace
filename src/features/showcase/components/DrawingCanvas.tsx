@@ -39,6 +39,7 @@ export default function DrawingCanvas({
   const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
+  const activePointers = useRef(new Set<number>());
   const pendingStrokesRef = useRef<Stroke[]>([]);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -171,7 +172,16 @@ export default function DrawingCanvas({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (readOnly) return;
+    activePointers.current.add(e.pointerId);
+    
+    if (readOnly || activePointers.current.size > 1) {
+      if (isDrawing) {
+        setIsDrawing(false);
+        setCurrentStroke(null);
+      }
+      return;
+    }
+    
     if (textInput) {
       handleTextSubmit();
       return;
@@ -195,7 +205,7 @@ export default function DrawingCanvas({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDrawing || readOnly || !currentStroke) return;
+    if (!isDrawing || readOnly || !currentStroke || activePointers.current.size > 1) return;
     e.preventDefault();
     const point = getRelativeCoordinates(e);
     if (!point) return;
@@ -210,6 +220,8 @@ export default function DrawingCanvas({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    activePointers.current.delete(e.pointerId);
+    
     if (!isDrawing || readOnly || !currentStroke) return;
     e.preventDefault();
     setIsDrawing(false);
@@ -260,7 +272,7 @@ export default function DrawingCanvas({
   };
 
   return (
-    <div ref={containerRef} className="absolute inset-0 w-full h-full touch-none">
+    <div ref={containerRef} className={`absolute inset-0 w-full h-full ${readOnly ? 'touch-auto' : 'touch-none'}`}>
       <canvas
         ref={canvasRef}
         className={`w-full h-full ${readOnly ? '' : tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}

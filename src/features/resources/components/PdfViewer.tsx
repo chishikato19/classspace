@@ -17,7 +17,6 @@ interface PdfViewerProps {
 
 export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,11 +28,11 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
   const [penColor, setPenColor] = useState('#ef4444');
   const [annotations, setAnnotations] = useState<Record<number, string>>({}); // pageNumber -> annotations string
   
-  // Panning state
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const lastPanPoint = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fixed render scale for PDF pages (e.g., 1.5 for sharpness)
+  const RENDER_SCALE = 1.5;
 
   // Fetch PDF data with auth token
   useEffect(() => {
@@ -89,64 +88,10 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
     setIsLoading(false);
   };
 
-  // Navigation
-  const changePage = (offset: number) => {
-    setPageNumber(prevPageNumber => {
-      const newPage = prevPageNumber + offset;
-      return Math.min(Math.max(1, newPage), numPages);
-    });
-    // Reset pan when changing pages
-    setPanOffset({ x: 0, y: 0 });
-  };
-
-  // Panning handlers
-  const handlePanStart = (e: React.PointerEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('input')) return;
-
-    if (scale > 1 && activeTool === 'pointer') {
-      e.preventDefault();
-      setIsPanning(true);
-      lastPanPoint.current = { x: e.clientX, y: e.clientY };
-      e.currentTarget.setPointerCapture(e.pointerId);
-    }
-  };
-
-  const handlePanMove = (e: React.PointerEvent) => {
-    if (isPanning) {
-      e.preventDefault();
-      const dx = e.clientX - lastPanPoint.current.x;
-      const dy = e.clientY - lastPanPoint.current.y;
-      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastPanPoint.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const handlePanEnd = (e: React.PointerEvent) => {
-    if (isPanning) {
-      setIsPanning(false);
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  };
-
-  // Reset pan when zooming out completely
-  useEffect(() => {
-    if (scale <= 1) {
-      setPanOffset({ x: 0, y: 0 });
-    }
-  }, [scale]);
-
-  const handleAddStroke = (newAnnotations: string) => {
+  const handleAddStroke = (pageNumber: number, newAnnotations: string) => {
     setAnnotations(prev => ({
       ...prev,
       [pageNumber]: newAnnotations
-    }));
-  };
-
-  const clearAnnotations = () => {
-    setAnnotations(prev => ({
-      ...prev,
-      [pageNumber]: '[]'
     }));
   };
 
@@ -178,29 +123,6 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
       <div className="flex-1 relative overflow-hidden bg-gray-800 flex flex-col">
         {/* Toolbar */}
         <div className="bg-gray-900 border-b border-gray-800 p-2 flex flex-wrap items-center justify-center gap-2 shrink-0 z-10">
-          {/* Navigation */}
-          <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
-            <button
-              disabled={pageNumber <= 1}
-              onClick={() => changePage(-1)}
-              className="p-1.5 hover:bg-gray-700 rounded disabled:opacity-50 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 text-white" />
-            </button>
-            <span className="text-white text-sm font-medium min-w-[4rem] text-center">
-              {pageNumber} / {numPages || '-'}
-            </span>
-            <button
-              disabled={pageNumber >= numPages}
-              onClick={() => changePage(1)}
-              className="p-1.5 hover:bg-gray-700 rounded disabled:opacity-50 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-white" />
-            </button>
-          </div>
-
-          <div className="w-px h-6 bg-gray-700 mx-1 hidden sm:block" />
-
           {/* Zoom */}
           <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
             <button
@@ -286,9 +208,13 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
             <div className="w-px h-4 bg-gray-600 mx-1" />
 
             <button
-              onClick={clearAnnotations}
+              onClick={() => {
+                if (confirm('Xóa tất cả nét vẽ trên toàn bộ tài liệu?')) {
+                  setAnnotations({});
+                }
+              }}
               className="p-2 hover:bg-gray-700 rounded transition-colors text-red-400 hover:text-red-300"
-              title="Xóa nét vẽ trang này"
+              title="Xóa tất cả nét vẽ"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -297,11 +223,8 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
 
         {/* PDF Viewer Area */}
         <div 
-          className="flex-1 overflow-hidden relative flex items-center justify-center touch-none"
-          onPointerDown={handlePanStart}
-          onPointerMove={handlePanMove}
-          onPointerUp={handlePanEnd}
-          onPointerLeave={handlePanEnd}
+          ref={scrollContainerRef}
+          className="flex-1 overflow-auto bg-gray-800 p-4 flex flex-col items-center gap-4"
         >
           {isLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 z-20">
@@ -325,39 +248,47 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
           )}
 
           {pdfData && (
-            <div 
-              className="relative transition-transform duration-200 ease-out"
-              style={{ 
-                transform: `scale(${scale}) translate(${panOffset.x / scale}px, ${panOffset.y / scale}px)`,
-                cursor: scale > 1 && activeTool === 'pointer' ? (isPanning ? 'grabbing' : 'grab') : 'default'
-              }}
+            <Document
+              file={pdfData}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={null}
+              className="flex flex-col items-center gap-4"
             >
-              <Document
-                file={pdfData}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={null}
-                className="shadow-2xl bg-white"
-              >
-                <Page 
-                  pageNumber={pageNumber} 
-                  scale={1} // We handle scale via CSS transform for better performance with drawing
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                  className="relative"
+              {Array.from(new Array(numPages), (el, index) => (
+                <div 
+                  key={`page_${index + 1}`} 
+                  className="relative shadow-2xl bg-white overflow-hidden"
+                  style={{ 
+                    // Use CSS transform for smooth zooming without re-rendering
+                    transform: `scale(${scale / RENDER_SCALE})`,
+                    transformOrigin: 'top center',
+                    // Adjust margin to compensate for the scale transform
+                    marginBottom: `${(scale / RENDER_SCALE - 1) * 100}%`,
+                    // We need to set a fixed width/height based on the render scale
+                    // but react-pdf handles the canvas size. 
+                    // To make it simpler, we just scale the whole container.
+                  }}
                 >
+                  <Page 
+                    pageNumber={index + 1} 
+                    scale={RENDER_SCALE}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    className="relative"
+                  />
                   {/* Drawing Canvas Overlay */}
                   <div className="absolute inset-0 z-10">
                     <DrawingCanvas
-                      annotations={annotations[pageNumber] || '[]'}
-                      onAddStroke={handleAddStroke}
+                      annotations={annotations[index + 1] || '[]'}
+                      onAddStroke={(newAnnotations) => handleAddStroke(index + 1, newAnnotations)}
                       readOnly={activeTool === 'pointer'}
                       color={penColor}
                       tool={activeTool === 'pointer' ? 'pen' : activeTool}
                     />
                   </div>
-                </Page>
-              </Document>
-            </div>
+                </div>
+              ))}
+            </Document>
           )}
         </div>
       </div>
