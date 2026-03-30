@@ -41,12 +41,13 @@ class DriveService {
     return this.accessToken;
   }
 
-  async fetchFiles(pageToken?: string): Promise<{ files: DriveFile[], nextPageToken?: string }> {
+  async fetchFiles(folderId: string = 'root', pageToken?: string): Promise<{ files: DriveFile[], nextPageToken?: string }> {
     if (!this.accessToken) {
       throw new Error("Not authenticated with Google Drive");
     }
 
     const queryParts = [
+      "mimeType='application/vnd.google-apps.folder'",
       "mimeType='application/pdf'",
       "mimeType='application/vnd.google-apps.presentation'",
       "mimeType='application/vnd.openxmlformats-officedocument.presentationml.presentation'",
@@ -55,12 +56,12 @@ class DriveService {
       "mimeType='application/vnd.openxmlformats-officedocument.wordprocessingml.document'",
       "mimeType='application/msword'"
     ];
-    const q = `(${queryParts.join(' or ')}) and trashed=false`;
+    const q = `(${queryParts.join(' or ')}) and trashed=false and '${folderId}' in parents`;
     
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.append('q', q);
     url.searchParams.append('fields', 'nextPageToken, files(id, name, mimeType, webViewLink, iconLink, thumbnailLink)');
-    url.searchParams.append('orderBy', 'modifiedTime desc');
+    url.searchParams.append('orderBy', 'folder, modifiedTime desc');
     url.searchParams.append('pageSize', '50');
     if (pageToken) {
       url.searchParams.append('pageToken', pageToken);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { driveService, DriveFile } from '../services/driveService';
-import { Folder, FileText, Presentation, File, X, Maximize2, Loader2, LogIn, Search } from 'lucide-react';
+import { Folder, FileText, Presentation, File, X, Maximize2, Loader2, LogIn, Search, ChevronRight } from 'lucide-react';
 
 export default function ResourceRepository() {
   const [isConnected, setIsConnected] = useState(false);
@@ -10,6 +10,9 @@ export default function ResourceRepository() {
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [breadcrumbs, setBreadcrumbs] = useState<{id: string, name: string}[]>([{ id: 'root', name: 'Drive của tôi' }]);
+  
+  const currentFolderId = breadcrumbs[breadcrumbs.length - 1].id;
 
   const handleConnect = async () => {
     setIsLoading(true);
@@ -17,7 +20,7 @@ export default function ResourceRepository() {
     try {
       await driveService.authenticate();
       setIsConnected(true);
-      await loadFiles();
+      await loadFiles('root');
     } catch (err: any) {
       console.error('Failed to connect to Google Drive:', err);
       setError('Không thể kết nối với Google Drive. Vui lòng thử lại.');
@@ -26,11 +29,11 @@ export default function ResourceRepository() {
     }
   };
 
-  const loadFiles = async (pageToken?: string) => {
+  const loadFiles = async (folderId: string, pageToken?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await driveService.fetchFiles(pageToken);
+      const response = await driveService.fetchFiles(folderId, pageToken);
       if (pageToken) {
         setFiles(prev => [...prev, ...response.files]);
       } else {
@@ -76,11 +79,33 @@ export default function ResourceRepository() {
     }
   };
 
+  const navigateToFolder = (folder: {id: string, name: string}, index?: number) => {
+    if (index !== undefined) {
+      setBreadcrumbs(prev => prev.slice(0, index + 1));
+    } else {
+      setBreadcrumbs(prev => [...prev, folder]);
+    }
+    setFiles([]);
+    setNextPageToken(undefined);
+    loadFiles(folder.id);
+  };
+
+  const handleFileClick = (file: DriveFile) => {
+    if (file.mimeType === 'application/vnd.google-apps.folder') {
+      navigateToFolder({ id: file.id, name: file.name });
+    } else {
+      setSelectedFile(file);
+    }
+  };
+
   const filteredFiles = files.filter(file => 
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getFileIcon = (mimeType: string) => {
+    if (mimeType === 'application/vnd.google-apps.folder') {
+      return <Folder className="w-8 h-8 text-indigo-500 fill-indigo-100" />;
+    }
     if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
       return <Presentation className="w-8 h-8 text-orange-500" />;
     }
@@ -132,6 +157,21 @@ export default function ResourceRepository() {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-sm text-gray-600 mb-6 overflow-x-auto pb-2">
+            {breadcrumbs.map((crumb, index) => (
+              <React.Fragment key={crumb.id}>
+                <button
+                  onClick={() => navigateToFolder(crumb, index)}
+                  className="hover:text-indigo-600 hover:underline whitespace-nowrap font-medium"
+                >
+                  {crumb.name}
+                </button>
+                {index < breadcrumbs.length - 1 && <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+              </React.Fragment>
+            ))}
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -159,7 +199,7 @@ export default function ResourceRepository() {
             {filteredFiles.map(file => (
               <div
                 key={file.id}
-                onClick={() => setSelectedFile(file)}
+                onClick={() => handleFileClick(file)}
                 className="group border border-gray-200 rounded-xl p-4 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col items-center text-center"
               >
                 <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -180,7 +220,7 @@ export default function ResourceRepository() {
 
           {!isLoading && files.length === 0 && !error && (
             <div className="text-center py-12 text-gray-500">
-              Không tìm thấy tài liệu (Word, PDF, PowerPoint) nào trong Drive của bạn.
+              Thư mục này trống hoặc không có tài liệu (Word, PDF, PowerPoint) nào.
             </div>
           )}
 
@@ -193,7 +233,7 @@ export default function ResourceRepository() {
           {nextPageToken && !isLoading && (
             <div className="flex justify-center mt-8">
               <button
-                onClick={() => loadFiles(nextPageToken)}
+                onClick={() => loadFiles(currentFolderId, nextPageToken)}
                 className="px-4 py-2 text-indigo-600 font-medium hover:bg-indigo-50 rounded-lg transition-colors"
               >
                 Tải thêm
