@@ -139,6 +139,10 @@ export default function ResourceRepository() {
   };
 
   const isPdfOrWord = (mimeType: string) => {
+    // Exclude presentations even if they contain "document" in the MIME type (e.g. openxmlformats-officedocument)
+    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
+      return false;
+    }
     return mimeType === 'application/pdf' || 
            mimeType.includes('document') || 
            mimeType.includes('word');
