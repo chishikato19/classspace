@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { driveService, DriveFile } from '../services/driveService';
 import { Folder, FileText, Presentation, File, X, Maximize2, Loader2, LogIn, Search, ChevronRight } from 'lucide-react';
+import PdfViewer from '../components/PdfViewer';
 
 export default function ResourceRepository() {
   const [isConnected, setIsConnected] = useState(false);
@@ -129,6 +130,20 @@ export default function ResourceRepository() {
     return `https://drive.google.com/file/d/${fileId}/preview`;
   };
 
+  const getPdfExportUrl = (fileId: string, mimeType: string) => {
+    if (mimeType === 'application/pdf') {
+      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    }
+    // Export Word documents to PDF
+    return `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`;
+  };
+
+  const isPdfOrWord = (mimeType: string) => {
+    return mimeType === 'application/pdf' || 
+           mimeType.includes('document') || 
+           mimeType.includes('word');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -251,7 +266,7 @@ export default function ResourceRepository() {
       )}
 
       {/* File Viewer Modal */}
-      {selectedFile && (
+      {selectedFile && !isPdfOrWord(selectedFile.mimeType) && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
           <div className="flex justify-between items-center p-4 bg-gray-900 text-white">
             <h3 className="font-medium truncate max-w-2xl">{selectedFile.name}</h3>
@@ -290,6 +305,16 @@ export default function ResourceRepository() {
             />
           </div>
         </div>
+      )}
+
+      {/* PDF/Word Viewer with Annotation */}
+      {selectedFile && isPdfOrWord(selectedFile.mimeType) && driveService.getAccessToken() && (
+        <PdfViewer
+          fileUrl={getPdfExportUrl(selectedFile.id, selectedFile.mimeType)}
+          fileName={selectedFile.name}
+          onClose={() => setSelectedFile(null)}
+          accessToken={driveService.getAccessToken()!}
+        />
       )}
     </div>
   );
