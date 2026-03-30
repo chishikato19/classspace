@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../features/auth/services/authService';
 import { useNoiseMonitor } from '../../contexts/NoiseMonitorContext';
 import { useTimer } from '../../contexts/TimerContext';
-import { Settings, Youtube, Shuffle, Mic, Timer, LogOut, Camera } from 'lucide-react';
+import { Settings, Youtube, Shuffle, Mic, Timer, LogOut, Camera, FolderOpen } from 'lucide-react';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -81,6 +81,13 @@ export default function Layout() {
                 title="Trình chiếu bài làm"
               >
                 <Camera className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => navigate('/teacher/resources')}
+                className={`p-2 rounded-lg transition-colors ${location.pathname === '/teacher/resources' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Kho tài nguyên"
+              >
+                <FolderOpen className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => navigate('/teacher/settings')}

@@ -26,6 +26,8 @@ import RandomSelector from './features/random-selector/pages/RandomSelector';
 import VideoPlayer from './features/video-player/pages/VideoPlayer';
 import ShowcaseDashboard from './features/showcase/pages/ShowcaseDashboard';
 
+import ResourceRepository from './features/resources/pages/ResourceRepository';
+
 import ClassSessionDashboard from './features/teacher/pages/ClassSessionDashboard';
 
 import { StudentDashboardWrapper } from './features/shop/pages/StudentDashboard';
@@ -90,6 +92,7 @@ export default function App() {
               <Route path="/teacher/random-selector" element={<RandomSelector />} />
               <Route path="/teacher/video-player" element={<VideoPlayer />} />
               <Route path="/teacher/showcase" element={<ShowcaseDashboard />} />
+              <Route path="/teacher/resources" element={<ResourceRepository />} />
               <Route path="/teacher/settings" element={<Settings />} />
               <Route path="/teacher/quiz/new" element={<QuizEditor />} />
               <Route path="/teacher/quiz/edit/:quizId" element={<QuizEditor />} />

@@ -137,6 +137,19 @@
         "createdAt": { "type": "number", "description": "Timestamp of creation" }
       },
       "required": ["teacherId", "imageUrl", "status", "createdAt"]
+    },
+    "Resource": {
+      "title": "Resource",
+      "description": "A teaching resource link (Google Drive, YouTube, etc.)",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the resource" },
+        "url": { "type": "string", "description": "URL of the resource" },
+        "type": { "type": "string", "description": "Type of resource (document, presentation, video, link)" },
+        "teacherId": { "type": "string", "description": "UID of the teacher who added the resource" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["title", "url", "type", "teacherId", "createdAt"]
     }
   },
   "firestore": {
@@ -148,6 +161,7 @@
     "/groups": { "schema": "StudentGroup", "description": "Collection of student groups" },
     "/classSessions": { "schema": "ClassSession", "description": "Collection of class sessions" },
     "/shop_items": { "schema": "ShopItem", "description": "Collection of shop items" },
-    "/showcase_images": { "schema": "ShowcaseImage", "description": "Collection of showcase images" }
+    "/showcase_images": { "schema": "ShowcaseImage", "description": "Collection of showcase images" },
+    "/resources": { "schema": "Resource", "description": "Collection of teaching resources" }
   }
 }
