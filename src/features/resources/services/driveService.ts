@@ -1,7 +1,7 @@
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
 
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 
 export interface DriveFile {
   id: string;
@@ -10,6 +10,7 @@ export interface DriveFile {
   webViewLink: string;
   iconLink: string;
   thumbnailLink?: string;
+  size?: string;
 }
 
 class DriveService {
@@ -54,13 +55,14 @@ class DriveService {
       "mimeType='application/vnd.ms-powerpoint'",
       "mimeType='application/vnd.google-apps.document'",
       "mimeType='application/vnd.openxmlformats-officedocument.wordprocessingml.document'",
-      "mimeType='application/msword'"
+      "mimeType='application/msword'",
+      "mimeType contains 'image/'"
     ];
     const q = `(${queryParts.join(' or ')}) and trashed=false and '${folderId}' in parents`;
     
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.append('q', q);
-    url.searchParams.append('fields', 'nextPageToken, files(id, name, mimeType, webViewLink, iconLink, thumbnailLink)');
+    url.searchParams.append('fields', 'nextPageToken, files(id, name, mimeType, webViewLink, iconLink, thumbnailLink, size)');
     url.searchParams.append('orderBy', 'folder, modifiedTime desc');
     url.searchParams.append('pageSize', '50');
     if (pageToken) {
@@ -97,6 +99,48 @@ class DriveService {
     }
 
     return await response.json();
+  }
+
+  async makeFilePublic(fileId: string): Promise<string> {
+    if (!this.accessToken) throw new Error("Not authenticated");
+    
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        role: 'reader',
+        type: 'anyone'
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to make file public:', errorText);
+      throw new Error("Không thể thay đổi quyền truy cập file. Có thể tài khoản của bạn bị quản trị viên chặn chia sẻ công khai.");
+    }
+
+    const permission = await response.json();
+    return permission.id;
+  }
+
+  async makeFilePrivate(fileId: string, permissionId: string): Promise<void> {
+    if (!this.accessToken) return;
+    
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}/permissions/${permissionId}`;
+    try {
+      await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+    } catch (e) {
+      console.error('Failed to make file private:', e);
+    }
   }
 }
 

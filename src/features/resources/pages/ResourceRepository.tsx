@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { driveService, DriveFile } from '../services/driveService';
-import { Folder, FileText, Presentation, File, X, Maximize2, Loader2, LogIn, Search, ChevronRight } from 'lucide-react';
+import { Folder, FileText, Presentation, File, X, Maximize2, Loader2, LogIn, Search, ChevronRight, Image as ImageIcon, PenTool, AlertTriangle } from 'lucide-react';
 import PdfViewer from '../components/PdfViewer';
 
 export default function ResourceRepository() {
@@ -10,8 +10,15 @@ export default function ResourceRepository() {
   const [nextPageToken, setNextPageToken] = useState<string | undefined>();
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
+  const [actionPromptFile, setActionPromptFile] = useState<DriveFile | null>(null);
+  const [viewerMode, setViewerMode] = useState<'preview' | 'present' | 'draw' | 'ms-present' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [breadcrumbs, setBreadcrumbs] = useState<{id: string, name: string}[]>([{ id: 'root', name: 'Drive của tôi' }]);
+  
+  // PPTX specific states
+  const [showPptxWarning, setShowPptxWarning] = useState<DriveFile | null>(null);
+  const [isMakingPublic, setIsMakingPublic] = useState(false);
+  const [publicPermissionId, setPublicPermissionId] = useState<string | null>(null);
   
   const currentFolderId = breadcrumbs[breadcrumbs.length - 1].id;
 
@@ -102,19 +109,74 @@ export default function ResourceRepository() {
     if (file.mimeType === 'application/vnd.google-apps.folder') {
       navigateToFolder({ id: file.id, name: file.name });
     } else {
-      setSelectedFile(file);
+      setActionPromptFile(file);
     }
+  };
+
+  const openFile = (file: DriveFile, mode: 'preview' | 'present' | 'draw' | 'ms-present') => {
+    setSelectedFile(file);
+    setViewerMode(mode);
+    setActionPromptFile(null);
+  };
+
+  const handlePresentPptx = (file: DriveFile) => {
+    // Check file size (limit 25MB for Microsoft Viewer)
+    if (file.size && parseInt(file.size) > 25 * 1024 * 1024) {
+      setError(`File "${file.name}" có dung lượng quá lớn (${(parseInt(file.size) / 1024 / 1024).toFixed(1)}MB). Microsoft Viewer chỉ hỗ trợ file dưới 25MB.`);
+      setActionPromptFile(null);
+      return;
+    }
+    setShowPptxWarning(file);
+    setActionPromptFile(null);
+  };
+
+  const confirmPptxPresent = async () => {
+    if (!showPptxWarning) return;
+    setIsMakingPublic(true);
+    setError(null);
+    try {
+      const permId = await driveService.makeFilePublic(showPptxWarning.id);
+      setPublicPermissionId(permId);
+      
+      // Add artificial delay to ensure Google Drive propagates the permission
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      openFile(showPptxWarning, 'ms-present');
+    } catch (err: any) {
+      setError(err.message || "Lỗi khi mở quyền truy cập file.");
+    } finally {
+      setIsMakingPublic(false);
+      setShowPptxWarning(null);
+    }
+  };
+
+  const closeViewer = async () => {
+    if (selectedFile && publicPermissionId) {
+      // Make it private again
+      await driveService.makeFilePrivate(selectedFile.id, publicPermissionId);
+      setPublicPermissionId(null);
+    }
+    setSelectedFile(null);
+    setViewerMode(null);
   };
 
   const filteredFiles = files.filter(file => 
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const isPresentation = (mimeType: string) => {
+    return mimeType.includes('presentation') || mimeType.includes('powerpoint');
+  };
+
+  const isImage = (mimeType: string) => {
+    return mimeType.startsWith('image/');
+  };
+
   const getFileIcon = (mimeType: string) => {
     if (mimeType === 'application/vnd.google-apps.folder') {
       return <Folder className="w-8 h-8 text-indigo-500 fill-indigo-100" />;
     }
-    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
+    if (isPresentation(mimeType)) {
       return <Presentation className="w-8 h-8 text-orange-500" />;
     }
     if (mimeType.includes('pdf')) {
@@ -122,6 +184,9 @@ export default function ResourceRepository() {
     }
     if (mimeType.includes('document') || mimeType.includes('word')) {
       return <FileText className="w-8 h-8 text-blue-500" />;
+    }
+    if (isImage(mimeType)) {
+      return <ImageIcon className="w-8 h-8 text-green-500" />;
     }
     return <File className="w-8 h-8 text-gray-500" />;
   };
@@ -131,21 +196,19 @@ export default function ResourceRepository() {
   };
 
   const getPdfExportUrl = (fileId: string, mimeType: string) => {
-    if (mimeType === 'application/pdf') {
+    if (mimeType === 'application/pdf' || isImage(mimeType)) {
       return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
     }
     // Export Word documents to PDF
     return `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`;
   };
 
-  const isPdfOrWord = (mimeType: string) => {
-    // Exclude presentations even if they contain "document" in the MIME type (e.g. openxmlformats-officedocument)
-    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) {
-      return false;
-    }
+  const isPdfOrWordOrImage = (mimeType: string) => {
+    if (isPresentation(mimeType)) return false;
     return mimeType === 'application/pdf' || 
            mimeType.includes('document') || 
-           mimeType.includes('word');
+           mimeType.includes('word') ||
+           isImage(mimeType);
   };
 
   return (
@@ -269,56 +332,177 @@ export default function ResourceRepository() {
         </div>
       )}
 
-      {/* File Viewer Modal */}
-      {selectedFile && !isPdfOrWord(selectedFile.mimeType) && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-          <div className="flex justify-between items-center p-4 bg-gray-900 text-white">
-            <h3 className="font-medium truncate max-w-2xl">{selectedFile.name}</h3>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => {
-                  const el = document.getElementById('file-viewer-container');
-                  if (el) {
-                    if (document.fullscreenElement) {
-                      document.exitFullscreen();
-                    } else {
-                      el.requestFullscreen();
-                    }
-                  }
-                }}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                title="Toàn màn hình"
-              >
-                <Maximize2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setSelectedFile(null)}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                title="Đóng"
-              >
-                <X className="w-6 h-6" />
-              </button>
+      {/* Action Prompt Modal */}
+      {actionPromptFile && (
+        <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 truncate">Mở tài liệu: {actionPromptFile.name}</h3>
+            <div className="space-y-3">
+              {isPresentation(actionPromptFile.mimeType) ? (
+                <>
+                  <button onClick={() => openFile(actionPromptFile, 'preview')} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
+                    <div className="bg-blue-100 p-2 rounded-lg"><FileText className="w-6 h-6 text-blue-600" /></div>
+                    <div>
+                      <div className="font-medium text-gray-900">Chỉ xem</div>
+                      <div className="text-sm text-gray-500">Xem lướt qua toàn bộ các trang</div>
+                    </div>
+                  </button>
+                  {actionPromptFile.mimeType === 'application/vnd.google-apps.presentation' ? (
+                    <button onClick={() => openFile(actionPromptFile, 'present')} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
+                      <div className="bg-orange-100 p-2 rounded-lg"><Presentation className="w-6 h-6 text-orange-600" /></div>
+                      <div>
+                        <div className="font-medium text-gray-900">Trình chiếu</div>
+                        <div className="text-sm text-gray-500">Chiếu từng slide toàn màn hình</div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button onClick={() => handlePresentPptx(actionPromptFile)} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
+                      <div className="bg-orange-100 p-2 rounded-lg"><Presentation className="w-6 h-6 text-orange-600" /></div>
+                      <div>
+                        <div className="font-medium text-gray-900">Trình chiếu (Microsoft)</div>
+                        <div className="text-sm text-gray-500">Chiếu toàn màn hình qua Microsoft Viewer</div>
+                      </div>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button onClick={() => openFile(actionPromptFile, 'preview')} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
+                    <div className="bg-gray-100 p-2 rounded-lg"><File className="w-6 h-6 text-gray-600" /></div>
+                    <div>
+                      <div className="font-medium text-gray-900">Chỉ xem</div>
+                      <div className="text-sm text-gray-500">Mở nhanh để đọc nội dung</div>
+                    </div>
+                  </button>
+                  <button onClick={() => openFile(actionPromptFile, 'draw')} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
+                    <div className="bg-indigo-100 p-2 rounded-lg"><PenTool className="w-6 h-6 text-indigo-600" /></div>
+                    <div>
+                      <div className="font-medium text-gray-900">Vẽ / Ghi chú</div>
+                      <div className="text-sm text-gray-500">Mở bảng tương tác để vẽ lên tài liệu</div>
+                    </div>
+                  </button>
+                </>
+              )}
             </div>
-          </div>
-          <div id="file-viewer-container" className="flex-1 w-full bg-gray-100 relative">
-            <iframe
-              src={getEmbedUrl(selectedFile.id)}
-              className="w-full h-full border-0"
-              allow="autoplay; fullscreen"
-              title={selectedFile.name}
-            />
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setActionPromptFile(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Hủy</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* PDF/Word Viewer with Annotation */}
-      {selectedFile && isPdfOrWord(selectedFile.mimeType) && driveService.getAccessToken() && (
-        <PdfViewer
-          fileUrl={getPdfExportUrl(selectedFile.id, selectedFile.mimeType)}
-          fileName={selectedFile.name}
-          onClose={() => setSelectedFile(null)}
-          accessToken={driveService.getAccessToken()!}
-        />
+      {/* PPTX Warning Modal */}
+      {showPptxWarning && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 text-amber-600 mb-4">
+              <AlertTriangle className="w-8 h-8" />
+              <h3 className="text-lg font-bold text-gray-900">Cảnh báo bảo mật</h3>
+            </div>
+            
+            <div className="space-y-4 text-gray-600 mb-6">
+              <p>
+                Để trình chiếu file <strong>{showPptxWarning.name}</strong> bằng Microsoft Viewer, ứng dụng cần <strong>tạm thời mở quyền truy cập công khai</strong> cho file này trên Google Drive của bạn.
+              </p>
+              <ul className="list-disc pl-5 space-y-2 text-sm">
+                <li>Trong lúc trình chiếu, bất kỳ ai có link đều có thể xem file.</li>
+                <li>Quyền công khai sẽ được <strong>tự động thu hồi</strong> ngay khi bạn đóng màn hình trình chiếu.</li>
+                <li>Nếu bạn tắt trình duyệt đột ngột, file có thể bị kẹt ở trạng thái công khai.</li>
+              </ul>
+              <p className="text-sm font-medium text-gray-900">
+                Bạn có chắc chắn muốn tiếp tục?
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowPptxWarning(null)} 
+                disabled={isMakingPublic}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={confirmPptxPresent}
+                disabled={isMakingPublic}
+                className="px-4 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isMakingPublic ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  'Đồng ý trình chiếu'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Viewer Modal */}
+      {selectedFile && viewerMode && (
+        viewerMode === 'draw' && isPdfOrWordOrImage(selectedFile.mimeType) && driveService.getAccessToken() ? (
+          <PdfViewer
+            fileUrl={getPdfExportUrl(selectedFile.id, selectedFile.mimeType)}
+            fileName={selectedFile.name}
+            mimeType={selectedFile.mimeType}
+            onClose={() => { setSelectedFile(null); setViewerMode(null); }}
+            accessToken={driveService.getAccessToken()!}
+          />
+        ) : (
+          <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+            <div className="flex justify-between items-center p-4 bg-gray-900 text-white">
+              <h3 className="font-medium truncate max-w-2xl">{selectedFile.name}</h3>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('file-viewer-container');
+                    if (el) {
+                      if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                      } else {
+                        el.requestFullscreen();
+                      }
+                    }
+                  }}
+                  className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                  title="Toàn màn hình"
+                >
+                  <Maximize2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={closeViewer}
+                  className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                  title="Đóng"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div id="file-viewer-container" className="flex-1 w-full bg-gray-100 relative">
+              <iframe
+                src={
+                  viewerMode === 'ms-present' 
+                    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(`https://drive.google.com/uc?id=${selectedFile.id}&export=download`)}`
+                    : viewerMode === 'present' && selectedFile.mimeType === 'application/vnd.google-apps.presentation' 
+                      ? `https://docs.google.com/presentation/d/${selectedFile.id}/present` 
+                      : getEmbedUrl(selectedFile.id)
+                }
+                className="w-full h-full border-0"
+                allow="autoplay; fullscreen"
+                title={selectedFile.name}
+              />
+            </div>
+          </div>
+        )
       )}
     </div>
   );

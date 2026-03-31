@@ -11,11 +11,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface PdfViewerProps {
   fileUrl: string;
   fileName: string;
+  mimeType: string;
   onClose: () => void;
   accessToken: string;
 }
 
-export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: PdfViewerProps) {
+export default function PdfViewer({ fileUrl, fileName, mimeType, onClose, accessToken }: PdfViewerProps) {
+  const isImageFile = mimeType.startsWith('image/');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -47,21 +50,33 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
         }
         
         const blob = await response.blob();
-        setPdfData(blob);
+        if (isImageFile) {
+          const url = URL.createObjectURL(blob);
+          setImageUrl(url);
+          setNumPages(1);
+          setIsLoading(false);
+        } else {
+          setPdfData(blob);
+        }
       } catch (err: any) {
-        console.error('Error fetching PDF:', err);
-        setError(err.message || 'Không thể tải file PDF.');
-      } finally {
+        console.error('Error fetching file:', err);
+        setError(err.message || 'Không thể tải file.');
         setIsLoading(false);
       }
     };
 
     fetchPdf();
-  }, [fileUrl, accessToken]);
+  }, [fileUrl, accessToken, isImageFile]);
+
+  useEffect(() => {
+    return () => {
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+    };
+  }, [imageUrl]);
 
   // Handle fullscreen
   useEffect(() => {
@@ -247,7 +262,29 @@ export default function PdfViewer({ fileUrl, fileName, onClose, accessToken }: P
             </div>
           )}
 
-          {pdfData && (
+          {isImageFile && imageUrl && (
+            <div 
+              className="relative shadow-2xl bg-white overflow-hidden flex-shrink-0"
+              style={{ 
+                transform: `scale(${scale})`,
+                transformOrigin: 'top center',
+                marginBottom: `${(scale - 1) * 100}%`,
+              }}
+            >
+              <img src={imageUrl} alt={fileName} className="max-w-full h-auto block" draggable={false} />
+              <div className="absolute inset-0 z-10">
+                <DrawingCanvas
+                  annotations={annotations[1] || '[]'}
+                  onAddStroke={(newAnnotations) => handleAddStroke(1, newAnnotations)}
+                  readOnly={activeTool === 'pointer'}
+                  color={penColor}
+                  tool={activeTool === 'pointer' ? 'pen' : activeTool}
+                />
+              </div>
+            </div>
+          )}
+
+          {!isImageFile && pdfData && (
             <Document
               file={pdfData}
               onLoadSuccess={onDocumentLoadSuccess}
