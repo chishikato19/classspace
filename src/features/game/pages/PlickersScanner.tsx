@@ -192,15 +192,26 @@ export default function PlickersScanner() {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 1920 }, // Request higher resolution for better distance scanning
+            height: { ideal: 1080 },
           },
         });
       } catch (e) {
-        // Fallback to any available camera if environment camera fails
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
+        // Fallback to 720p if 1080p fails
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+          });
+        } catch (e2) {
+          // Fallback to any available camera
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+          });
+        }
       }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -289,7 +300,7 @@ export default function PlickersScanner() {
           workerRef.current?.postMessage({
             imageData,
             options: {
-              tryHarder: false,
+              tryHarder: true, // Enable tryHarder for better distance scanning
               formats: ["QRCode"],
               maxNumberOfSymbols: 60,
             },

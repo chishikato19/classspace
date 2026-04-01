@@ -166,8 +166,8 @@ export default function GameHostDashboard() {
       return (
         <div className="space-y-8 animate-in fade-in zoom-in duration-500">
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Left Side: Question Display (3/5) */}
-            <div className="lg:w-3/5 bg-white text-gray-900 p-8 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
+            {/* Left Side: Question Display (4/5) */}
+            <div className="lg:w-4/5 bg-white text-gray-900 p-8 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col">
               <div className="absolute top-0 left-0 w-full h-2 bg-gray-100">
                 <div 
                   className="h-full bg-indigo-600 transition-all duration-1000 ease-linear"
@@ -185,12 +185,12 @@ export default function GameHostDashboard() {
                 </div>
               </div>
 
-              <h2 className="text-4xl font-black mb-8 leading-tight flex flex-col items-center text-center">
+              <h2 className="text-5xl lg:text-6xl font-black mb-8 leading-tight flex flex-col items-center text-center">
                 {currentQuestion.imageUrl && (
                   <img 
                     src={currentQuestion.imageUrl} 
                     alt="Question" 
-                    className="max-h-96 object-contain rounded-xl mb-6 border-4 border-gray-200 shadow-lg"
+                    className="max-h-[400px] object-contain rounded-xl mb-6 border-4 border-gray-200 shadow-lg"
                     referrerPolicy="no-referrer"
                     onError={(e) => (e.currentTarget.style.display = 'none')}
                   />
@@ -204,7 +204,7 @@ export default function GameHostDashboard() {
                       <p className="text-gray-500 font-bold mb-4 uppercase tracking-wide text-sm">Đáp án chấp nhận</p>
                       <div className="flex flex-wrap gap-3 justify-center">
                          {currentQuestion.options.map(opt => (
-                            <span key={opt.id} className="bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-xl border-2 border-green-200 shadow-sm">
+                            <span key={opt.id} className="bg-green-100 text-green-800 px-6 py-3 rounded-full font-bold text-3xl border-2 border-green-200 shadow-sm">
                                <MathText text={opt.text} />
                             </span>
                          ))}
@@ -214,7 +214,7 @@ export default function GameHostDashboard() {
                   currentQuestion.options.map((opt, idx) => (
                     <div 
                       key={opt.id}
-                      className={`p-6 rounded-2xl border-4 text-left font-bold text-xl flex flex-col gap-4 ${
+                      className={`p-6 rounded-2xl border-4 text-left font-bold text-3xl flex flex-col gap-4 ${
                         idx === 0 ? 'bg-red-50 border-red-200 text-red-700' :
                         idx === 1 ? 'bg-blue-50 border-blue-200 text-blue-700' :
                         idx === 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
@@ -222,7 +222,7 @@ export default function GameHostDashboard() {
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 ${
+                        <div className={`w-12 h-12 text-2xl rounded-lg flex items-center justify-center text-white shrink-0 ${
                           idx === 0 ? 'bg-red-500' :
                           idx === 1 ? 'bg-blue-500' :
                           idx === 2 ? 'bg-yellow-500' :
@@ -236,7 +236,7 @@ export default function GameHostDashboard() {
                         <img 
                           src={opt.imageUrl} 
                           alt="Option" 
-                          className="w-full h-48 object-cover rounded-lg border border-gray-300 bg-white"
+                          className="w-full h-64 object-cover rounded-lg border border-gray-300 bg-white"
                           referrerPolicy="no-referrer"
                           onError={(e) => (e.currentTarget.style.display = 'none')}
                         />
@@ -247,19 +247,19 @@ export default function GameHostDashboard() {
               </div>
             </div>
 
-            {/* Right Side: Tracking Board (2/5) */}
-            <div className="lg:w-2/5 bg-gray-800 rounded-3xl shadow-2xl p-6 flex flex-col border border-gray-700">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-400" />
-                  Bảng theo dõi
+            {/* Right Side: Tracking Board (1/5) */}
+            <div className="lg:w-1/5 bg-gray-800 rounded-3xl shadow-2xl p-4 flex flex-col border border-gray-700">
+              <div className="flex flex-col mb-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-indigo-400" />
+                  Theo dõi
                 </h3>
-                <div className="bg-gray-900 px-3 py-1 rounded-full text-sm font-bold text-indigo-400 border border-gray-700">
+                <div className="bg-gray-900 px-2 py-1 rounded-full text-xs font-bold text-indigo-400 border border-gray-700 w-fit">
                   Đã nhận: {answeredCount}/{totalPlayers}
                 </div>
               </div>
               
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto max-h-[600px] pr-2 custom-scrollbar">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2 overflow-y-auto max-h-[600px] pr-1 custom-scrollbar">
                 {session.players?.map((p, idx) => {
                   const hasAnswered = !!p.answers?.[currentQuestion.id];
                   // Extract last name
@@ -269,14 +269,14 @@ export default function GameHostDashboard() {
                   return (
                     <div 
                       key={p.id}
-                      className={`relative p-3 rounded-xl border-2 flex flex-col items-center justify-center text-center transition-all duration-300 ${
+                      className={`relative p-2 rounded-lg border-2 flex flex-col items-center justify-center text-center transition-all duration-300 ${
                         hasAnswered 
-                          ? 'bg-green-500 border-green-400 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)] transform scale-105 z-10' 
+                          ? 'bg-green-500 border-green-400 text-white shadow-[0_0_10px_rgba(34,197,94,0.5)] transform scale-105 z-10' 
                           : 'bg-gray-700 border-gray-600 text-gray-400'
                       }`}
                     >
-                      <span className="text-xs font-bold opacity-70 mb-1">[{p.cardNumber || idx + 1}]</span>
-                      <span className="font-bold text-sm truncate w-full">{lastName}</span>
+                      <span className="text-[10px] font-bold opacity-70 leading-none mb-1">[{p.cardNumber || idx + 1}]</span>
+                      <span className="font-bold text-xs truncate w-full">{lastName}</span>
                     </div>
                   );
                 })}
