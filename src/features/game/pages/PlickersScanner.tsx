@@ -61,6 +61,7 @@ export default function PlickersScanner() {
   const lastResultsRef = useRef<Map<string, Answer>>(new Map());
   const processingRef = useRef(false);
   const isWorkerBusyRef = useRef(false);
+  const hasFetchedStudentsRef = useRef(false);
   const processBarcodesRef = useRef<((barcodes: ReadResult[]) => Promise<void>) | null>(null);
 
   useEffect(() => {
@@ -73,7 +74,8 @@ export default function PlickersScanner() {
           const quizData = await quizService.getQuizById(data.quizId);
           setQuiz(quizData);
         }
-        if (data.selectedClassId && students.length === 0) {
+        if (data.selectedClassId && !hasFetchedStudentsRef.current) {
+          hasFetchedStudentsRef.current = true;
           const classStudents = await adminService.getStudentsByClass(
             data.selectedClassId,
           );
@@ -87,7 +89,7 @@ export default function PlickersScanner() {
       },
     );
     return () => unsubscribe();
-  }, [sessionId, quiz, students.length, navigate]);
+  }, [sessionId, quiz, navigate]);
 
   const processBarcodes = useCallback(
     async (barcodes: ReadResult[]) => {
@@ -111,10 +113,12 @@ export default function PlickersScanner() {
             const optionId = currentQuestion.options[optionIndex]?.id;
 
             if (optionId) {
-              // Find student name by card number (order)
-              const student = students.find(
-                (s) => s.order === parseInt(cardNumber),
-              );
+              // Find student name by card number (1-indexed based on sorted array)
+              const studentIndex = parseInt(cardNumber) - 1;
+              const student = studentIndex >= 0 && studentIndex < students.length 
+                ? students[studentIndex] 
+                : undefined;
+                
               const playerName = student
                 ? student.name
                 : `Học sinh ${cardNumber}`;

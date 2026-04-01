@@ -4,6 +4,8 @@ import { ClassGroup, Student } from '../../../types';
 import { DEFAULT_AVATAR_STYLE } from '../../../utils/avatarUtils';
 
 // Lazy initialization to prevent crash on module load if db is null
+import { sortVietnameseNames } from '../../../utils/stringUtils';
+
 const getClassesRef = () => collection(db, 'classes');
 const getStudentsRef = () => collection(db, 'students');
 
@@ -92,11 +94,16 @@ export const adminService = {
     const snapshot = await getDocs(q);
     const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
     return students.sort((a, b) => {
+      // If both have order, sort by order
       if (a.order !== undefined && b.order !== undefined) {
         return a.order - b.order;
       }
-      // Fallback: sort by name if no order
-      return a.name.localeCompare(b.name);
+      // If only one has order, the one with order comes first
+      if (a.order !== undefined) return -1;
+      if (b.order !== undefined) return 1;
+      
+      // If neither has order, sort by name
+      return sortVietnameseNames(a.name, b.name);
     });
   },
 

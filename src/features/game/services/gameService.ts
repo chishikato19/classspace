@@ -24,6 +24,7 @@ import {
 } from "../../../types";
 import { timeService } from "../../../services/timeService";
 import { quizService } from "../../quiz/services/quizService";
+import { adminService } from "../../admin/services/adminService";
 
 // Helper function to remove undefined values recursively
 const removeUndefined = (obj: any): any => {
@@ -90,15 +91,12 @@ export const gameService = {
           };
         });
       } else {
-        const studentsRef = collection(db, "students");
-        const q = query(studentsRef, where("classId", "==", nameInputConfig.classId));
-        const studentsSnap = await getDocs(q);
-        initialPlayers = studentsSnap.docs.map((doc) => {
-          const data = doc.data();
+        const students = await adminService.getStudentsByClass(nameInputConfig.classId);
+        initialPlayers = students.map((student, index) => {
           const player: any = {
-            id: doc.id,
-            name: data.name,
-            studentIds: [doc.id],
+            id: student.id,
+            name: student.name,
+            studentIds: [student.id],
             score: 0,
             streak: 0,
             progress: 0,
@@ -106,12 +104,11 @@ export const gameService = {
             answers: {},
           };
           
-          if (data.order !== undefined && data.order !== null) {
-            player.cardNumber = data.order.toString();
-          }
+          // Assign 1-based cardNumber based on sorted index
+          player.cardNumber = (index + 1).toString();
           
-          if (data.avatarConfig) {
-            player.avatarConfig = data.avatarConfig;
+          if (student.avatarConfig) {
+            player.avatarConfig = student.avatarConfig;
           }
           
           return player;
