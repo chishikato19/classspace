@@ -289,7 +289,7 @@ export default function GameHostDashboard() {
             <div className="flex items-center gap-6">
               {session.mode === 'PLICKERS' && (
                 <button
-                  onClick={() => window.open(`#/game/scanner/${session.id}`, '_blank')}
+                  onClick={() => navigate(`/game/scanner/${session.id}`)}
                   className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors border border-gray-600"
                 >
                   Mở máy quét (Plickers)

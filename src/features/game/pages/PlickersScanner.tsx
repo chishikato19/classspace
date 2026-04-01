@@ -79,10 +79,15 @@ export default function PlickersScanner() {
           );
           setStudents(classStudents);
         }
+        
+        // Navigate back to dashboard if question ended
+        if (data.status !== "QUESTION") {
+          navigate(`/game/dashboard/${sessionId}`);
+        }
       },
     );
     return () => unsubscribe();
-  }, [sessionId, quiz, students.length]);
+  }, [sessionId, quiz, students.length, navigate]);
 
   const processBarcodes = useCallback(
     async (barcodes: ReadResult[]) => {
@@ -90,6 +95,7 @@ export default function PlickersScanner() {
 
       const currentQuestion = quiz.questions[session.currentQuestionIndex];
       const newResults = new Map<string, ScannedStudent>();
+      const answersToSubmit: any[] = [];
 
       for (const barcode of barcodes) {
         if (!barcode.isValid || !barcode.text) continue;
@@ -127,28 +133,35 @@ export default function PlickersScanner() {
                 ],
               });
 
-              // Submit answer to Firebase only if it changed
-              if (lastResultsRef.current.get(cardNumber) !== answer) {
+              // Submit answer to Firebase only if it changed and we are not currently processing a batch
+              if (!processingRef.current && lastResultsRef.current.get(cardNumber) !== answer) {
                 lastResultsRef.current.set(cardNumber, answer);
-
-                if (!processingRef.current) {
-                  processingRef.current = true;
-                  await gameService.submitScannerAnswer(
-                    session.id,
-                    playerId,
-                    playerName,
-                    cardNumber,
-                    currentQuestion.id,
-                    optionId,
-                    currentQuestion,
-                  );
-                  processingRef.current = false;
-                }
+                answersToSubmit.push({
+                  playerId,
+                  playerName,
+                  cardNumber,
+                  questionId: currentQuestion.id,
+                  optionId,
+                  question: currentQuestion,
+                });
               }
             }
           }
         } catch (e) {
           // Ignore JSON parse errors for non-plicker QR codes
+        }
+      }
+
+      if (answersToSubmit.length > 0 && !processingRef.current) {
+        processingRef.current = true;
+        try {
+          await gameService.submitScannerAnswersBatch(session.id, answersToSubmit);
+        } catch (error) {
+          console.error("Error submitting batch answers:", error);
+          // Revert last results so they can be retried
+          answersToSubmit.forEach(ans => lastResultsRef.current.delete(ans.cardNumber));
+        } finally {
+          processingRef.current = false;
         }
       }
 
@@ -170,23 +183,32 @@ export default function PlickersScanner() {
         throw new Error("Trình duyệt của bạn không hỗ trợ truy cập camera hoặc bạn đang không sử dụng kết nối bảo mật (HTTPS).");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch (e) {
+        // Fallback to any available camera if environment camera fails
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         // Use a promise to handle play() and avoid "interrupted by new load request"
-        const playPromise = videoRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn("Video play was interrupted:", error);
-          });
+        try {
+          await videoRef.current.play();
+          setIsScanning(true);
+        } catch (error) {
+          console.warn("Video play was interrupted:", error);
+          setCameraError("Không thể phát video từ camera. Vui lòng thử lại.");
+          setIsScanning(false);
         }
-        setIsScanning(true);
       }
     } catch (err: any) {
       console.error("Camera Error:", err);

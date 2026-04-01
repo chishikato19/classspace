@@ -291,6 +291,86 @@ export const gameService = {
     });
   },
 
+  // Cập nhật nhiều câu trả lời từ máy quét Plickers cùng lúc
+  submitScannerAnswersBatch: async (
+    sessionId: string,
+    answers: {
+      playerId: string;
+      playerName: string;
+      cardNumber: string;
+      questionId: string;
+      optionId: string;
+      question: Question;
+    }[]
+  ): Promise<void> => {
+    if (answers.length === 0) return;
+
+    const sessionRef = doc(db, "sessions", sessionId);
+
+    await runTransaction(db, async (transaction) => {
+      const sessionDoc = await transaction.get(sessionRef);
+      if (!sessionDoc.exists()) throw new Error("Session not found");
+
+      const sessionData = sessionDoc.data() as GameSession;
+      let players = sessionData.players || [];
+      let hasChanges = false;
+
+      for (const ans of answers) {
+        let playerIndex = players.findIndex((p) => p.id === ans.playerId);
+
+        if (playerIndex === -1) {
+          const newPlayer: Player = {
+            id: ans.playerId,
+            name: ans.playerName,
+            studentIds: [ans.playerId],
+            progress: 0,
+            finished: false,
+            cardNumber: ans.cardNumber,
+            score: 0,
+            answers: {},
+            streak: 0,
+          };
+          players.push(newPlayer);
+          playerIndex = players.length - 1;
+          hasChanges = true;
+        }
+
+        const player = players[playerIndex];
+
+        if (!player.cardNumber) {
+          player.cardNumber = ans.cardNumber;
+          hasChanges = true;
+        }
+        if (!player.answers) {
+          player.answers = {};
+          hasChanges = true;
+        }
+
+        const isCorrect = ans.question.options.find((o) => o.id === ans.optionId)?.isCorrect || false;
+
+        const currentAnswer = player.answers[ans.questionId];
+        if (!currentAnswer || currentAnswer.optionId !== ans.optionId) {
+          player.answers[ans.questionId] = {
+            optionId: ans.optionId,
+            isCorrect,
+            timeTaken: 0,
+            pointsAwarded: isCorrect ? 1000 : 0,
+          };
+
+          player.score = Object.values(player.answers).reduce(
+            (total, a) => total + (a.pointsAwarded || 0),
+            0,
+          );
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        transaction.update(sessionRef, { players });
+      }
+    });
+  },
+
   // Cập nhật câu trả lời từ máy quét Plickers
   submitScannerAnswer: async (
     sessionId: string,
