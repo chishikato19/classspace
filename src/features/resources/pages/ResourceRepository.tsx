@@ -15,11 +15,6 @@ export default function ResourceRepository() {
   const [searchQuery, setSearchQuery] = useState('');
   const [breadcrumbs, setBreadcrumbs] = useState<{id: string, name: string}[]>([{ id: 'root', name: 'Drive của tôi' }]);
   
-  // PPTX specific states
-  const [showPptxWarning, setShowPptxWarning] = useState<DriveFile | null>(null);
-  const [isMakingPublic, setIsMakingPublic] = useState(false);
-  const [publicPermissionId, setPublicPermissionId] = useState<string | null>(null);
-  
   const currentFolderId = breadcrumbs[breadcrumbs.length - 1].id;
 
   useEffect(() => {
@@ -113,49 +108,13 @@ export default function ResourceRepository() {
     }
   };
 
-  const openFile = (file: DriveFile, mode: 'preview' | 'present' | 'draw' | 'ms-present') => {
+  const openFile = (file: DriveFile, mode: 'preview' | 'present' | 'draw') => {
     setSelectedFile(file);
     setViewerMode(mode);
     setActionPromptFile(null);
   };
 
-  const handlePresentPptx = (file: DriveFile) => {
-    // Check file size (limit 25MB for Microsoft Viewer)
-    if (file.size && parseInt(file.size) > 25 * 1024 * 1024) {
-      setError(`File "${file.name}" có dung lượng quá lớn (${(parseInt(file.size) / 1024 / 1024).toFixed(1)}MB). Microsoft Viewer chỉ hỗ trợ file dưới 25MB.`);
-      setActionPromptFile(null);
-      return;
-    }
-    setShowPptxWarning(file);
-    setActionPromptFile(null);
-  };
-
-  const confirmPptxPresent = async () => {
-    if (!showPptxWarning) return;
-    setIsMakingPublic(true);
-    setError(null);
-    try {
-      const permId = await driveService.makeFilePublic(showPptxWarning.id);
-      setPublicPermissionId(permId);
-      
-      // Add artificial delay to ensure Google Drive propagates the permission
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      openFile(showPptxWarning, 'ms-present');
-    } catch (err: any) {
-      setError(err.message || "Lỗi khi mở quyền truy cập file.");
-    } finally {
-      setIsMakingPublic(false);
-      setShowPptxWarning(null);
-    }
-  };
-
   const closeViewer = async () => {
-    if (selectedFile && publicPermissionId) {
-      // Make it private again
-      await driveService.makeFilePrivate(selectedFile.id, publicPermissionId);
-      setPublicPermissionId(null);
-    }
     setSelectedFile(null);
     setViewerMode(null);
   };
@@ -347,20 +306,12 @@ export default function ResourceRepository() {
                       <div className="text-sm text-gray-500">Xem lướt qua toàn bộ các trang</div>
                     </div>
                   </button>
-                  {actionPromptFile.mimeType === 'application/vnd.google-apps.presentation' ? (
+                  {isPresentation(actionPromptFile.mimeType) && (
                     <button onClick={() => openFile(actionPromptFile, 'present')} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
                       <div className="bg-orange-100 p-2 rounded-lg"><Presentation className="w-6 h-6 text-orange-600" /></div>
                       <div>
                         <div className="font-medium text-gray-900">Trình chiếu</div>
                         <div className="text-sm text-gray-500">Chiếu từng slide toàn màn hình</div>
-                      </div>
-                    </button>
-                  ) : (
-                    <button onClick={() => handlePresentPptx(actionPromptFile)} className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors text-left">
-                      <div className="bg-orange-100 p-2 rounded-lg"><Presentation className="w-6 h-6 text-orange-600" /></div>
-                      <div>
-                        <div className="font-medium text-gray-900">Trình chiếu (Microsoft)</div>
-                        <div className="text-sm text-gray-500">Chiếu toàn màn hình qua Microsoft Viewer</div>
                       </div>
                     </button>
                   )}
@@ -386,62 +337,6 @@ export default function ResourceRepository() {
             </div>
             <div className="mt-6 flex justify-end">
               <button onClick={() => setActionPromptFile(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Hủy</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PPTX Warning Modal */}
-      {showPptxWarning && (
-        <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center gap-3 text-amber-600 mb-4">
-              <AlertTriangle className="w-8 h-8" />
-              <h3 className="text-lg font-bold text-gray-900">Cảnh báo bảo mật</h3>
-            </div>
-            
-            <div className="space-y-4 text-gray-600 mb-6">
-              <p>
-                Để trình chiếu file <strong>{showPptxWarning.name}</strong> bằng Microsoft Viewer, ứng dụng cần <strong>tạm thời mở quyền truy cập công khai</strong> cho file này trên Google Drive của bạn.
-              </p>
-              <ul className="list-disc pl-5 space-y-2 text-sm">
-                <li>Trong lúc trình chiếu, bất kỳ ai có link đều có thể xem file.</li>
-                <li>Quyền công khai sẽ được <strong>tự động thu hồi</strong> ngay khi bạn đóng màn hình trình chiếu.</li>
-                <li>Nếu bạn tắt trình duyệt đột ngột, file có thể bị kẹt ở trạng thái công khai.</li>
-              </ul>
-              <p className="text-sm font-medium text-gray-900">
-                Bạn có chắc chắn muốn tiếp tục?
-              </p>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowPptxWarning(null)} 
-                disabled={isMakingPublic}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                Hủy bỏ
-              </button>
-              <button 
-                onClick={confirmPptxPresent}
-                disabled={isMakingPublic}
-                className="px-4 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {isMakingPublic ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang xử lý...
-                  </>
-                ) : (
-                  'Đồng ý trình chiếu'
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -490,11 +385,9 @@ export default function ResourceRepository() {
             <div id="file-viewer-container" className="flex-1 w-full bg-gray-100 relative">
               <iframe
                 src={
-                  viewerMode === 'ms-present' 
-                    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(`https://drive.google.com/uc?id=${selectedFile.id}&export=download`)}`
-                    : viewerMode === 'present' && selectedFile.mimeType === 'application/vnd.google-apps.presentation' 
-                      ? `https://docs.google.com/presentation/d/${selectedFile.id}/present` 
-                      : getEmbedUrl(selectedFile.id)
+                  viewerMode === 'present' && isPresentation(selectedFile.mimeType)
+                    ? `https://drive.google.com/file/d/${selectedFile.id}/preview?rm=minimal` 
+                    : getEmbedUrl(selectedFile.id)
                 }
                 className="w-full h-full border-0"
                 allow="autoplay; fullscreen"

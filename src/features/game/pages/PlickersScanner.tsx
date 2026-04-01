@@ -4,7 +4,7 @@ import { gameService } from "../services/gameService";
 import { GameSession, Quiz, Question, Student } from "../../../types";
 import { quizService } from "../../quiz/services/quizService";
 import { adminService } from "../../admin/services/adminService";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Camera } from "lucide-react";
 
 import type { ReadResult } from "zxing-wasm/reader";
 
@@ -60,6 +60,8 @@ export default function PlickersScanner() {
 
   const lastResultsRef = useRef<Map<string, Answer>>(new Map());
   const processingRef = useRef(false);
+  const isWorkerBusyRef = useRef(false);
+  const processBarcodesRef = useRef<((barcodes: ReadResult[]) => Promise<void>) | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -158,62 +160,69 @@ export default function PlickersScanner() {
   );
 
   useEffect(() => {
+    processBarcodesRef.current = processBarcodes;
+  }, [processBarcodes]);
+
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Trình duyệt của bạn không hỗ trợ truy cập camera hoặc bạn đang không sử dụng kết nối bảo mật (HTTPS).");
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        // Use a promise to handle play() and avoid "interrupted by new load request"
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.warn("Video play was interrupted:", error);
+          });
+        }
+        setIsScanning(true);
+      }
+    } catch (err: any) {
+      console.error("Camera Error:", err);
+      let errorMsg = "Không thể truy cập camera.";
+      
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+        errorMsg = "Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMsg = "Không tìm thấy camera trên thiết bị này.";
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || err.message?.includes('could not start')) {
+        errorMsg = "Camera đang bị ứng dụng khác sử dụng hoặc bị chặn bởi lớp phủ hệ thống.";
+      } else if (err.name === 'OverconstrainedError') {
+        errorMsg = "Yêu cầu cấu hình camera không được hỗ trợ bởi thiết bị này.";
+      }
+      
+      setCameraError(errorMsg);
+    }
+  };
+
+  useEffect(() => {
     // Initialize Web Worker
     workerRef.current = new Worker(
       new URL("../workers/zxingWorker.ts", import.meta.url),
       { type: "module" },
     );
 
-    let isWorkerBusy = false;
     workerRef.current.onmessage = (e) => {
-      isWorkerBusy = false;
+      isWorkerBusyRef.current = false;
       if (e.data.results) {
-        processBarcodes(e.data.results);
+        if (processBarcodesRef.current) {
+          processBarcodesRef.current(e.data.results);
+        }
       } else if (e.data.error) {
         console.error("ZXing Worker Error:", e.data.error);
       }
     };
-
-    const startCamera = async () => {
-      setCameraError(null);
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          // Use a promise to handle play() and avoid "interrupted by new load request"
-          const playPromise = videoRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(error => {
-              console.warn("Video play was interrupted:", error);
-            });
-          }
-          setIsScanning(true);
-        }
-      } catch (err: any) {
-        console.error("Camera Error:", err);
-        let errorMsg = "Không thể truy cập camera.";
-        
-        if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
-          errorMsg = "Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.";
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          errorMsg = "Không tìm thấy camera trên thiết bị này.";
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || err.message?.includes('could not start')) {
-          errorMsg = "Camera đang bị ứng dụng khác sử dụng hoặc bị chặn bởi lớp phủ hệ thống.";
-        } else if (err.name === 'OverconstrainedError') {
-          errorMsg = "Yêu cầu cấu hình camera không được hỗ trợ bởi thiết bị này.";
-        }
-        
-        setCameraError(errorMsg);
-      }
-    };
-
-    startCamera();
 
     return () => {
       if (videoRef.current?.srcObject) {
@@ -229,14 +238,13 @@ export default function PlickersScanner() {
     if (!isScanning) return;
 
     let animationFrameId: number;
-    let isWorkerBusy = false;
 
     const scanFrame = () => {
       if (
         videoRef.current &&
         canvasRef.current &&
         videoRef.current.readyState === 4 &&
-        !isWorkerBusy
+        !isWorkerBusyRef.current
       ) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -251,7 +259,7 @@ export default function PlickersScanner() {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-          isWorkerBusy = true;
+          isWorkerBusyRef.current = true;
           workerRef.current?.postMessage({
             imageData,
             options: {
@@ -270,7 +278,7 @@ export default function PlickersScanner() {
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [isScanning, processBarcodes]);
+  }, [isScanning]);
 
   // Overlay Drawing Effect
   useEffect(() => {
@@ -362,7 +370,7 @@ export default function PlickersScanner() {
 
         <div className="mt-6 flex gap-3">
           <button 
-            onClick={() => window.location.reload()}
+            onClick={startCamera}
             className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition"
           >
             Thử lại ngay
@@ -410,6 +418,18 @@ export default function PlickersScanner() {
       </div>
 
       {/* Camera View */}
+      {!isScanning && !cameraError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
+          <button
+            onClick={startCamera}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-full font-black text-xl shadow-2xl transform transition hover:scale-105 flex items-center gap-3"
+          >
+            <Camera className="w-8 h-8" />
+            BẮT ĐẦU QUÉT
+          </button>
+        </div>
+      )}
+
       <video
         ref={videoRef}
         autoPlay
