@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useWhiteboard } from '../state/WhiteboardContext';
-import { MousePointer2, Pen, Eraser, Square, Scissors, Type, Image as ImageIcon, Trash2, FileText, Loader2, Palette, Layout, Grid, Minus } from 'lucide-react';
+import { MousePointer2, Hand, Pen, Eraser, Square, Scissors, Type, Image as ImageIcon, Trash2, FileText, Loader2, Palette, Layout, Grid, Minus, Maximize, ZoomIn, ZoomOut } from 'lucide-react';
 import { ToolType, ImageObject, BackgroundColor, BackgroundPattern } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { convertPdfToImages } from '../utils/pdfUtils';
@@ -14,7 +14,8 @@ export default function Toolbar() {
   const [showBgPicker, setShowBgPicker] = useState(false);
 
   const tools: { id: ToolType; icon: React.ReactNode; label: string }[] = [
-    { id: 'select', icon: <MousePointer2 className="w-5 h-5" />, label: 'Chọn' },
+    { id: 'select', icon: <MousePointer2 className="w-5 h-5" />, label: 'Chọn vùng' },
+    { id: 'pan', icon: <Hand className="w-5 h-5" />, label: 'Di chuyển' },
     { id: 'pen', icon: <Pen className="w-5 h-5" />, label: 'Bút vẽ' },
     { id: 'eraser', icon: <Eraser className="w-5 h-5" />, label: 'Tẩy' },
     { id: 'shape', icon: <Square className="w-5 h-5" />, label: 'Hình học' },
@@ -103,8 +104,18 @@ export default function Toolbar() {
     }
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   return (
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20">
+    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20 max-h-[90vh] overflow-y-auto hide-scrollbar">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 flex flex-col gap-2">
         {tools.map((tool) => (
           <button
@@ -209,6 +220,27 @@ export default function Toolbar() {
 
         <div className="h-px bg-gray-200 my-1" />
         
+        {/* Zoom Controls */}
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => dispatch({ type: 'SET_ZOOM', payload: Math.min(10, state.zoom * 1.2) })}
+            className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-all"
+            title="Phóng to"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <span className="text-[10px] font-medium text-gray-500">{Math.round(state.zoom * 100)}%</span>
+          <button
+            onClick={() => dispatch({ type: 'SET_ZOOM', payload: Math.max(0.1, state.zoom / 1.2) })}
+            className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-all"
+            title="Thu nhỏ"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="h-px bg-gray-200 my-1" />
+
         <input
           type="file"
           accept="image/*"
@@ -240,13 +272,23 @@ export default function Toolbar() {
           {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
         </button>
 
+        <div className="h-px bg-gray-200 my-1" />
+
+        <button
+          onClick={toggleFullscreen}
+          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all"
+          title="Toàn màn hình"
+        >
+          <Maximize className="w-5 h-5" />
+        </button>
+
         <button
           onClick={() => {
             if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ bảng?')) {
               dispatch({ type: 'CLEAR_BOARD' });
             }
           }}
-          className="p-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all mt-2"
+          className="p-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all"
           title="Xóa toàn bộ bảng"
         >
           <Trash2 className="w-5 h-5" />

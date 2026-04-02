@@ -1,4 +1,4 @@
-export type ToolType = 'select' | 'pen' | 'eraser' | 'shape' | 'split' | 'text';
+export type ToolType = 'select' | 'pan' | 'pen' | 'eraser' | 'shape' | 'split' | 'text';
 
 export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow';
 
@@ -52,7 +52,16 @@ export interface ImageObject extends BaseObject {
   };
 }
 
-export type WhiteboardObject = PenObject | ShapeObject | ImageObject;
+export interface TextObject extends BaseObject {
+  type: 'text';
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fill: string;
+  width?: number;
+}
+
+export type WhiteboardObject = PenObject | ShapeObject | ImageObject | TextObject;
 
 export interface WhiteboardState {
   objects: WhiteboardObject[];

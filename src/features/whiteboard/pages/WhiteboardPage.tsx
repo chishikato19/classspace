@@ -2,7 +2,6 @@ import React from 'react';
 import { WhiteboardProvider } from '../state/WhiteboardContext';
 import WhiteboardCanvas from '../core/WhiteboardCanvas';
 import Toolbar from '../ui/Toolbar';
-import PropertiesPanel from '../ui/PropertiesPanel';
 
 export default function WhiteboardPage() {
   return (
@@ -28,7 +27,6 @@ export default function WhiteboardPage() {
         <div className="w-full h-full pt-14 relative">
           <WhiteboardCanvas />
           <Toolbar />
-          <PropertiesPanel />
         </div>
       </div>
     </WhiteboardProvider>

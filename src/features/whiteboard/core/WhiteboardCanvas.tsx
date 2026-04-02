@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Stage, Layer, Line, Rect, Circle, Image as KonvaImage, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Line, Rect, Circle, Image as KonvaImage, Text, Transformer, Group } from 'react-konva';
 import { useWhiteboard } from '../state/WhiteboardContext';
-import { PenObject, WhiteboardObject, Point, ImageObject } from '../types';
+import { PenObject, WhiteboardObject, Point, ImageObject, TextObject } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Helper component to load and render images
@@ -127,6 +127,25 @@ export default function WhiteboardCanvas() {
         dispatch({ type: 'SET_SELECTED_IDS', payload: [] });
         setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
       }
+    } else if (state.activeTool === 'text') {
+      if (e.target === e.target.getStage()) {
+        const text = prompt('Nhập nội dung văn bản:');
+        if (text) {
+          const newText: TextObject = {
+            id: uuidv4(),
+            type: 'text',
+            x: pos.x,
+            y: pos.y,
+            text: text,
+            fontSize: 24,
+            fontFamily: 'Arial',
+            fill: state.strokeColor,
+          };
+          dispatch({ type: 'ADD_OBJECT', payload: newText });
+          dispatch({ type: 'SET_TOOL', payload: 'select' });
+          dispatch({ type: 'SET_SELECTED_IDS', payload: [newText.id] });
+        }
+      }
     } else if (state.activeTool === 'split') {
       // Find the image under the cursor
       const clickedImage = state.objects.find(obj => 
@@ -224,6 +243,18 @@ export default function WhiteboardCanvas() {
             img.y >= box.y &&
             img.x + img.width <= box.x + box.width &&
             img.y + img.height <= box.y + box.height
+          );
+        }
+        if (obj.type === 'text') {
+          const txt = obj as TextObject;
+          // Approximate text bounds
+          const textWidth = txt.width || 100;
+          const textHeight = txt.fontSize;
+          return (
+            txt.x >= box.x &&
+            txt.y >= box.y &&
+            txt.x + textWidth <= box.x + box.width &&
+            txt.y + textHeight <= box.y + box.height
           );
         }
         // For lines, just check if the first point is inside
@@ -347,7 +378,15 @@ export default function WhiteboardCanvas() {
         scaleY={state.zoom}
         x={state.pan.x}
         y={state.pan.y}
-        draggable={state.activeTool === 'select' && state.selectedIds.length === 0}
+        draggable={state.activeTool === 'pan'}
+        onDragEnd={(e) => {
+          if (e.target === stageRef.current) {
+            dispatch({
+              type: 'SET_PAN',
+              payload: { x: e.target.x(), y: e.target.y() }
+            });
+          }
+        }}
       >
         <Layer>
           {renderBackground()}
@@ -383,6 +422,72 @@ export default function WhiteboardCanvas() {
                     } else if (isEraserTool) {
                       dispatch({ type: 'REMOVE_OBJECT', payload: obj.id });
                     }
+                  }}
+                  onDragEnd={(e) => {
+                    const node = e.target;
+                    // For lines, dragging changes x/y offset, we need to apply it to points
+                    // Or just save x/y. Let's save x/y.
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: { id: obj.id, updates: { x: node.x(), y: node.y() } }
+                    });
+                  }}
+                />
+              );
+            }
+            if (obj.type === 'text') {
+              const txt = obj as TextObject;
+              return (
+                <Text
+                  key={txt.id}
+                  id={txt.id}
+                  x={txt.x}
+                  y={txt.y}
+                  text={txt.text}
+                  fontSize={txt.fontSize}
+                  fontFamily={txt.fontFamily}
+                  fill={txt.fill}
+                  width={txt.width}
+                  rotation={txt.rotation || 0}
+                  scaleX={txt.scaleX || 1}
+                  scaleY={txt.scaleY || 1}
+                  draggable={isSelectTool && isSelected}
+                  listening={isSelectTool || isEraserTool}
+                  onClick={() => {
+                    if (isSelectTool) {
+                      dispatch({ type: 'SET_SELECTED_IDS', payload: [txt.id] });
+                    } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: txt.id });
+                    }
+                  }}
+                  onTap={() => {
+                    if (isSelectTool) {
+                      dispatch({ type: 'SET_SELECTED_IDS', payload: [txt.id] });
+                    } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: txt.id });
+                    }
+                  }}
+                  onDragEnd={(e) => {
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: { id: txt.id, updates: { x: e.target.x(), y: e.target.y() } }
+                    });
+                  }}
+                  onTransformEnd={(e) => {
+                    const node = e.target;
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: {
+                        id: txt.id,
+                        updates: {
+                          x: node.x(),
+                          y: node.y(),
+                          rotation: node.rotation(),
+                          scaleX: node.scaleX(),
+                          scaleY: node.scaleY(),
+                        }
+                      }
+                    });
                   }}
                 />
               );
@@ -423,7 +528,10 @@ export default function WhiteboardCanvas() {
 
           {/* Transformer for selection */}
           {state.selectedIds.length > 0 && (
-            <Transformer ref={transformerRef} />
+            <Transformer 
+              ref={transformerRef} 
+              nodes={state.selectedIds.map(id => stageRef.current?.findOne(`#${id}`)).filter(Boolean)}
+            />
           )}
 
           {/* Split Tool Indicator */}

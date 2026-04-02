@@ -1,7 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore - Vite specific import
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 // Set worker path
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export const convertPdfToImages = async (file: File): Promise<string[]> => {
   const arrayBuffer = await file.arrayBuffer();

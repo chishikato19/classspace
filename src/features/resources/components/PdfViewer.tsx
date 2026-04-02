@@ -5,8 +5,11 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import DrawingCanvas, { ToolType } from '../../showcase/components/DrawingCanvas';
 
+// @ts-ignore - Vite specific import
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
+
 // Set worker URL for react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface PdfViewerProps {
   fileUrl: string;
