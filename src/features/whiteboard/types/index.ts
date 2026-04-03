@@ -1,6 +1,6 @@
-export type ToolType = 'select' | 'pan' | 'pen' | 'eraser' | 'shape' | 'split' | 'text' | 'widget';
+export type ToolType = 'select' | 'pan' | 'pen' | 'eraser' | 'shape' | 'split' | 'text' | 'widget' | 'math';
 
-export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow';
+export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow' | 'point';
 
 export type BackgroundColor = 'white' | 'green' | 'black';
 export type BackgroundPattern = 'none' | 'grid' | 'lines';
@@ -61,6 +61,15 @@ export interface TextObject extends BaseObject {
   width?: number;
 }
 
+export interface MathObject extends BaseObject {
+  type: 'math';
+  latex: string;
+  fontSize: number;
+  fill: string;
+  width?: number;
+  height?: number;
+}
+
 export interface WidgetObject extends BaseObject {
   type: 'widget';
   widgetType: 'geogebra';
@@ -70,7 +79,7 @@ export interface WidgetObject extends BaseObject {
   isMinimized?: boolean;
 }
 
-export type WhiteboardObject = PenObject | ShapeObject | ImageObject | TextObject | WidgetObject;
+export type WhiteboardObject = PenObject | ShapeObject | ImageObject | TextObject | MathObject | WidgetObject;
 
 export interface WhiteboardState {
   objects: WhiteboardObject[];

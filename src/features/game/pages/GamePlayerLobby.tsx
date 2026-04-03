@@ -131,20 +131,28 @@ export default function GamePlayerLobby() {
         
         <div className="relative group">
           <div className="bg-white/10 rounded-full p-4 border-2 border-white/20">
-            <StudentAvatar 
-              name={playerName} 
-              avatarConfig={avatarConfig} 
-              size={120} 
-              className="border-4 border-yellow-400 shadow-lg"
-            />
+            {session?.settings?.allowAvatars !== false ? (
+              <StudentAvatar 
+                name={playerName} 
+                avatarConfig={avatarConfig} 
+                size={120} 
+                className="border-4 border-yellow-400 shadow-lg"
+              />
+            ) : (
+              <div className="w-[120px] h-[120px] rounded-full bg-indigo-500 flex items-center justify-center text-4xl font-bold border-4 border-yellow-400 shadow-lg">
+                {playerName.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
-          <button 
-            onClick={() => setShowEditor(true)}
-            className="absolute bottom-2 right-2 p-2 bg-white text-indigo-600 rounded-full shadow-lg hover:bg-gray-100 transition-colors"
-            title="Đổi Avatar"
-          >
-            <Edit2 size={20} />
-          </button>
+          {session?.settings?.allowAvatars !== false && (
+            <button 
+              onClick={() => setShowEditor(true)}
+              className="absolute bottom-2 right-2 p-2 bg-white text-indigo-600 rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+              title="Đổi Avatar"
+            >
+              <Edit2 size={20} />
+            </button>
+          )}
         </div>
 
         <p className="text-2xl font-bold text-yellow-400">

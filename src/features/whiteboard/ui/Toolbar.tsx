@@ -23,12 +23,14 @@ export default function Toolbar() {
     // Shape tool is handled separately
     { id: 'split', icon: <Scissors className="w-5 h-5" />, label: 'Cắt đề' },
     { id: 'text', icon: <Type className="w-5 h-5" />, label: 'Văn bản' },
+    { id: 'math', icon: <Calculator className="w-5 h-5" />, label: 'Công thức Toán' },
   ];
 
   const shapes: { id: ShapeType; icon: React.ReactNode; label: string }[] = [
     { id: 'rectangle', icon: <Square className="w-5 h-5" />, label: 'Hình chữ nhật' },
     { id: 'circle', icon: <Circle className="w-5 h-5" />, label: 'Hình tròn' },
     { id: 'line', icon: <Minus className="w-5 h-5" />, label: 'Đoạn thẳng' },
+    { id: 'point', icon: <div className="w-2 h-2 bg-current rounded-full" />, label: 'Điểm' },
   ];
 
   const colors = ['#000000', '#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#FFFFFF'];
@@ -53,7 +55,7 @@ export default function Toolbar() {
       state.selectedIds.forEach(id => {
         const obj = state.objects.find(o => o.id === id);
         if (obj) {
-          if (obj.type === 'text') {
+          if (obj.type === 'text' || obj.type === 'math') {
             dispatch({ type: 'UPDATE_OBJECT', payload: { id, updates: { fill: color } } });
           } else if (obj.type === 'pen' || obj.type === 'shape') {
             dispatch({ type: 'UPDATE_OBJECT', payload: { id, updates: { stroke: color } } });
@@ -229,7 +231,7 @@ export default function Toolbar() {
             className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${state.activeTool === 'shape' ? 'bg-indigo-100 text-indigo-600 shadow-inner' : 'text-gray-600 hover:bg-gray-100'}`}
             title="Hình học"
           >
-            {state.activeShapeType === 'rectangle' ? <Square className="w-5 h-5" /> : state.activeShapeType === 'circle' ? <Circle className="w-5 h-5" /> : <Minus className="w-5 h-5" />}
+            {state.activeShapeType === 'rectangle' ? <Square className="w-5 h-5" /> : state.activeShapeType === 'circle' ? <Circle className="w-5 h-5" /> : state.activeShapeType === 'point' ? <div className="w-2 h-2 bg-current rounded-full" /> : <Minus className="w-5 h-5" />}
           </button>
           
           {showShapePicker && (
@@ -293,10 +295,7 @@ export default function Toolbar() {
               {colors.map((color) => (
                 <button
                   key={color}
-                  onClick={() => {
-                    dispatch({ type: 'SET_STROKE_COLOR', payload: color });
-                    setShowColorPicker(false);
-                  }}
+                  onClick={() => handleColorChange(color)}
                   className={`w-8 h-8 rounded-full border-2 transition-transform ${
                     state.strokeColor === color ? 'border-gray-900 scale-110' : 'border-transparent hover:scale-105'
                   }`}

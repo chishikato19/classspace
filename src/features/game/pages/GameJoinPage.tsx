@@ -410,7 +410,7 @@ export default function GameJoinPage() {
             </div>
 
             {/* Avatar Selection */}
-            {!session?.isGroupPlay && (
+            {!session?.isGroupPlay && session?.settings?.allowAvatars !== false && (
               <div className="flex flex-col items-center justify-center space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <p className="text-sm font-medium text-gray-700">Ảnh đại diện của bạn</p>
                 <div className="relative group">

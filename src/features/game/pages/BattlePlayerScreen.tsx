@@ -259,7 +259,13 @@ export default function BattlePlayerScreen() {
                {isWinner ? 'CHIẾN THẮNG!' : 'KẾT THÚC TRẬN ĐẤU'}
              </h1>
              <div className="bg-gray-800 p-8 rounded-3xl border-4 border-yellow-500/50 flex flex-col items-center shadow-2xl mb-8">
-                <StudentAvatar student={{ name: player.name, avatarConfig: player.avatarConfig } as any} size={100} />
+                {session.settings?.allowAvatars !== false ? (
+                  <StudentAvatar student={{ name: player.name, avatarConfig: player.avatarConfig } as any} size={100} />
+                ) : (
+                  <div className="w-[100px] h-[100px] rounded-full bg-gray-700 flex items-center justify-center text-4xl font-bold text-gray-300">
+                    {player.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="text-3xl font-bold mt-4">{player.score} điểm</div>
                 <div className="text-green-400 font-bold mt-2">HP còn lại: {player.hp}</div>
              </div>
@@ -306,7 +312,13 @@ export default function BattlePlayerScreen() {
               onClick={() => handleAttack(target.id)}
               className="bg-gray-800 p-4 rounded-xl border-2 border-gray-700 hover:border-red-500 active:scale-95 transition-all flex flex-col items-center"
             >
-              <StudentAvatar student={{ name: target.name, avatarConfig: target.avatarConfig } as any} size={60} />
+              {session.settings?.allowAvatars !== false ? (
+                <StudentAvatar student={{ name: target.name, avatarConfig: target.avatarConfig } as any} size={60} />
+              ) : (
+                <div className="w-[60px] h-[60px] rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold text-gray-300">
+                  {target.name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <span className="font-bold mt-2 truncate w-full text-center">{target.name}</span>
               <div className="w-full bg-gray-700 h-2 rounded-full mt-2 overflow-hidden">
                 <div className="bg-red-500 h-full" style={{ width: `${((target.hp || 0) / (target.maxHp || 100)) * 100}%` }}></div>
@@ -329,7 +341,13 @@ export default function BattlePlayerScreen() {
       {/* Status Bar */}
       <div className="bg-gray-800 p-4 flex items-center justify-between shadow-lg z-10">
         <div className="flex items-center gap-3">
-          <StudentAvatar student={{ name: player.name, avatarConfig: player.avatarConfig } as any} size={40} />
+          {session.settings?.allowAvatars !== false ? (
+            <StudentAvatar student={{ name: player.name, avatarConfig: player.avatarConfig } as any} size={40} />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-300">
+              {player.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div>
             <div className="font-bold">{player.name}</div>
             <div className="w-32 bg-gray-700 h-3 rounded-full overflow-hidden relative">

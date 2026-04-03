@@ -349,12 +349,18 @@ export default function GameHostDashboard() {
         <div className="w-32 bg-gray-700 rounded-t-lg p-4 text-center h-2/3 flex flex-col justify-end relative items-center">
           <div className="absolute -top-10 left-0 right-0 text-center flex justify-center">
             <div className="relative">
-              <StudentAvatar 
-                name={sortedPlayers[1].name} 
-                avatarConfig={sortedPlayers[1].avatarConfig} 
-                size={64} 
-                className="border-4 border-gray-400"
-              />
+              {session.settings?.allowAvatars !== false ? (
+                <StudentAvatar 
+                  name={sortedPlayers[1].name} 
+                  avatarConfig={sortedPlayers[1].avatarConfig} 
+                  size={64} 
+                  className="border-4 border-gray-400"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-2xl font-bold border-4 border-gray-400">
+                  {sortedPlayers[1].name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="absolute -bottom-2 -right-2 bg-gray-400 text-gray-900 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs border-2 border-gray-700">2</div>
             </div>
           </div>
@@ -367,12 +373,18 @@ export default function GameHostDashboard() {
         <div className="w-32 bg-yellow-600 rounded-t-lg p-4 text-center h-full flex flex-col justify-end relative shadow-lg shadow-yellow-600/20 items-center">
           <div className="absolute -top-12 left-0 right-0 text-center flex justify-center">
             <div className="relative">
-              <StudentAvatar 
-                name={sortedPlayers[0].name} 
-                avatarConfig={sortedPlayers[0].avatarConfig} 
-                size={80} 
-                className="border-4 border-yellow-400"
-              />
+              {session.settings?.allowAvatars !== false ? (
+                <StudentAvatar 
+                  name={sortedPlayers[0].name} 
+                  avatarConfig={sortedPlayers[0].avatarConfig} 
+                  size={80} 
+                  className="border-4 border-yellow-400"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-indigo-500 flex items-center justify-center text-3xl font-bold border-4 border-yellow-400">
+                  {sortedPlayers[0].name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg border-2 border-yellow-600">1</div>
             </div>
           </div>
@@ -385,12 +397,18 @@ export default function GameHostDashboard() {
         <div className="w-32 bg-orange-700 rounded-t-lg p-4 text-center h-1/2 flex flex-col justify-end relative items-center">
           <div className="absolute -top-10 left-0 right-0 text-center flex justify-center">
             <div className="relative">
-              <StudentAvatar 
-                name={sortedPlayers[2].name} 
-                avatarConfig={sortedPlayers[2].avatarConfig} 
-                size={64} 
-                className="border-4 border-orange-400"
-              />
+              {session.settings?.allowAvatars !== false ? (
+                <StudentAvatar 
+                  name={sortedPlayers[2].name} 
+                  avatarConfig={sortedPlayers[2].avatarConfig} 
+                  size={64} 
+                  className="border-4 border-orange-400"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-2xl font-bold border-4 border-orange-400">
+                  {sortedPlayers[2].name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="absolute -bottom-2 -right-2 bg-orange-400 text-orange-900 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs border-2 border-orange-700">3</div>
             </div>
           </div>
@@ -425,11 +443,17 @@ export default function GameHostDashboard() {
               <tr key={player.id} className="hover:bg-gray-700/50 transition-colors group">
                 <td className="px-6 py-4 font-mono text-gray-400">#{index + 1}</td>
                 <td className="px-6 py-4 font-bold flex items-center gap-3">
-                  <StudentAvatar 
-                    name={player.name} 
-                    avatarConfig={player.avatarConfig} 
-                    size={32} 
-                  />
+                  {session.settings?.allowAvatars !== false ? (
+                    <StudentAvatar 
+                      name={player.name} 
+                      avatarConfig={player.avatarConfig} 
+                      size={32} 
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   {player.name}
                 </td>
                 <td className="px-6 py-4">

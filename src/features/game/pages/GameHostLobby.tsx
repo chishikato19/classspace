@@ -27,7 +27,8 @@ export default function GameHostLobby() {
     redoWrongQuestions: false,
     effectDuration: 10,
     reviveCost: 1000,
-    pacing: 'STUDENT'
+    pacing: 'STUDENT',
+    allowAvatars: true
   });
   const [sessionTitle, setSessionTitle] = useState('');
   
@@ -334,6 +335,19 @@ export default function GameHostLobby() {
                 />
               </label>
 
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="pr-4">
+                  <span className="text-gray-700 font-medium block">Cho phép chọn Avatar</span>
+                  <span className="text-xs text-gray-500">Nếu tắt, học sinh không thể chọn avatar và sẽ ẩn trên BXH</span>
+                </div>
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+                  checked={settings.allowAvatars !== false}
+                  onChange={(e) => setSettings({...settings, allowAvatars: e.target.checked})}
+                />
+              </label>
+
               {/* Battle Mode Settings */}
               {gameMode === 'BATTLE' && (
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200 mt-4">
@@ -468,12 +482,18 @@ export default function GameHostLobby() {
               >
                 ✕
               </button>
-              <StudentAvatar 
-                name={player.name} 
-                avatarConfig={player.avatarConfig} 
-                size={64} 
-                className="border-2 border-white/50"
-              />
+              {session.settings?.allowAvatars !== false ? (
+                <StudentAvatar 
+                  name={player.name} 
+                  avatarConfig={player.avatarConfig} 
+                  size={64} 
+                  className="border-2 border-white/50"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-2xl font-bold border-2 border-white/50">
+                  {player.name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <span className="truncate w-full">{player.name}</span>
             </div>
           ))}

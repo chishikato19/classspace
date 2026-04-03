@@ -110,6 +110,7 @@ export interface GameSettings {
   ecoMode?: boolean; // Chế độ tiết kiệm dữ liệu (gộp lượt ghi Firebase)
   superEcoMode?: boolean; // Chế độ siêu tiết kiệm (Tải 1 lần, nộp 1 lần, offline)
   persistSession?: boolean; // Không cần nhập lại tên khi quay lại
+  allowAvatars?: boolean; // Cho phép học sinh chọn avatar
   // Battle Mode settings
   pacing?: 'STUDENT' | 'TEACHER'; // Tốc độ (Học sinh tự làm) hoặc Đồng loạt (Giáo viên điều khiển)
   reviveCost?: number; // Điểm phí để hồi sinh

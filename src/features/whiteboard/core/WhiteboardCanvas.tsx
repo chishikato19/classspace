@@ -1,8 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Ellipse, Circle, Image as KonvaImage, Text, Transformer, Group } from 'react-konva';
+import { Html } from 'react-konva-utils';
 import { useWhiteboard } from '../state/WhiteboardContext';
-import { PenObject, WhiteboardObject, Point, ImageObject, TextObject } from '../types';
+import { PenObject, WhiteboardObject, Point, ImageObject, TextObject, ShapeObject, WidgetObject } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { MathText } from '../../../components/MathText';
 
 // Helper component to load and render images
 const URLImage = ({ image, isSelected, onSelect, onChange, activeTool }: { image: ImageObject, isSelected: boolean, onSelect: () => void, onChange: (newAttrs: any) => void, activeTool: string }) => {
@@ -167,7 +169,7 @@ export default function WhiteboardCanvas() {
       setCurrentShape({
         id: uuidv4(),
         type: 'shape',
-        shapeType: 'rectangle', // Default to rectangle for now
+        shapeType: state.activeShapeType || 'rectangle',
         x: pos.x,
         y: pos.y,
         width: 0,
@@ -199,6 +201,24 @@ export default function WhiteboardCanvas() {
           dispatch({ type: 'ADD_OBJECT', payload: newText });
           dispatch({ type: 'SET_TOOL', payload: 'select' });
           dispatch({ type: 'SET_SELECTED_IDS', payload: [newText.id] });
+        }
+      }
+    } else if (state.activeTool === 'math') {
+      if (isBackground) {
+        const latex = prompt('Nhập công thức Toán (LaTeX):', 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}');
+        if (latex) {
+          const newMath: any = {
+            id: uuidv4(),
+            type: 'math',
+            x: pos.x,
+            y: pos.y,
+            latex: latex,
+            fontSize: 24,
+            fill: state.strokeColor,
+          };
+          dispatch({ type: 'ADD_OBJECT', payload: newMath });
+          dispatch({ type: 'SET_TOOL', payload: 'select' });
+          dispatch({ type: 'SET_SELECTED_IDS', payload: [newMath.id] });
         }
       }
     } else if (state.activeTool === 'split') {
@@ -289,8 +309,8 @@ export default function WhiteboardCanvas() {
         dispatch({ type: 'ADD_OBJECT', payload: currentLine });
         setCurrentLine(null);
       } else if (state.activeTool === 'shape' && currentShape) {
-        // Only add if it has some size
-        if (Math.abs(currentShape.width) > 5 || Math.abs(currentShape.height) > 5) {
+        // Only add if it has some size, unless it's a point
+        if (currentShape.shapeType === 'point' || Math.abs(currentShape.width) > 5 || Math.abs(currentShape.height) > 5) {
           dispatch({ type: 'ADD_OBJECT', payload: currentShape });
         }
         setCurrentShape(null);
@@ -311,41 +331,78 @@ export default function WhiteboardCanvas() {
         if (obj.type === 'image') {
           const img = obj as ImageObject;
           return (
-            img.x >= box.x &&
-            img.y >= box.y &&
-            img.x + img.width <= box.x + box.width &&
-            img.y + img.height <= box.y + box.height
+            img.x < box.x + box.width &&
+            img.x + img.width > box.x &&
+            img.y < box.y + box.height &&
+            img.y + img.height > box.y
           );
         }
         if (obj.type === 'text') {
           const txt = obj as TextObject;
-          // Approximate text bounds
           const textWidth = txt.width || 100;
           const textHeight = txt.fontSize;
           return (
-            txt.x >= box.x &&
-            txt.y >= box.y &&
-            txt.x + textWidth <= box.x + box.width &&
-            txt.y + textHeight <= box.y + box.height
+            txt.x < box.x + box.width &&
+            txt.x + textWidth > box.x &&
+            txt.y < box.y + box.height &&
+            txt.y + textHeight > box.y
+          );
+        }
+        if (obj.type === 'math') {
+          const math = obj as any;
+          const mathWidth = math.width || 100;
+          const mathHeight = math.fontSize;
+          return (
+            math.x < box.x + box.width &&
+            math.x + mathWidth > box.x &&
+            math.y < box.y + box.height &&
+            math.y + mathHeight > box.y
+          );
+        }
+        if (obj.type === 'shape') {
+          const shape = obj as ShapeObject;
+          const shapeX = shape.x;
+          const shapeY = shape.y;
+          const shapeWidth = shape.width;
+          const shapeHeight = shape.height;
+          
+          const x1 = Math.min(shapeX, shapeX + shapeWidth);
+          const y1 = Math.min(shapeY, shapeY + shapeHeight);
+          const x2 = Math.max(shapeX, shapeX + shapeWidth);
+          const y2 = Math.max(shapeY, shapeY + shapeHeight);
+          
+          if (shape.shapeType === 'point') {
+            return shapeX >= box.x && shapeX <= box.x + box.width && 
+                   shapeY >= box.y && shapeY <= box.y + box.height;
+          }
+          
+          return (
+            x1 < box.x + box.width &&
+            x2 > box.x &&
+            y1 < box.y + box.height &&
+            y2 > box.y
           );
         }
         if (obj.type === 'widget') {
           const widget = obj as WidgetObject;
           return (
-            widget.x >= box.x &&
-            widget.y >= box.y &&
-            widget.x + widget.width <= box.x + box.width &&
-            widget.y + widget.height <= box.y + box.height
+            widget.x < box.x + box.width &&
+            widget.x + widget.width > box.x &&
+            widget.y < box.y + box.height &&
+            widget.y + widget.height > box.y
           );
         }
-        // For lines, just check if the first point is inside
+        // For lines, check if any point is inside
         if (obj.type === 'pen') {
           const pen = obj as PenObject;
-          if (pen.points.length >= 2) {
-            const px = pen.points[0];
-            const py = pen.points[1];
-            return px >= box.x && px <= box.x + box.width && py >= box.y && py <= box.y + box.height;
+          for (let i = 0; i < pen.points.length; i += 2) {
+            const px = pen.points[i];
+            const py = pen.points[i + 1];
+            if (px >= box.x && px <= box.x + box.width && py >= box.y && py <= box.y + box.height) {
+              return true;
+            }
           }
+          return false;
         }
         return false;
       }).map(obj => obj.id);
@@ -519,7 +576,6 @@ export default function WhiteboardCanvas() {
             if (obj.type === 'shape') {
               const shape = obj as ShapeObject;
               const commonProps = {
-                key: shape.id,
                 id: shape.id,
                 x: shape.x,
                 y: shape.y,
@@ -570,11 +626,13 @@ export default function WhiteboardCanvas() {
               };
 
               if (shape.shapeType === 'rectangle') {
-                return <Rect {...commonProps} width={shape.width} height={shape.height} />;
+                return <Rect key={shape.id} {...commonProps} width={shape.width} height={shape.height} />;
               } else if (shape.shapeType === 'circle') {
-                return <Ellipse {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} radiusX={Math.abs(shape.width / 2)} radiusY={Math.abs(shape.height / 2)} />;
+                return <Ellipse key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} radiusX={Math.abs(shape.width / 2)} radiusY={Math.abs(shape.height / 2)} />;
               } else if (shape.shapeType === 'line') {
-                return <Line {...commonProps} points={[0, 0, shape.width, shape.height]} />;
+                return <Line key={shape.id} {...commonProps} points={[0, 0, shape.width, shape.height]} />;
+              } else if (shape.shapeType === 'point') {
+                return <Circle key={shape.id} {...commonProps} radius={shape.strokeWidth * 2} fill={shape.stroke} />;
               }
               return null;
             }
@@ -633,6 +691,94 @@ export default function WhiteboardCanvas() {
                     });
                   }}
                 />
+              );
+            }
+            if (obj.type === 'math') {
+              const math = obj as any;
+              return (
+                <Group
+                  key={math.id}
+                  id={math.id}
+                  x={math.x}
+                  y={math.y}
+                  rotation={math.rotation || 0}
+                  scaleX={math.scaleX || 1}
+                  scaleY={math.scaleY || 1}
+                  draggable={isSelectTool && isSelected}
+                  listening={isSelectTool || isEraserTool}
+                  onClick={() => {
+                    if (isSelectTool) {
+                      dispatch({ type: 'SET_SELECTED_IDS', payload: [math.id] });
+                    } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: math.id });
+                    }
+                  }}
+                  onTap={() => {
+                    if (isSelectTool) {
+                      dispatch({ type: 'SET_SELECTED_IDS', payload: [math.id] });
+                    } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: math.id });
+                    }
+                  }}
+                  onDblClick={() => {
+                    if (isSelectTool) {
+                      const newLatex = prompt('Sửa công thức toán học (LaTeX):', math.latex);
+                      if (newLatex !== null) {
+                        dispatch({
+                          type: 'UPDATE_OBJECT',
+                          payload: { id: math.id, updates: { latex: newLatex } }
+                        });
+                      }
+                    }
+                  }}
+                  onDblTap={() => {
+                    if (isSelectTool) {
+                      const newLatex = prompt('Sửa công thức toán học (LaTeX):', math.latex);
+                      if (newLatex !== null) {
+                        dispatch({
+                          type: 'UPDATE_OBJECT',
+                          payload: { id: math.id, updates: { latex: newLatex } }
+                        });
+                      }
+                    }
+                  }}
+                  onDragEnd={(e) => {
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: { id: math.id, updates: { x: e.target.x(), y: e.target.y() } }
+                    });
+                  }}
+                  onTransformEnd={(e) => {
+                    const node = e.target;
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: {
+                        id: math.id,
+                        updates: {
+                          x: node.x(),
+                          y: node.y(),
+                          rotation: node.rotation(),
+                          scaleX: node.scaleX(),
+                          scaleY: node.scaleY(),
+                        }
+                      }
+                    });
+                  }}
+                >
+                  <Rect 
+                    width={math.width || 200} 
+                    height={math.height || 100} 
+                    fill="transparent" 
+                    stroke={isSelected ? "#0000ff" : "transparent"} 
+                    strokeWidth={1} 
+                    dash={[5, 5]}
+                  />
+                  <Html divProps={{ style: { pointerEvents: 'none' } }}>
+                    <div style={{ color: math.fill, fontSize: `${math.fontSize}px` }}>
+                      <MathText text={`$$${math.latex}$$`} />
+                    </div>
+                  </Html>
+                </Group>
               );
             }
             if (obj.type === 'image') {
@@ -702,6 +848,14 @@ export default function WhiteboardCanvas() {
                   strokeWidth={currentShape.strokeWidth}
                 />
               )}
+              {currentShape.shapeType === 'point' && (
+                <Circle
+                  x={currentShape.x}
+                  y={currentShape.y}
+                  radius={currentShape.strokeWidth * 2}
+                  fill={currentShape.stroke}
+                />
+              )}
             </React.Fragment>
           )}
 
@@ -710,6 +864,12 @@ export default function WhiteboardCanvas() {
             <Transformer 
               ref={transformerRef} 
               nodes={state.selectedIds.map(id => stageRef.current?.findOne(`#${id}`)).filter(Boolean)}
+              boundBoxFunc={(oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              }}
             />
           )}
 

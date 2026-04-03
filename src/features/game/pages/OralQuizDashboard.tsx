@@ -379,12 +379,18 @@ export default function OralQuizDashboard() {
                     className="flex flex-col items-center py-6 w-full"
                   >
                     <div className="relative mb-6">
-                      <StudentAvatar 
-                        name={selectedPlayer.name} 
-                        avatarConfig={selectedPlayer.avatarConfig} 
-                        size={160} 
-                        className="border-8 border-orange-500 shadow-2xl"
-                      />
+                      {session.settings?.allowAvatars !== false ? (
+                        <StudentAvatar 
+                          name={selectedPlayer.name} 
+                          avatarConfig={selectedPlayer.avatarConfig} 
+                          size={160} 
+                          className="border-8 border-orange-500 shadow-2xl"
+                        />
+                      ) : (
+                        <div className="w-40 h-40 rounded-full bg-indigo-500 flex items-center justify-center text-6xl font-bold border-8 border-orange-500 shadow-2xl">
+                          {selectedPlayer.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <motion.div 
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}

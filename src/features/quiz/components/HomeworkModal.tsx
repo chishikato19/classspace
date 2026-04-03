@@ -42,7 +42,8 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     passingPercentage: 0,
     ecoMode: true, // Mặc định bật chế độ tiết kiệm cho bài tập về nhà
     superEcoMode: false, // Chế độ siêu tiết kiệm (Offline)
-    persistSession: true // Mặc định không cần nhập lại tên khi quay lại
+    persistSession: true, // Mặc định không cần nhập lại tên khi quay lại
+    allowAvatars: true // Cho phép học sinh chọn avatar
   });
 
   useEffect(() => {
@@ -404,6 +405,18 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
                 <div>
                   <label className="text-sm font-medium text-blue-800 block">Ghi nhớ người chơi (Persistent Session)</label>
                   <p className="text-xs text-blue-600">Học sinh đã nhập tên lần 1, khi làm lại hoặc quay lại sẽ vào luôn bài thi, không cần nhập lại tên.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 md:col-span-2 p-3 bg-pink-50 rounded-lg border border-pink-200">
+                <input 
+                  type="checkbox"
+                  checked={settings.allowAvatars !== false}
+                  onChange={(e) => setSettings({...settings, allowAvatars: e.target.checked})}
+                  className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-600"
+                />
+                <div>
+                  <label className="text-sm font-medium text-pink-800 block">Cho phép chọn Avatar</label>
+                  <p className="text-xs text-pink-600">Nếu tắt, học sinh không thể chọn avatar và bảng xếp hạng cũng sẽ ẩn avatar để giảm tải.</p>
                 </div>
               </div>
             </div>

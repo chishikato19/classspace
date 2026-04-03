@@ -148,6 +148,7 @@ export default function BattleHostScreen() {
             player={player} 
             currentTime={currentTime} 
             totalQuestions={totalQuestions} 
+            allowAvatars={session.settings?.allowAvatars !== false}
             onRemove={async () => {
               if (window.confirm(`Bạn có chắc muốn xóa ${player.name} khỏi phòng?`)) {
                 await gameService.removePlayer(session.id, player.id);
@@ -160,7 +161,7 @@ export default function BattleHostScreen() {
   );
 }
 
-const BattlePlayerCard: React.FC<{ player: Player, currentTime: number, totalQuestions: number, onRemove: () => void }> = ({ player, currentTime, totalQuestions, onRemove }) => {
+const BattlePlayerCard: React.FC<{ player: Player, currentTime: number, totalQuestions: number, allowAvatars: boolean, onRemove: () => void }> = ({ player, currentTime, totalQuestions, allowAvatars, onRemove }) => {
   const hp = player.hp ?? 100;
   const maxHp = player.maxHp ?? 100;
   const hpPercent = (hp / maxHp) * 100;
@@ -207,10 +208,16 @@ const BattlePlayerCard: React.FC<{ player: Player, currentTime: number, totalQue
       {/* Avatar & Name */}
       <div className="flex flex-col items-center mb-4">
         <div className="w-20 h-20 mb-2 relative">
-          <StudentAvatar 
-            student={{ name: player.name, avatarConfig: player.avatarConfig } as any} 
-            className="w-20 h-20 text-2xl" 
-          />
+          {allowAvatars ? (
+            <StudentAvatar 
+              student={{ name: player.name, avatarConfig: player.avatarConfig } as any} 
+              className="w-20 h-20 text-2xl" 
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-indigo-500 flex items-center justify-center text-3xl font-bold">
+              {player.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           {player.streak > 2 && (
             <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-bounce">
               🔥 {player.streak}

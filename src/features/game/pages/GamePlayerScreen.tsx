@@ -612,11 +612,17 @@ export default function GamePlayerScreen() {
         <div className="min-h-screen bg-gray-50 flex flex-col">
           <div className="bg-white p-4 shadow-sm flex justify-between items-center sticky top-0 z-10">
             <div className="flex items-center gap-3">
-              <StudentAvatar 
-                name={playerName} 
-                avatarConfig={avatarConfig} 
-                size={32} 
-              />
+              {session.settings?.allowAvatars !== false ? (
+                <StudentAvatar 
+                  name={playerName} 
+                  avatarConfig={avatarConfig} 
+                  size={32} 
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">
+                  {playerName.charAt(0).toUpperCase()}
+                </div>
+              )}
               <h1 className="text-xl font-bold text-gray-800">Xem lại: {playerName}</h1>
             </div>
             <button 
@@ -711,12 +717,18 @@ export default function GamePlayerScreen() {
 
     return (
       <div className="min-h-screen bg-indigo-900 text-white flex flex-col items-center justify-center p-4">
-        <StudentAvatar 
-          name={playerName} 
-          avatarConfig={avatarConfig} 
-          size={120} 
-          className="border-4 border-yellow-400 shadow-lg mb-4"
-        />
+        {session.settings?.allowAvatars !== false ? (
+          <StudentAvatar 
+            name={playerName} 
+            avatarConfig={avatarConfig} 
+            size={120} 
+            className="border-4 border-yellow-400 shadow-lg mb-4"
+          />
+        ) : (
+          <div className="w-[120px] h-[120px] rounded-full bg-indigo-500 flex items-center justify-center text-5xl font-bold border-4 border-yellow-400 shadow-lg mb-4">
+            {playerName.charAt(0).toUpperCase()}
+          </div>
+        )}
         <div className="text-2xl font-bold text-yellow-400 mb-2">{playerName}</div>
         <h1 className="text-4xl font-bold mb-4">HOÀN THÀNH!</h1>
         {session?.settings?.showScore && (
@@ -781,12 +793,18 @@ export default function GamePlayerScreen() {
       {/* Header Info */}
       <div className="bg-white p-4 shadow-sm flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <StudentAvatar 
-            name={playerName} 
-            avatarConfig={avatarConfig} 
-            size={40} 
-            className="border border-gray-200"
-          />
+          {session.settings?.allowAvatars !== false ? (
+            <StudentAvatar 
+              name={playerName} 
+              avatarConfig={avatarConfig} 
+              size={40} 
+              className="border border-gray-200"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700">
+              {playerName.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="flex flex-col">
             <span className="text-sm font-bold text-gray-800 leading-tight">{playerName}</span>
             <div className="flex items-center gap-2 mt-0.5">

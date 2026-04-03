@@ -298,11 +298,17 @@ export default function GameResults() {
                         <tr key={player.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 font-medium text-gray-900">#{index + 1}</td>
                           <td className="px-6 py-4 font-bold text-indigo-600 flex items-center gap-3">
-                            <StudentAvatar 
-                              name={player.name} 
-                              avatarConfig={player.avatarConfig} 
-                              size={32} 
-                            />
+                            {session.settings?.allowAvatars !== false ? (
+                              <StudentAvatar 
+                                name={player.name} 
+                                avatarConfig={player.avatarConfig} 
+                                size={32} 
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">
+                                {player.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
                             {player.name}
                           </td>
                           <td className="px-6 py-4 text-center text-green-600 font-medium">{correct}</td>
@@ -455,11 +461,17 @@ export default function GameResults() {
                         const selectedOpt = currentQuestion.options.find(o => o.id === ans.optionId);
                         return (
                           <div key={player.id} className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-center gap-3">
-                            <StudentAvatar 
-                              name={player.name} 
-                              avatarConfig={player.avatarConfig} 
-                              size={40} 
-                            />
+                            {session.settings?.allowAvatars !== false ? (
+                              <StudentAvatar 
+                                name={player.name} 
+                                avatarConfig={player.avatarConfig} 
+                                size={40} 
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center text-sm font-bold text-red-800">
+                                {player.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
                             <div>
                               <div className="font-bold text-red-800">{player.name}</div>
                               <div className="text-xs text-red-600 mt-1">
