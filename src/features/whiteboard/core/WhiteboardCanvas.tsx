@@ -84,6 +84,7 @@ export default function WhiteboardCanvas() {
   const { state, dispatch } = useWhiteboard();
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentLine, setCurrentLine] = useState<PenObject | null>(null);
+  const [currentShape, setCurrentShape] = useState<ShapeObject | null>(null);
   const [splitY, setSplitY] = useState<number | null>(null);
   const [selectionBox, setSelectionBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const stageRef = useRef<any>(null);
@@ -108,6 +109,7 @@ export default function WhiteboardCanvas() {
 
   const handleMouseDown = (e: any) => {
     const pos = getPointerPosition();
+    const isBackground = e.target === e.target.getStage() || e.target.hasName('background');
 
     if (state.activeTool === 'pen') {
       setIsDrawing(true);
@@ -121,14 +123,28 @@ export default function WhiteboardCanvas() {
         strokeWidth: state.strokeWidth,
         tension: 0.5,
       });
+    } else if (state.activeTool === 'shape') {
+      setIsDrawing(true);
+      setCurrentShape({
+        id: uuidv4(),
+        type: 'shape',
+        shapeType: 'rectangle', // Default to rectangle for now
+        x: pos.x,
+        y: pos.y,
+        width: 0,
+        height: 0,
+        stroke: state.strokeColor,
+        strokeWidth: state.strokeWidth,
+        fill: state.fillColor !== 'transparent' ? state.fillColor : undefined,
+      });
     } else if (state.activeTool === 'select') {
       // Clicked on empty space, start selection box
-      if (e.target === e.target.getStage()) {
+      if (isBackground) {
         dispatch({ type: 'SET_SELECTED_IDS', payload: [] });
         setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
       }
     } else if (state.activeTool === 'text') {
-      if (e.target === e.target.getStage()) {
+      if (isBackground) {
         const text = prompt('Nhập nội dung văn bản:');
         if (text) {
           const newText: TextObject = {
@@ -212,17 +228,34 @@ export default function WhiteboardCanvas() {
       return;
     }
 
-    if (!isDrawing || state.activeTool !== 'pen' || !currentLine) return;
-    setCurrentLine({
-      ...currentLine,
-      points: [...currentLine.points, pos.x, pos.y],
-    });
+    if (!isDrawing) return;
+
+    if (state.activeTool === 'pen' && currentLine) {
+      setCurrentLine({
+        ...currentLine,
+        points: [...currentLine.points, pos.x, pos.y],
+      });
+    } else if (state.activeTool === 'shape' && currentShape) {
+      setCurrentShape({
+        ...currentShape,
+        width: pos.x - currentShape.x,
+        height: pos.y - currentShape.y,
+      });
+    }
   };
 
   const handleMouseUp = () => {
-    if (isDrawing && currentLine) {
-      dispatch({ type: 'ADD_OBJECT', payload: currentLine });
-      setCurrentLine(null);
+    if (isDrawing) {
+      if (state.activeTool === 'pen' && currentLine) {
+        dispatch({ type: 'ADD_OBJECT', payload: currentLine });
+        setCurrentLine(null);
+      } else if (state.activeTool === 'shape' && currentShape) {
+        // Only add if it has some size
+        if (Math.abs(currentShape.width) > 5 || Math.abs(currentShape.height) > 5) {
+          dispatch({ type: 'ADD_OBJECT', payload: currentShape });
+        }
+        setCurrentShape(null);
+      }
       setIsDrawing(false);
     }
 
@@ -255,6 +288,15 @@ export default function WhiteboardCanvas() {
             txt.y >= box.y &&
             txt.x + textWidth <= box.x + box.width &&
             txt.y + textHeight <= box.y + box.height
+          );
+        }
+        if (obj.type === 'widget') {
+          const widget = obj as WidgetObject;
+          return (
+            widget.x >= box.x &&
+            widget.y >= box.y &&
+            widget.x + widget.width <= box.x + box.width &&
+            widget.y + widget.height <= box.y + box.height
           );
         }
         // For lines, just check if the first point is inside
@@ -362,7 +404,7 @@ export default function WhiteboardCanvas() {
   };
 
   return (
-    <div className="w-full h-full overflow-hidden bg-gray-200 relative">
+    <div className="w-full h-full overflow-hidden bg-gray-200 relative" style={{ touchAction: 'none' }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -430,6 +472,63 @@ export default function WhiteboardCanvas() {
                     dispatch({
                       type: 'UPDATE_OBJECT',
                       payload: { id: obj.id, updates: { x: node.x(), y: node.y() } }
+                    });
+                  }}
+                />
+              );
+            }
+            if (obj.type === 'shape') {
+              const shape = obj as ShapeObject;
+              return (
+                <Rect
+                  key={shape.id}
+                  id={shape.id}
+                  x={shape.x}
+                  y={shape.y}
+                  width={shape.width}
+                  height={shape.height}
+                  fill={shape.fill}
+                  stroke={shape.stroke}
+                  strokeWidth={shape.strokeWidth}
+                  rotation={shape.rotation || 0}
+                  scaleX={shape.scaleX || 1}
+                  scaleY={shape.scaleY || 1}
+                  draggable={isSelectTool && isSelected}
+                  listening={isSelectTool || isEraserTool}
+                  onClick={() => {
+                    if (isSelectTool) {
+                      dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
+                    } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
+                    }
+                  }}
+                  onTap={() => {
+                    if (isSelectTool) {
+                      dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
+                    } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
+                    }
+                  }}
+                  onDragEnd={(e) => {
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: { id: shape.id, updates: { x: e.target.x(), y: e.target.y() } }
+                    });
+                  }}
+                  onTransformEnd={(e) => {
+                    const node = e.target;
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: {
+                        id: shape.id,
+                        updates: {
+                          x: node.x(),
+                          y: node.y(),
+                          rotation: node.rotation(),
+                          scaleX: node.scaleX(),
+                          scaleY: node.scaleY(),
+                        }
+                      }
                     });
                   }}
                 />
@@ -526,6 +625,18 @@ export default function WhiteboardCanvas() {
             />
           )}
 
+          {currentShape && (
+            <Rect
+              x={currentShape.x}
+              y={currentShape.y}
+              width={currentShape.width}
+              height={currentShape.height}
+              fill={currentShape.fill}
+              stroke={currentShape.stroke}
+              strokeWidth={currentShape.strokeWidth}
+            />
+          )}
+
           {/* Transformer for selection */}
           {state.selectedIds.length > 0 && (
             <Transformer 
@@ -558,6 +669,155 @@ export default function WhiteboardCanvas() {
           )}
         </Layer>
       </Stage>
+
+      {/* HTML Overlays (Widgets) */}
+      {state.objects.filter(obj => obj.type === 'widget').map(obj => {
+        const widget = obj as any;
+        const isSelected = state.selectedIds.includes(widget.id);
+        const isMinimized = widget.isMinimized;
+        
+        return (
+          <div
+            key={widget.id}
+            style={{
+              position: 'absolute',
+              left: widget.x * state.zoom + state.pan.x,
+              top: widget.y * state.zoom + state.pan.y,
+              width: widget.width * state.zoom,
+              height: isMinimized ? 32 : widget.height * state.zoom,
+              transformOrigin: 'top left',
+              border: isSelected ? '2px solid #3B82F6' : '1px solid #e5e7eb',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              backgroundColor: 'white',
+              zIndex: isSelected ? 10 : 1,
+              pointerEvents: state.activeTool === 'select' || state.activeTool === 'eraser' ? 'auto' : 'none',
+            }}
+            onClick={(e) => {
+              if (state.activeTool === 'select') {
+                dispatch({ type: 'SET_SELECTED_IDS', payload: [widget.id] });
+                e.stopPropagation();
+              } else if (state.activeTool === 'eraser') {
+                dispatch({ type: 'REMOVE_OBJECT', payload: widget.id });
+                e.stopPropagation();
+              }
+            }}
+          >
+            <div 
+              className="w-full h-8 bg-gray-100 border-b border-gray-200 flex items-center justify-between px-3 cursor-move"
+              onPointerDown={(e) => {
+                if (state.activeTool !== 'select') return;
+                e.stopPropagation();
+                
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidgetX = widget.x;
+                const startWidgetY = widget.y;
+                
+                const handlePointerMove = (moveEvent: PointerEvent) => {
+                  const dx = (moveEvent.clientX - startX) / state.zoom;
+                  const dy = (moveEvent.clientY - startY) / state.zoom;
+                  dispatch({
+                    type: 'UPDATE_OBJECT',
+                    payload: { id: widget.id, updates: { x: startWidgetX + dx, y: startWidgetY + dy } }
+                  });
+                };
+                
+                const handlePointerUp = () => {
+                  window.removeEventListener('pointermove', handlePointerMove);
+                  window.removeEventListener('pointerup', handlePointerUp);
+                };
+                
+                window.addEventListener('pointermove', handlePointerMove);
+                window.addEventListener('pointerup', handlePointerUp);
+              }}
+            >
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">GeoGebra</span>
+              <div className="flex items-center gap-2">
+                <button 
+                  className="text-gray-400 hover:text-indigo-500 transition-colors text-lg leading-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch({ 
+                      type: 'UPDATE_OBJECT', 
+                      payload: { id: widget.id, updates: { isMinimized: !isMinimized } } 
+                    });
+                  }}
+                  title={isMinimized ? "Mở rộng" : "Thu gọn"}
+                >
+                  {isMinimized ? '+' : '−'}
+                </button>
+                <button 
+                  className="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch({ type: 'REMOVE_OBJECT', payload: widget.id });
+                  }}
+                  title="Đóng"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            
+            {/* Iframe container */}
+            {!isMinimized && (
+              <div style={{ width: '100%', height: 'calc(100% - 32px)', position: 'relative' }}>
+                {/* Overlay to prevent iframe from stealing mouse events when not selected */}
+                {!isSelected && state.activeTool === 'select' && (
+                  <div className="absolute inset-0 z-10 cursor-pointer" />
+                )}
+                <iframe
+                  src={widget.url}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 'none' }}
+                  title="GeoGebra"
+                  allowFullScreen
+                />
+              </div>
+            )}
+
+            {/* Resize Handle */}
+            {isSelected && state.activeTool === 'select' && !isMinimized && (
+              <div
+                className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize rounded-tl-md"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startWidth = widget.width;
+                  const startHeight = widget.height;
+                  
+                  const handlePointerMove = (moveEvent: PointerEvent) => {
+                    const dx = (moveEvent.clientX - startX) / state.zoom;
+                    const dy = (moveEvent.clientY - startY) / state.zoom;
+                    dispatch({
+                      type: 'UPDATE_OBJECT',
+                      payload: { 
+                        id: widget.id, 
+                        updates: { 
+                          width: Math.max(200, startWidth + dx), 
+                          height: Math.max(150, startHeight + dy) 
+                        } 
+                      }
+                    });
+                  };
+                  
+                  const handlePointerUp = () => {
+                    window.removeEventListener('pointermove', handlePointerMove);
+                    window.removeEventListener('pointerup', handlePointerUp);
+                  };
+                  
+                  window.addEventListener('pointermove', handlePointerMove);
+                  window.addEventListener('pointerup', handlePointerUp);
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

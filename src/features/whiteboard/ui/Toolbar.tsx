@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useWhiteboard } from '../state/WhiteboardContext';
-import { MousePointer2, Hand, Pen, Eraser, Square, Scissors, Type, Image as ImageIcon, Trash2, FileText, Loader2, Palette, Layout, Grid, Minus, Maximize, ZoomIn, ZoomOut } from 'lucide-react';
-import { ToolType, ImageObject, BackgroundColor, BackgroundPattern } from '../types';
+import { MousePointer2, Hand, Pen, Eraser, Square, Scissors, Type, Image as ImageIcon, Trash2, FileText, Loader2, Palette, Layout, Grid, Minus, Maximize, ZoomIn, ZoomOut, Calculator, Undo2, Redo2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ToolType, ImageObject, BackgroundColor, BackgroundPattern, WidgetObject } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { convertPdfToImages } from '../utils/pdfUtils';
 
@@ -12,6 +12,7 @@ export default function Toolbar() {
   const [isLoading, setIsLoading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [isToolbarVisible, setIsToolbarVisible] = useState(true);
 
   const tools: { id: ToolType; icon: React.ReactNode; label: string }[] = [
     { id: 'select', icon: <MousePointer2 className="w-5 h-5" />, label: 'Chọn vùng' },
@@ -114,14 +115,36 @@ export default function Toolbar() {
     }
   };
 
+  const addGeoGebra = () => {
+    // Calculate center of current view
+    const centerX = (-state.pan.x + window.innerWidth / 2) / state.zoom;
+    const centerY = (-state.pan.y + window.innerHeight / 2) / state.zoom;
+
+    const newWidget: WidgetObject = {
+      id: uuidv4(),
+      type: 'widget',
+      widgetType: 'geogebra',
+      url: 'https://www.geogebra.org/classic?embed',
+      x: centerX - 400,
+      y: centerY - 300,
+      width: 800,
+      height: 600,
+    };
+    dispatch({ type: 'ADD_OBJECT', payload: newWidget });
+    dispatch({ type: 'SET_TOOL', payload: 'select' });
+  };
+
   return (
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20 max-h-[90vh] overflow-y-auto hide-scrollbar">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 flex flex-col gap-2">
+    <div 
+      className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center z-20 transition-transform duration-300"
+      style={{ transform: isToolbarVisible ? 'translateX(1rem)' : 'translateX(calc(-100% + 1.5rem))' }}
+    >
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 grid grid-cols-2 gap-2 max-h-[90vh] overflow-y-auto hide-scrollbar">
         {tools.map((tool) => (
           <button
             key={tool.id}
             onClick={() => dispatch({ type: 'SET_TOOL', payload: tool.id })}
-            className={`p-3 rounded-xl transition-all ${
+            className={`p-3 rounded-xl transition-all flex items-center justify-center ${
               state.activeTool === tool.id
                 ? 'bg-indigo-100 text-indigo-600 shadow-inner'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -132,23 +155,43 @@ export default function Toolbar() {
           </button>
         ))}
         
-        <div className="h-px bg-gray-200 my-1" />
+        <div className="col-span-2 h-px bg-gray-200 my-1" />
+
+        {/* Undo / Redo */}
+        <button
+          onClick={() => dispatch({ type: 'UNDO' })}
+          disabled={state.past.length === 0}
+          className={`p-3 rounded-xl transition-all flex items-center justify-center ${state.past.length === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+          title="Hoàn tác (Undo)"
+        >
+          <Undo2 className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => dispatch({ type: 'REDO' })}
+          disabled={state.future.length === 0}
+          className={`p-3 rounded-xl transition-all flex items-center justify-center ${state.future.length === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+          title="Làm lại (Redo)"
+        >
+          <Redo2 className="w-5 h-5" />
+        </button>
+
+        <div className="col-span-2 h-px bg-gray-200 my-1" />
 
         {/* Color Picker Toggle */}
-        <div className="relative">
+        <div className="relative flex items-center justify-center">
           <button
             onClick={() => {
               setShowColorPicker(!showColorPicker);
               setShowBgPicker(false);
             }}
-            className={`p-3 rounded-xl transition-all ${showColorPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${showColorPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
             title="Màu sắc"
           >
             <div className="w-5 h-5 rounded-full border border-gray-300" style={{ backgroundColor: state.strokeColor }} />
           </button>
           
           {showColorPicker && (
-            <div className="absolute left-14 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 flex flex-wrap gap-2 w-36">
+            <div className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 flex flex-wrap gap-2 w-36 z-50">
               {colors.map((color) => (
                 <button
                   key={color}
@@ -167,20 +210,20 @@ export default function Toolbar() {
         </div>
 
         {/* Background Picker Toggle */}
-        <div className="relative">
+        <div className="relative flex items-center justify-center">
           <button
             onClick={() => {
               setShowBgPicker(!showBgPicker);
               setShowColorPicker(false);
             }}
-            className={`p-3 rounded-xl transition-all ${showBgPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${showBgPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
             title="Nền bảng"
           >
             <Layout className="w-5 h-5" />
           </button>
 
           {showBgPicker && (
-            <div className="absolute left-14 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 flex flex-col gap-4 w-48">
+            <div className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 flex flex-col gap-4 w-48 z-50">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Màu nền</p>
                 <div className="flex gap-2">
@@ -218,18 +261,10 @@ export default function Toolbar() {
           )}
         </div>
 
-        <div className="h-px bg-gray-200 my-1" />
+        <div className="col-span-2 h-px bg-gray-200 my-1" />
         
         {/* Zoom Controls */}
-        <div className="flex flex-col items-center gap-1">
-          <button
-            onClick={() => dispatch({ type: 'SET_ZOOM', payload: Math.min(10, state.zoom * 1.2) })}
-            className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-all"
-            title="Phóng to"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <span className="text-[10px] font-medium text-gray-500">{Math.round(state.zoom * 100)}%</span>
+        <div className="col-span-2 flex items-center justify-center gap-2">
           <button
             onClick={() => dispatch({ type: 'SET_ZOOM', payload: Math.max(0.1, state.zoom / 1.2) })}
             className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-all"
@@ -237,10 +272,33 @@ export default function Toolbar() {
           >
             <ZoomOut className="w-4 h-4" />
           </button>
+          <span className="text-[10px] font-medium text-gray-500 w-8 text-center">{Math.round(state.zoom * 100)}%</span>
+          <button
+            onClick={() => dispatch({ type: 'SET_ZOOM', payload: Math.min(10, state.zoom * 1.2) })}
+            className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-all"
+            title="Phóng to"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="h-px bg-gray-200 my-1" />
+        <div className="col-span-2 h-px bg-gray-200 my-1" />
 
+        <button
+          onClick={addGeoGebra}
+          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center"
+          title="Chèn GeoGebra"
+        >
+          <Calculator className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center"
+          title="Chèn ảnh"
+        >
+          <ImageIcon className="w-5 h-5" />
+        </button>
         <input
           type="file"
           accept="image/*"
@@ -248,14 +306,15 @@ export default function Toolbar() {
           onChange={handleImageUpload}
           className="hidden"
         />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all"
-          title="Chèn ảnh"
-        >
-          <ImageIcon className="w-5 h-5" />
-        </button>
         
+        <button
+          onClick={() => pdfInputRef.current?.click()}
+          disabled={isLoading}
+          className={`p-3 rounded-xl transition-all flex items-center justify-center ${isLoading ? 'text-indigo-400 bg-indigo-50' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+          title="Chèn PDF"
+        >
+          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
+        </button>
         <input
           type="file"
           accept="application/pdf"
@@ -263,24 +322,16 @@ export default function Toolbar() {
           onChange={handlePdfUpload}
           className="hidden"
         />
-        <button
-          onClick={() => pdfInputRef.current?.click()}
-          disabled={isLoading}
-          className={`p-3 rounded-xl transition-all ${isLoading ? 'text-indigo-400 bg-indigo-50' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
-          title="Chèn PDF"
-        >
-          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
-        </button>
-
-        <div className="h-px bg-gray-200 my-1" />
 
         <button
           onClick={toggleFullscreen}
-          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all"
+          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center"
           title="Toàn màn hình"
         >
           <Maximize className="w-5 h-5" />
         </button>
+
+        <div className="col-span-2 h-px bg-gray-200 my-1" />
 
         <button
           onClick={() => {
@@ -288,12 +339,21 @@ export default function Toolbar() {
               dispatch({ type: 'CLEAR_BOARD' });
             }
           }}
-          className="p-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all"
+          className="col-span-2 p-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"
           title="Xóa toàn bộ bảng"
         >
           <Trash2 className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsToolbarVisible(!isToolbarVisible)}
+        className="bg-white rounded-r-xl shadow-md border border-l-0 border-gray-200 w-6 h-16 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+        title={isToolbarVisible ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
+      >
+        {isToolbarVisible ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </button>
     </div>
   );
 }

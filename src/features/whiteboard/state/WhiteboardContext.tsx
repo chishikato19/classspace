@@ -14,10 +14,14 @@ type Action =
   | { type: 'UPDATE_OBJECT'; payload: { id: string; updates: Partial<WhiteboardObject> } }
   | { type: 'REMOVE_OBJECT'; payload: string }
   | { type: 'SET_SELECTED_IDS'; payload: string[] }
-  | { type: 'CLEAR_BOARD' };
+  | { type: 'CLEAR_BOARD' }
+  | { type: 'UNDO' }
+  | { type: 'REDO' };
 
 const initialState: WhiteboardState = {
   objects: [],
+  past: [],
+  future: [],
   backgroundColor: 'white',
   backgroundPattern: 'none',
   zoom: 1,
@@ -48,10 +52,17 @@ function whiteboardReducer(state: WhiteboardState, action: Action): WhiteboardSt
     case 'SET_FILL_COLOR':
       return { ...state, fillColor: action.payload };
     case 'ADD_OBJECT':
-      return { ...state, objects: [...state.objects, action.payload] };
+      return { 
+        ...state, 
+        past: [...state.past, state.objects],
+        future: [],
+        objects: [...state.objects, action.payload] 
+      };
     case 'UPDATE_OBJECT':
       return {
         ...state,
+        past: [...state.past, state.objects],
+        future: [],
         objects: state.objects.map((obj) =>
           obj.id === action.payload.id ? { ...obj, ...action.payload.updates } as WhiteboardObject : obj
         ),
@@ -59,13 +70,43 @@ function whiteboardReducer(state: WhiteboardState, action: Action): WhiteboardSt
     case 'REMOVE_OBJECT':
       return {
         ...state,
+        past: [...state.past, state.objects],
+        future: [],
         objects: state.objects.filter((obj) => obj.id !== action.payload),
         selectedIds: state.selectedIds.filter((id) => id !== action.payload),
       };
     case 'SET_SELECTED_IDS':
       return { ...state, selectedIds: action.payload };
     case 'CLEAR_BOARD':
-      return { ...state, objects: [], selectedIds: [] };
+      return { 
+        ...state, 
+        past: [...state.past, state.objects],
+        future: [],
+        objects: [], 
+        selectedIds: [] 
+      };
+    case 'UNDO':
+      if (state.past.length === 0) return state;
+      const previous = state.past[state.past.length - 1];
+      const newPast = state.past.slice(0, state.past.length - 1);
+      return {
+        ...state,
+        past: newPast,
+        future: [state.objects, ...state.future],
+        objects: previous,
+        selectedIds: [],
+      };
+    case 'REDO':
+      if (state.future.length === 0) return state;
+      const next = state.future[0];
+      const newFuture = state.future.slice(1);
+      return {
+        ...state,
+        past: [...state.past, state.objects],
+        future: newFuture,
+        objects: next,
+        selectedIds: [],
+      };
     default:
       return state;
   }

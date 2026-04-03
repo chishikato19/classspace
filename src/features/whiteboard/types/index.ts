@@ -1,4 +1,4 @@
-export type ToolType = 'select' | 'pan' | 'pen' | 'eraser' | 'shape' | 'split' | 'text';
+export type ToolType = 'select' | 'pan' | 'pen' | 'eraser' | 'shape' | 'split' | 'text' | 'widget';
 
 export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow';
 
@@ -61,10 +61,21 @@ export interface TextObject extends BaseObject {
   width?: number;
 }
 
-export type WhiteboardObject = PenObject | ShapeObject | ImageObject | TextObject;
+export interface WidgetObject extends BaseObject {
+  type: 'widget';
+  widgetType: 'geogebra';
+  width: number;
+  height: number;
+  url: string;
+  isMinimized?: boolean;
+}
+
+export type WhiteboardObject = PenObject | ShapeObject | ImageObject | TextObject | WidgetObject;
 
 export interface WhiteboardState {
   objects: WhiteboardObject[];
+  past: WhiteboardObject[][];
+  future: WhiteboardObject[][];
   backgroundColor: BackgroundColor;
   backgroundPattern: BackgroundPattern;
   zoom: number;

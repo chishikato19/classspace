@@ -13,7 +13,8 @@ export const convertPdfToImages = async (file: File): Promise<string[]> => {
 
   for (let i = 1; i <= numPages; i++) {
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 2.0 }); // High resolution
+    // Reduce scale to 1.5 to prevent canvas memory limits/crashes on mobile devices
+    const viewport = page.getViewport({ scale: 1.5 }); 
 
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -29,7 +30,7 @@ export const convertPdfToImages = async (file: File): Promise<string[]> => {
       canvas: canvas,
     }).promise;
 
-    images.push(canvas.toDataURL('image/png'));
+    images.push(canvas.toDataURL('image/jpeg', 0.8)); // Use JPEG with compression to save memory
   }
 
   return images;
