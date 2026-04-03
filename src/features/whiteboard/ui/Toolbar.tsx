@@ -201,7 +201,7 @@ export default function Toolbar() {
       className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center z-20 transition-transform duration-300"
       style={{ transform: isToolbarVisible ? 'translateX(1rem)' : 'translateX(calc(-100% + 1.5rem))' }}
     >
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 grid grid-cols-2 gap-2 max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 grid grid-cols-2 gap-2 hide-scrollbar">
         {tools.map((tool) => (
           <button
             key={tool.id}

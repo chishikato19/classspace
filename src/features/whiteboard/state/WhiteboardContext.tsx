@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { WhiteboardState, WhiteboardObject, ToolType, BackgroundColor, BackgroundPattern, Point } from '../types';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import { WhiteboardState, WhiteboardObject, ToolType, BackgroundColor, BackgroundPattern, Point, ShapeType } from '../types';
 
 type Action =
   | { type: 'SET_TOOL'; payload: ToolType }
@@ -121,8 +121,39 @@ const WhiteboardContext = createContext<{
   dispatch: React.Dispatch<Action>;
 } | null>(null);
 
+const SESSION_STORAGE_KEY = 'whiteboard_state';
+
+const loadInitialState = (): WhiteboardState => {
+  try {
+    const savedState = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (savedState) {
+      const parsed = JSON.parse(savedState);
+      return {
+        ...initialState,
+        ...parsed,
+        // Reset some transient states
+        activeTool: 'pen',
+        selectedIds: [],
+        past: parsed.past || [],
+        future: parsed.future || [],
+      };
+    }
+  } catch (e) {
+    console.error('Failed to load whiteboard state from session storage', e);
+  }
+  return initialState;
+};
+
 export function WhiteboardProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(whiteboardReducer, initialState);
+  const [state, dispatch] = useReducer(whiteboardReducer, initialState, loadInitialState);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Failed to save whiteboard state to session storage', e);
+    }
+  }, [state]);
 
   return (
     <WhiteboardContext.Provider value={{ state, dispatch }}>

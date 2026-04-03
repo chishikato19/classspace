@@ -5,6 +5,9 @@ import { ClassGroup, Student, AvatarConfig, GameSession } from '../../../types';
 import { adminService } from '../../admin/services/adminService';
 import { gameService } from '../services/gameService';
 import { DEFAULT_AVATAR_STYLE, AvatarStyle } from '../../../utils/avatarUtils';
+import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
+import { AvatarEditor } from '../../../components/Avatar/AvatarEditor';
+import { Edit2 } from 'lucide-react';
 
 export default function GameJoinPage() {
   const [searchParams] = useSearchParams();
@@ -20,6 +23,13 @@ export default function GameJoinPage() {
   const [passcode, setPasscode] = useState('');
   const [playerName, setPlayerName] = useState('');
   
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
+    style: DEFAULT_AVATAR_STYLE as AvatarStyle,
+    seed: '',
+    backgroundColor: 'transparent'
+  });
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -31,6 +41,13 @@ export default function GameJoinPage() {
       handlePinSubmit(undefined, pinFromUrl);
     }
   }, []);
+
+  // Update avatar seed when player name changes
+  useEffect(() => {
+    if (playerName && !avatarConfig.seed) {
+      setAvatarConfig(prev => ({ ...prev, seed: playerName }));
+    }
+  }, [playerName]);
 
   const handlePinSubmit = async (e?: React.FormEvent, pinOverride?: string) => {
     if (e) e.preventDefault();
@@ -199,7 +216,7 @@ export default function GameJoinPage() {
     try {
       let displayName = '';
       let playerId = uuidv4();
-      let avatarConfig: AvatarConfig;
+      let finalAvatarConfig: AvatarConfig = avatarConfig;
       let studentIds: string[] = [];
 
       if (step === 'NAME_INPUT') {
@@ -209,12 +226,11 @@ export default function GameJoinPage() {
         if (session.nameInputType === 'CLASS_LIST' && session.isGroupPlay) {
            studentIds = selectedStudentIds;
         }
-
-        avatarConfig = {
-          style: DEFAULT_AVATAR_STYLE as AvatarStyle,
-          seed: displayName,
-          backgroundColor: 'transparent'
-        };
+        
+        // If seed is empty, set it to displayName
+        if (!finalAvatarConfig.seed) {
+          finalAvatarConfig = { ...finalAvatarConfig, seed: displayName };
+        }
       } else {
         // STUDENT selection (Individual)
         const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
@@ -225,9 +241,9 @@ export default function GameJoinPage() {
            playerId = selectedStudents[0].id;
            
            if (selectedStudents[0].avatarConfig) {
-              avatarConfig = selectedStudents[0].avatarConfig;
+              finalAvatarConfig = selectedStudents[0].avatarConfig;
            } else {
-              avatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
+              finalAvatarConfig = { style: DEFAULT_AVATAR_STYLE as AvatarStyle, seed: displayName, backgroundColor: 'transparent' };
            }
         } else {
            // Should not happen
@@ -237,13 +253,13 @@ export default function GameJoinPage() {
 
       sessionStorage.setItem('currentPlayerId', playerId);
       sessionStorage.setItem('currentPlayerName', displayName);
-      sessionStorage.setItem('currentPlayerAvatar', JSON.stringify(avatarConfig));
+      sessionStorage.setItem('currentPlayerAvatar', JSON.stringify(finalAvatarConfig));
 
       // Persist for "Redo" or "Return" functionality
       try {
         localStorage.setItem(`player_id_${session.id}`, playerId);
         localStorage.setItem(`player_name_${session.id}`, displayName);
-        localStorage.setItem(`player_avatar_${session.id}`, JSON.stringify(avatarConfig));
+        localStorage.setItem(`player_avatar_${session.id}`, JSON.stringify(finalAvatarConfig));
       } catch (e) {
         console.warn("[GameJoin] localStorage blocked in this browser");
       }
@@ -274,7 +290,7 @@ export default function GameJoinPage() {
           progress: 0,
           finished: false,
           answers: {},
-          avatarConfig: avatarConfig
+          avatarConfig: finalAvatarConfig
         });
       }
       
@@ -392,6 +408,31 @@ export default function GameJoinPage() {
                 disabled={loading}
               />
             </div>
+
+            {/* Avatar Selection */}
+            {!session?.isGroupPlay && (
+              <div className="flex flex-col items-center justify-center space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-sm font-medium text-gray-700">Ảnh đại diện của bạn</p>
+                <div className="relative group">
+                  <div className="bg-white rounded-full p-2 border-2 border-indigo-100 shadow-sm">
+                    <StudentAvatar 
+                      name={playerName || 'Bạn'} 
+                      avatarConfig={avatarConfig} 
+                      size={80} 
+                    />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowAvatarEditor(true)}
+                    className="absolute bottom-0 right-0 p-1.5 bg-indigo-600 text-white rounded-full shadow-md hover:bg-indigo-700 transition-colors"
+                    title="Đổi Avatar"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={handleJoin}
               disabled={loading || !playerName.trim()}
@@ -513,6 +554,17 @@ export default function GameJoinPage() {
           🛍️ Vào Cửa Hàng Đổi Quà
         </button>
       </div>
+
+      {showAvatarEditor && (
+        <AvatarEditor
+          initialConfig={avatarConfig}
+          onSave={(newConfig) => {
+            setAvatarConfig(newConfig);
+            setShowAvatarEditor(false);
+          }}
+          onCancel={() => setShowAvatarEditor(false)}
+        />
+      )}
     </div>
   );
 }
