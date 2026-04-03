@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useWhiteboard } from '../state/WhiteboardContext';
-import { MousePointer2, Hand, Pen, Eraser, Square, Scissors, Type, Image as ImageIcon, Trash2, FileText, Loader2, Palette, Layout, Grid, Minus, Maximize, ZoomIn, ZoomOut, Calculator, Undo2, Redo2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { ToolType, ImageObject, BackgroundColor, BackgroundPattern, WidgetObject } from '../types';
+import { MousePointer2, Hand, Pen, Eraser, Square, Scissors, Type, Image as ImageIcon, Trash2, FileText, Loader2, Palette, Layout, Grid, Minus, Maximize, ZoomIn, ZoomOut, Calculator, Undo2, Redo2, ChevronLeft, ChevronRight, Circle, ClipboardPaste } from 'lucide-react';
+import { ToolType, ImageObject, BackgroundColor, BackgroundPattern, WidgetObject, ShapeType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { convertPdfToImages } from '../utils/pdfUtils';
 
@@ -12,6 +12,7 @@ export default function Toolbar() {
   const [isLoading, setIsLoading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [showShapePicker, setShowShapePicker] = useState(false);
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
 
   const tools: { id: ToolType; icon: React.ReactNode; label: string }[] = [
@@ -19,9 +20,15 @@ export default function Toolbar() {
     { id: 'pan', icon: <Hand className="w-5 h-5" />, label: 'Di chuyển' },
     { id: 'pen', icon: <Pen className="w-5 h-5" />, label: 'Bút vẽ' },
     { id: 'eraser', icon: <Eraser className="w-5 h-5" />, label: 'Tẩy' },
-    { id: 'shape', icon: <Square className="w-5 h-5" />, label: 'Hình học' },
+    // Shape tool is handled separately
     { id: 'split', icon: <Scissors className="w-5 h-5" />, label: 'Cắt đề' },
     { id: 'text', icon: <Type className="w-5 h-5" />, label: 'Văn bản' },
+  ];
+
+  const shapes: { id: ShapeType; icon: React.ReactNode; label: string }[] = [
+    { id: 'rectangle', icon: <Square className="w-5 h-5" />, label: 'Hình chữ nhật' },
+    { id: 'circle', icon: <Circle className="w-5 h-5" />, label: 'Hình tròn' },
+    { id: 'line', icon: <Minus className="w-5 h-5" />, label: 'Đoạn thẳng' },
   ];
 
   const colors = ['#000000', '#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#FFFFFF'];
@@ -37,6 +44,25 @@ export default function Toolbar() {
     { id: 'grid', icon: <Grid className="w-4 h-4" />, label: 'Ô ly' },
     { id: 'lines', icon: <Minus className="w-4 h-4" />, label: 'Kẻ ngang' },
   ];
+
+  const handleColorChange = (color: string) => {
+    dispatch({ type: 'SET_STROKE_COLOR', payload: color });
+    
+    // Update color of selected objects
+    if (state.selectedIds.length > 0) {
+      state.selectedIds.forEach(id => {
+        const obj = state.objects.find(o => o.id === id);
+        if (obj) {
+          if (obj.type === 'text') {
+            dispatch({ type: 'UPDATE_OBJECT', payload: { id, updates: { fill: color } } });
+          } else if (obj.type === 'pen' || obj.type === 'shape') {
+            dispatch({ type: 'UPDATE_OBJECT', payload: { id, updates: { stroke: color } } });
+          }
+        }
+      });
+    }
+    setShowColorPicker(false);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,6 +88,42 @@ export default function Toolbar() {
     };
     reader.readAsDataURL(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handlePasteClick = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const clipboardItem of clipboardItems) {
+        const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
+        for (const imageType of imageTypes) {
+          const blob = await clipboardItem.getType(imageType);
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const src = event.target?.result as string;
+            const img = new Image();
+            img.onload = () => {
+              const centerX = (-state.pan.x + window.innerWidth / 2) / state.zoom;
+              const centerY = (-state.pan.y + window.innerHeight / 2) / state.zoom;
+              const newImage: ImageObject = {
+                id: uuidv4(),
+                type: 'image',
+                src,
+                x: centerX - (img.width > 800 ? 400 : img.width / 2),
+                y: centerY - (img.width > 800 ? (img.height * 800) / img.width / 2 : img.height / 2),
+                width: img.width > 800 ? 800 : img.width,
+                height: img.width > 800 ? (img.height * 800) / img.width : img.height,
+              };
+              dispatch({ type: 'ADD_OBJECT', payload: newImage });
+            };
+            img.src = src;
+          };
+          reader.readAsDataURL(blob);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard contents: ', err);
+      alert('Không thể dán ảnh từ clipboard. Vui lòng sử dụng phím tắt Ctrl+V hoặc chèn ảnh từ file.');
+    }
   };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +216,42 @@ export default function Toolbar() {
             {tool.icon}
           </button>
         ))}
+
+        {/* Shape Picker Toggle */}
+        <div className="relative flex items-center justify-center">
+          <button
+            onClick={() => {
+              setShowShapePicker(!showShapePicker);
+              setShowColorPicker(false);
+              setShowBgPicker(false);
+              dispatch({ type: 'SET_TOOL', payload: 'shape' });
+            }}
+            className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${state.activeTool === 'shape' ? 'bg-indigo-100 text-indigo-600 shadow-inner' : 'text-gray-600 hover:bg-gray-100'}`}
+            title="Hình học"
+          >
+            {state.activeShapeType === 'rectangle' ? <Square className="w-5 h-5" /> : state.activeShapeType === 'circle' ? <Circle className="w-5 h-5" /> : <Minus className="w-5 h-5" />}
+          </button>
+          
+          {showShapePicker && (
+            <div className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 flex flex-col gap-2 w-16 z-50">
+              {shapes.map((shape) => (
+                <button
+                  key={shape.id}
+                  onClick={() => {
+                    dispatch({ type: 'SET_SHAPE_TYPE', payload: shape.id });
+                    setShowShapePicker(false);
+                  }}
+                  className={`p-2 rounded-lg transition-all flex items-center justify-center ${
+                    state.activeShapeType === shape.id ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title={shape.label}
+                >
+                  {shape.icon}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         
         <div className="col-span-2 h-px bg-gray-200 my-1" />
 
@@ -322,6 +420,14 @@ export default function Toolbar() {
           onChange={handlePdfUpload}
           className="hidden"
         />
+
+        <button
+          onClick={handlePasteClick}
+          className="p-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center"
+          title="Dán ảnh từ Clipboard"
+        >
+          <ClipboardPaste className="w-5 h-5" />
+        </button>
 
         <button
           onClick={toggleFullscreen}

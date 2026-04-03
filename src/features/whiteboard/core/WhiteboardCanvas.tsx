@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Stage, Layer, Line, Rect, Circle, Image as KonvaImage, Text, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Line, Rect, Ellipse, Circle, Image as KonvaImage, Text, Transformer, Group } from 'react-konva';
 import { useWhiteboard } from '../state/WhiteboardContext';
 import { PenObject, WhiteboardObject, Point, ImageObject, TextObject } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -90,13 +90,52 @@ export default function WhiteboardCanvas() {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
 
-  // Handle window resize
+  // Handle window resize and paste events
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   useEffect(() => {
     const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    
+    const handlePaste = (e: ClipboardEvent) => {
+      if (e.clipboardData) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const blob = items[i].getAsFile();
+            if (blob) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const src = event.target?.result as string;
+                const img = new window.Image();
+                img.onload = () => {
+                  const centerX = (-state.pan.x + window.innerWidth / 2) / state.zoom;
+                  const centerY = (-state.pan.y + window.innerHeight / 2) / state.zoom;
+                  const newImage: ImageObject = {
+                    id: uuidv4(),
+                    type: 'image',
+                    src,
+                    x: centerX - (img.width > 800 ? 400 : img.width / 2),
+                    y: centerY - (img.width > 800 ? (img.height * 800) / img.width / 2 : img.height / 2),
+                    width: img.width > 800 ? 800 : img.width,
+                    height: img.width > 800 ? (img.height * 800) / img.width : img.height,
+                  };
+                  dispatch({ type: 'ADD_OBJECT', payload: newImage });
+                };
+                img.src = src;
+              };
+              reader.readAsDataURL(blob);
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [dispatch, state.pan, state.zoom]);
 
   const getPointerPosition = () => {
     const stage = stageRef.current;
@@ -479,60 +518,65 @@ export default function WhiteboardCanvas() {
             }
             if (obj.type === 'shape') {
               const shape = obj as ShapeObject;
-              return (
-                <Rect
-                  key={shape.id}
-                  id={shape.id}
-                  x={shape.x}
-                  y={shape.y}
-                  width={shape.width}
-                  height={shape.height}
-                  fill={shape.fill}
-                  stroke={shape.stroke}
-                  strokeWidth={shape.strokeWidth}
-                  rotation={shape.rotation || 0}
-                  scaleX={shape.scaleX || 1}
-                  scaleY={shape.scaleY || 1}
-                  draggable={isSelectTool && isSelected}
-                  listening={isSelectTool || isEraserTool}
-                  onClick={() => {
-                    if (isSelectTool) {
-                      dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
-                    } else if (isEraserTool) {
-                      dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
-                    }
-                  }}
-                  onTap={() => {
-                    if (isSelectTool) {
-                      dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
-                    } else if (isEraserTool) {
-                      dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
-                    }
-                  }}
-                  onDragEnd={(e) => {
-                    dispatch({
-                      type: 'UPDATE_OBJECT',
-                      payload: { id: shape.id, updates: { x: e.target.x(), y: e.target.y() } }
-                    });
-                  }}
-                  onTransformEnd={(e) => {
-                    const node = e.target;
-                    dispatch({
-                      type: 'UPDATE_OBJECT',
-                      payload: {
-                        id: shape.id,
-                        updates: {
-                          x: node.x(),
-                          y: node.y(),
-                          rotation: node.rotation(),
-                          scaleX: node.scaleX(),
-                          scaleY: node.scaleY(),
-                        }
+              const commonProps = {
+                key: shape.id,
+                id: shape.id,
+                x: shape.x,
+                y: shape.y,
+                fill: shape.fill,
+                stroke: shape.stroke,
+                strokeWidth: shape.strokeWidth,
+                rotation: shape.rotation || 0,
+                scaleX: shape.scaleX || 1,
+                scaleY: shape.scaleY || 1,
+                draggable: isSelectTool && isSelected,
+                listening: isSelectTool || isEraserTool,
+                onClick: () => {
+                  if (isSelectTool) {
+                    dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
+                  } else if (isEraserTool) {
+                    dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
+                  }
+                },
+                onTap: () => {
+                  if (isSelectTool) {
+                    dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
+                  } else if (isEraserTool) {
+                    dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
+                  }
+                },
+                onDragEnd: (e: any) => {
+                  dispatch({
+                    type: 'UPDATE_OBJECT',
+                    payload: { id: shape.id, updates: { x: e.target.x(), y: e.target.y() } }
+                  });
+                },
+                onTransformEnd: (e: any) => {
+                  const node = e.target;
+                  dispatch({
+                    type: 'UPDATE_OBJECT',
+                    payload: {
+                      id: shape.id,
+                      updates: {
+                        x: node.x(),
+                        y: node.y(),
+                        rotation: node.rotation(),
+                        scaleX: node.scaleX(),
+                        scaleY: node.scaleY(),
                       }
-                    });
-                  }}
-                />
-              );
+                    }
+                  });
+                }
+              };
+
+              if (shape.shapeType === 'rectangle') {
+                return <Rect {...commonProps} width={shape.width} height={shape.height} />;
+              } else if (shape.shapeType === 'circle') {
+                return <Ellipse {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} radiusX={Math.abs(shape.width / 2)} radiusY={Math.abs(shape.height / 2)} />;
+              } else if (shape.shapeType === 'line') {
+                return <Line {...commonProps} points={[0, 0, shape.width, shape.height]} />;
+              }
+              return null;
             }
             if (obj.type === 'text') {
               const txt = obj as TextObject;
@@ -626,15 +670,39 @@ export default function WhiteboardCanvas() {
           )}
 
           {currentShape && (
-            <Rect
-              x={currentShape.x}
-              y={currentShape.y}
-              width={currentShape.width}
-              height={currentShape.height}
-              fill={currentShape.fill}
-              stroke={currentShape.stroke}
-              strokeWidth={currentShape.strokeWidth}
-            />
+            <React.Fragment>
+              {currentShape.shapeType === 'rectangle' && (
+                <Rect
+                  x={currentShape.x}
+                  y={currentShape.y}
+                  width={currentShape.width}
+                  height={currentShape.height}
+                  fill={currentShape.fill}
+                  stroke={currentShape.stroke}
+                  strokeWidth={currentShape.strokeWidth}
+                />
+              )}
+              {currentShape.shapeType === 'circle' && (
+                <Ellipse
+                  x={currentShape.x + currentShape.width / 2}
+                  y={currentShape.y + currentShape.height / 2}
+                  radiusX={Math.abs(currentShape.width / 2)}
+                  radiusY={Math.abs(currentShape.height / 2)}
+                  fill={currentShape.fill}
+                  stroke={currentShape.stroke}
+                  strokeWidth={currentShape.strokeWidth}
+                />
+              )}
+              {currentShape.shapeType === 'line' && (
+                <Line
+                  x={currentShape.x}
+                  y={currentShape.y}
+                  points={[0, 0, currentShape.width, currentShape.height]}
+                  stroke={currentShape.stroke}
+                  strokeWidth={currentShape.strokeWidth}
+                />
+              )}
+            </React.Fragment>
           )}
 
           {/* Transformer for selection */}

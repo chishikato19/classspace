@@ -81,6 +81,7 @@ export interface WhiteboardState {
   zoom: number;
   pan: Point;
   activeTool: ToolType;
+  activeShapeType: ShapeType;
   strokeColor: string;
   strokeWidth: number;
   fillColor: string;

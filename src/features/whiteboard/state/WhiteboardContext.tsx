@@ -16,7 +16,8 @@ type Action =
   | { type: 'SET_SELECTED_IDS'; payload: string[] }
   | { type: 'CLEAR_BOARD' }
   | { type: 'UNDO' }
-  | { type: 'REDO' };
+  | { type: 'REDO' }
+  | { type: 'SET_SHAPE_TYPE'; payload: ShapeType };
 
 const initialState: WhiteboardState = {
   objects: [],
@@ -27,6 +28,7 @@ const initialState: WhiteboardState = {
   zoom: 1,
   pan: { x: 0, y: 0 },
   activeTool: 'pen',
+  activeShapeType: 'rectangle',
   strokeColor: '#000000',
   strokeWidth: 4,
   fillColor: 'transparent',
@@ -37,6 +39,8 @@ function whiteboardReducer(state: WhiteboardState, action: Action): WhiteboardSt
   switch (action.type) {
     case 'SET_TOOL':
       return { ...state, activeTool: action.payload };
+    case 'SET_SHAPE_TYPE':
+      return { ...state, activeShapeType: action.payload, activeTool: 'shape' };
     case 'SET_BACKGROUND_COLOR':
       return { ...state, backgroundColor: action.payload };
     case 'SET_BACKGROUND_PATTERN':
