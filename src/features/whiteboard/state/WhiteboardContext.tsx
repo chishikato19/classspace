@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState } from 'react';
 import { WhiteboardState, WhiteboardObject, ToolType, BackgroundColor, BackgroundPattern, Point, ShapeType } from '../types';
+import { get, set, clear } from 'idb-keyval';
 
 type Action =
   | { type: 'SET_TOOL'; payload: ToolType }
@@ -17,7 +18,8 @@ type Action =
   | { type: 'CLEAR_BOARD' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
-  | { type: 'SET_SHAPE_TYPE'; payload: ShapeType };
+  | { type: 'SET_SHAPE_TYPE'; payload: ShapeType }
+  | { type: 'LOAD_STATE'; payload: Partial<WhiteboardState> };
 
 const initialState: WhiteboardState = {
   objects: [],
@@ -37,6 +39,15 @@ const initialState: WhiteboardState = {
 
 function whiteboardReducer(state: WhiteboardState, action: Action): WhiteboardState {
   switch (action.type) {
+    case 'LOAD_STATE':
+      return {
+        ...state,
+        ...action.payload,
+        activeTool: 'pen',
+        selectedIds: [],
+        past: action.payload.past || [],
+        future: action.payload.future || [],
+      };
     case 'SET_TOOL':
       return { ...state, activeTool: action.payload };
     case 'SET_SHAPE_TYPE':
@@ -121,44 +132,59 @@ const WhiteboardContext = createContext<{
   dispatch: React.Dispatch<Action>;
 } | null>(null);
 
-const SESSION_STORAGE_KEY = 'whiteboard_state';
-
-const loadInitialState = (): WhiteboardState => {
-  try {
-    const savedState = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (savedState) {
-      const parsed = JSON.parse(savedState);
-      return {
-        ...initialState,
-        ...parsed,
-        // Reset some transient states
-        activeTool: 'pen',
-        selectedIds: [],
-        past: parsed.past || [],
-        future: parsed.future || [],
-      };
-    }
-  } catch (e) {
-    console.error('Failed to load whiteboard state from session storage', e);
-  }
-  return initialState;
-};
+const IDB_KEY = 'whiteboard_state';
 
 export function WhiteboardProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(whiteboardReducer, initialState, loadInitialState);
+  const [state, dispatch] = useReducer(whiteboardReducer, initialState);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const stateToSave = {
-        ...state,
-        past: [],
-        future: []
-      };
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(stateToSave));
-    } catch (e) {
-      console.error('Failed to save whiteboard state to session storage', e);
-    }
-  }, [state]);
+    const initDB = async () => {
+      try {
+        // Check if this is a new browser session
+        if (!document.cookie.includes('wb_session=1')) {
+          // Browser was closed, wipe the IndexedDB data
+          await clear();
+          // Set a session cookie (expires when browser closes)
+          document.cookie = "wb_session=1; path=/";
+        } else {
+          // Same session, load from IndexedDB
+          const savedState = await get(IDB_KEY);
+          if (savedState) {
+            dispatch({ type: 'LOAD_STATE', payload: savedState });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load whiteboard state from IndexedDB', e);
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+    initDB();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    const saveToDB = async () => {
+      try {
+        const stateToSave = {
+          ...state,
+          past: [],
+          future: []
+        };
+        await set(IDB_KEY, stateToSave);
+      } catch (e) {
+        console.error('Failed to save whiteboard state to IndexedDB', e);
+      }
+    };
+    
+    saveToDB();
+  }, [state, isLoaded]);
+
+  if (!isLoaded) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <WhiteboardContext.Provider value={{ state, dispatch }}>
