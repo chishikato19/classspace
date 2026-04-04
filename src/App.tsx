@@ -42,6 +42,8 @@ import { NoiseMonitorProvider } from './contexts/NoiseMonitorContext';
 import { NoiseMonitorWidget } from './components/NoiseMonitorWidget';
 import { TimerProvider } from './contexts/TimerContext';
 import { TimerWidget } from './components/TimerWidget';
+import { CalculatorProvider } from './contexts/CalculatorContext';
+import { CalculatorWidget } from './components/CalculatorWidget';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -60,10 +62,12 @@ export default function App() {
     <ErrorBoundary>
       <NoiseMonitorProvider>
         <TimerProvider>
-          <HashRouter>
-            <NoiseMonitorWidget />
-            <TimerWidget />
-            <Routes>
+          <CalculatorProvider>
+            <HashRouter>
+              <NoiseMonitorWidget />
+              <TimerWidget />
+              <CalculatorWidget />
+              <Routes>
             {/* Public Routes */}
             <Route path="/" element={<GameJoinPage />} />
             <Route path="/join" element={<GameJoinPage />} />
@@ -102,6 +106,7 @@ export default function App() {
             </Route>
           </Routes>
         </HashRouter>
+        </CalculatorProvider>
       </TimerProvider>
     </NoiseMonitorProvider>
   </ErrorBoundary>

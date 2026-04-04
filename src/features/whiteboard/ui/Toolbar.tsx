@@ -14,6 +14,7 @@ export default function Toolbar() {
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showShapePicker, setShowShapePicker] = useState(false);
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
+  const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
 
   const tools: { id: ToolType; icon: React.ReactNode; label: string }[] = [
     { id: 'select', icon: <MousePointer2 className="w-5 h-5" />, label: 'Chọn vùng' },
@@ -64,6 +65,11 @@ export default function Toolbar() {
       });
     }
     setShowColorPicker(false);
+  };
+
+  const updatePickerPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPickerPos({ top: rect.top, left: rect.right + 8 });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,7 +209,14 @@ export default function Toolbar() {
       className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center z-20 transition-transform duration-300"
       style={{ transform: isToolbarVisible ? 'translateX(1rem)' : 'translateX(calc(-100% + 1.5rem))' }}
     >
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 grid grid-cols-2 gap-2 hide-scrollbar">
+      <div 
+        className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2 grid grid-cols-2 gap-2 hide-scrollbar max-h-[85vh] overflow-y-auto"
+        onScroll={() => {
+          setShowColorPicker(false);
+          setShowBgPicker(false);
+          setShowShapePicker(false);
+        }}
+      >
         {tools.map((tool) => (
           <button
             key={tool.id}
@@ -222,7 +235,8 @@ export default function Toolbar() {
         {/* Shape Picker Toggle */}
         <div className="relative flex items-center justify-center">
           <button
-            onClick={() => {
+            onClick={(e) => {
+              updatePickerPos(e);
               setShowShapePicker(!showShapePicker);
               setShowColorPicker(false);
               setShowBgPicker(false);
@@ -235,7 +249,10 @@ export default function Toolbar() {
           </button>
           
           {showShapePicker && (
-            <div className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 flex flex-col gap-2 w-16 z-50">
+            <div 
+              className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-2 flex flex-col gap-2 w-16 z-50"
+              style={{ top: pickerPos.top, left: pickerPos.left }}
+            >
               {shapes.map((shape) => (
                 <button
                   key={shape.id}
@@ -280,7 +297,8 @@ export default function Toolbar() {
         {/* Color Picker Toggle */}
         <div className="relative flex items-center justify-center">
           <button
-            onClick={() => {
+            onClick={(e) => {
+              updatePickerPos(e);
               setShowColorPicker(!showColorPicker);
               setShowBgPicker(false);
             }}
@@ -291,7 +309,10 @@ export default function Toolbar() {
           </button>
           
           {showColorPicker && (
-            <div className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 flex flex-wrap gap-2 w-36 z-50">
+            <div 
+              className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-3 flex flex-wrap gap-2 w-36 z-50"
+              style={{ top: pickerPos.top, left: pickerPos.left }}
+            >
               {colors.map((color) => (
                 <button
                   key={color}
@@ -309,7 +330,8 @@ export default function Toolbar() {
         {/* Background Picker Toggle */}
         <div className="relative flex items-center justify-center">
           <button
-            onClick={() => {
+            onClick={(e) => {
+              updatePickerPos(e);
               setShowBgPicker(!showBgPicker);
               setShowColorPicker(false);
             }}
@@ -320,7 +342,10 @@ export default function Toolbar() {
           </button>
 
           {showBgPicker && (
-            <div className="absolute left-full ml-2 top-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 flex flex-col gap-4 w-48 z-50">
+            <div 
+              className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-4 flex flex-col gap-4 w-48 z-50"
+              style={{ top: pickerPos.top, left: pickerPos.left }}
+            >
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Màu nền</p>
                 <div className="flex gap-2">

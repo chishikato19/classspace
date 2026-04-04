@@ -2,13 +2,15 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../features/auth/services/authService';
 import { useNoiseMonitor } from '../../contexts/NoiseMonitorContext';
 import { useTimer } from '../../contexts/TimerContext';
-import { Settings, Youtube, Shuffle, Mic, Timer, LogOut, Camera, FolderOpen, Pen } from 'lucide-react';
+import { Settings, Youtube, Shuffle, Mic, Timer, LogOut, Camera, FolderOpen, Pen, Calculator } from 'lucide-react';
+import { useCalculator } from '../../contexts/CalculatorContext';
 
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isWidgetVisible, setWidgetVisible } = useNoiseMonitor();
   const { isTimerVisible, setTimerVisible } = useTimer();
+  const { isCalculatorVisible, setCalculatorVisible } = useCalculator();
 
   const handleLogout = async () => {
     await authService.logout();
@@ -53,6 +55,13 @@ export default function Layout() {
                 title="Đồng hồ đếm ngược"
               >
                 <Timer className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setCalculatorVisible(!isCalculatorVisible)}
+                className={`p-2 rounded-lg transition-colors ${isCalculatorVisible ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                title="Máy tính Casio"
+              >
+                <Calculator className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => setWidgetVisible(!isWidgetVisible)}
