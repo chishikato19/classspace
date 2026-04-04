@@ -4,6 +4,7 @@ import { X, Minimize2, Maximize2, Calculator, Settings2, History, Trash2, LineCh
 import * as math from 'mathjs';
 import 'katex/dist/katex.min.css';
 import { MathText } from './MathText';
+import { MathInput, MathInputRef } from './MathInput';
 
 type CalcMode = 'COMP' | 'EQN' | 'GRAPH';
 
@@ -27,6 +28,7 @@ export const CalculatorWidget: React.FC = () => {
 
   // Result formatting
   const [resultFormat, setResultFormat] = useState<'decimal' | 'fraction'>('decimal');
+  const displayRef = useRef<MathInputRef>(null);
 
   // Equation state
   const [eqnType, setEqnType] = useState<'linear' | 'quadratic' | 'system'>('quadratic');
@@ -182,9 +184,19 @@ export const CalculatorWidget: React.FC = () => {
         return;
       }
       try {
-        const evaluated = math.evaluate(display.replace(/\s/g, ''));
+        const latex = displayRef.current?.getLatex() || display;
+        const asciiMath = displayRef.current?.getAsciiMath() || display;
+        
+        let expr = asciiMath
+          .replace(/cdot/g, '*')
+          .replace(/times/g, '*')
+          .replace(/div/g, '/')
+          .replace(/pi/g, 'pi')
+          .replace(/sqrt/g, 'sqrt');
+          
+        const evaluated = math.evaluate(expr.replace(/\s/g, ''));
         setResult(evaluated.toString());
-        setHistory([`${display} = ${evaluated.toString()}`, ...history.slice(0, 9)]);
+        setHistory([`${latex} = ${evaluated.toString()}`, ...history.slice(0, 9)]);
       } catch (err) {
         setResult('Error');
       }
@@ -194,6 +206,7 @@ export const CalculatorWidget: React.FC = () => {
     if (key === 'AC') {
       if (mode === 'COMP') {
         setDisplay('');
+        displayRef.current?.setLatex('');
         setResult(null);
       } else if (mode === 'GRAPH') {
         const newFuncs = [...graphFunctions];
@@ -207,8 +220,9 @@ export const CalculatorWidget: React.FC = () => {
     }
 
     if (key === 'DEL') {
-      if (focusedField === 'display') setDisplay(display.slice(0, -1));
-      else if (focusedField === 'graph') {
+      if (mode === 'COMP') {
+        displayRef.current?.executeCommand(['deleteBackward']);
+      } else if (focusedField === 'graph') {
         const newFuncs = [...graphFunctions];
         newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex].slice(0, -1);
         setGraphFunctions(newFuncs);
@@ -220,66 +234,43 @@ export const CalculatorWidget: React.FC = () => {
       return;
     }
 
-    if (key === 'ANS') {
-      const val = (result && result !== 'Error' && !result.includes('x')) ? result : '';
-      if (focusedField === 'display') setDisplay(display + val);
-      else if (focusedField === 'graph') {
-        const newFuncs = [...graphFunctions];
-        newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex] + val;
-        setGraphFunctions(newFuncs);
-      }
-      else {
-        const field = focusedField as keyof typeof coeffs;
-        setCoeffs({ ...coeffs, [field]: coeffs[field] + val });
-      }
-      return;
-    }
-
     if (key === 'S<=>D') {
       setResultFormat(prev => prev === 'decimal' ? 'fraction' : 'decimal');
       return;
     }
 
-    if (key === '(/)') {
-      const template = '( )/( )';
-      if (focusedField === 'display') setDisplay(display + template);
-      else if (focusedField === 'graph') {
+    const insertMath = (latex: string) => {
+      if (mode === 'COMP') {
+        displayRef.current?.executeCommand(['insert', latex]);
+        displayRef.current?.focus();
+      } else if (mode === 'GRAPH') {
         const newFuncs = [...graphFunctions];
-        newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex] + template;
+        newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex] + latex;
         setGraphFunctions(newFuncs);
-      }
-      else {
+      } else {
         const field = focusedField as keyof typeof coeffs;
-        setCoeffs({ ...coeffs, [field]: coeffs[field] + template });
+        setCoeffs({ ...coeffs, [field]: coeffs[field] + latex });
       }
-      return;
-    }
+    };
 
-    if (key === 'pi') {
-      const val = 'pi';
-      if (focusedField === 'display') setDisplay(display + val);
-      else if (focusedField === 'graph') {
-        const newFuncs = [...graphFunctions];
-        newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex] + val;
-        setGraphFunctions(newFuncs);
-      }
-      else {
-        const field = focusedField as keyof typeof coeffs;
-        setCoeffs({ ...coeffs, [field]: coeffs[field] + val });
-      }
-      return;
-    }
+    const keyMap: Record<string, string> = {
+      '(/)': '\\frac{#?}{#?}',
+      'sqrt(': '\\sqrt{#?}',
+      'sin(': '\\sin(',
+      'cos(': '\\cos(',
+      'tan(': '\\tan(',
+      'log(': '\\log_{10}(',
+      'ln(': '\\ln(',
+      'pi': '\\pi',
+      '*': '\\times',
+      '/': '\\div',
+      'ANS': (result && result !== 'Error' && !result.includes('x')) ? result : '',
+    };
 
-    // Normal key input
-    if (focusedField === 'display') setDisplay(display + key);
-    else if (focusedField === 'graph') {
-      const newFuncs = [...graphFunctions];
-      newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex] + key;
-      setGraphFunctions(newFuncs);
-    }
-    else {
-      const field = focusedField as keyof typeof coeffs;
-      setCoeffs({ ...coeffs, [field]: coeffs[field] + key });
+    if (keyMap[key] !== undefined) {
+      insertMath(keyMap[key]);
+    } else {
+      insertMath(key);
     }
   };
 
@@ -613,7 +604,13 @@ export const CalculatorWidget: React.FC = () => {
         ) : (
           <>
             <div className="text-right text-sm font-mono text-gray-800 break-all overflow-y-auto max-h-[60px] hide-scrollbar">
-              {display || '0'}
+              <MathInput
+                ref={displayRef}
+                value={display}
+                onChange={setDisplay}
+                style={{ textAlign: 'right' }}
+                onEnter={() => handleKeyPress('=')}
+              />
             </div>
             <div className="text-right text-2xl font-mono font-bold text-gray-900 mt-2 flex justify-end">
               <MathText text={formatResult(result) || ''} />

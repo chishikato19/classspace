@@ -149,7 +149,12 @@ export function WhiteboardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(state));
+      const stateToSave = {
+        ...state,
+        past: [],
+        future: []
+      };
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (e) {
       console.error('Failed to save whiteboard state to session storage', e);
     }

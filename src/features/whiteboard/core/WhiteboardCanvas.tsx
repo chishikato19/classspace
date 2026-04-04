@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { MathText } from '../../../components/MathText';
 
 // Helper component to load and render images
-const URLImage = ({ image, isSelected, onSelect, onChange, activeTool }: { image: ImageObject, isSelected: boolean, onSelect: () => void, onChange: (newAttrs: any) => void, activeTool: string }) => {
+const URLImage = ({ image, isSelected, onSelect, onChange, activeTool, onMouseEnter }: { image: ImageObject, isSelected: boolean, onSelect: () => void, onChange: (newAttrs: any) => void, activeTool: string, onMouseEnter?: (e: any) => void }) => {
   const [img] = useState(() => {
     const i = new window.Image();
     i.src = image.src;
@@ -32,6 +32,7 @@ const URLImage = ({ image, isSelected, onSelect, onChange, activeTool }: { image
       <KonvaImage
         onClick={onSelect}
         onTap={onSelect}
+        onMouseEnter={onMouseEnter}
         ref={shapeRef}
         image={img}
         x={image.x}
@@ -499,8 +500,20 @@ export default function WhiteboardCanvas() {
     return lines;
   };
 
+  const getCursor = () => {
+    if (state.activeTool === 'pan') return isDrawing ? 'grabbing' : 'grab';
+    if (state.activeTool === 'eraser') {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>`;
+      return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}') 0 24, auto`;
+    }
+    if (state.activeTool === 'pen' || state.activeTool === 'shape') return 'crosshair';
+    if (state.activeTool === 'text' || state.activeTool === 'math') return 'text';
+    if (state.activeTool === 'split') return 'row-resize';
+    return 'default';
+  };
+
   return (
-    <div className="w-full h-full overflow-hidden bg-gray-200 relative" style={{ touchAction: 'none' }}>
+    <div className="w-full h-full overflow-hidden bg-gray-200 relative" style={{ touchAction: 'none', cursor: getCursor() }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -542,6 +555,7 @@ export default function WhiteboardCanvas() {
                   points={obj.points}
                   stroke={obj.stroke}
                   strokeWidth={obj.strokeWidth}
+                  hitStrokeWidth={Math.max(20, obj.strokeWidth + 10)}
                   tension={obj.tension}
                   lineCap="round"
                   lineJoin="round"
@@ -558,6 +572,11 @@ export default function WhiteboardCanvas() {
                     if (isSelectTool) {
                       dispatch({ type: 'SET_SELECTED_IDS', payload: [obj.id] });
                     } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: obj.id });
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isEraserTool && e.evt.buttons === 1) {
                       dispatch({ type: 'REMOVE_OBJECT', payload: obj.id });
                     }
                   }}
@@ -598,6 +617,11 @@ export default function WhiteboardCanvas() {
                   if (isSelectTool) {
                     dispatch({ type: 'SET_SELECTED_IDS', payload: [shape.id] });
                   } else if (isEraserTool) {
+                    dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
+                  }
+                },
+                onMouseEnter: (e: any) => {
+                  if (isEraserTool && e.evt.buttons === 1) {
                     dispatch({ type: 'REMOVE_OBJECT', payload: shape.id });
                   }
                 },
@@ -668,6 +692,11 @@ export default function WhiteboardCanvas() {
                       dispatch({ type: 'REMOVE_OBJECT', payload: txt.id });
                     }
                   }}
+                  onMouseEnter={(e) => {
+                    if (isEraserTool && e.evt.buttons === 1) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: txt.id });
+                    }
+                  }}
                   onDragEnd={(e) => {
                     dispatch({
                       type: 'UPDATE_OBJECT',
@@ -717,6 +746,11 @@ export default function WhiteboardCanvas() {
                     if (isSelectTool) {
                       dispatch({ type: 'SET_SELECTED_IDS', payload: [math.id] });
                     } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: math.id });
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isEraserTool && e.evt.buttons === 1) {
                       dispatch({ type: 'REMOVE_OBJECT', payload: math.id });
                     }
                   }}
@@ -792,6 +826,11 @@ export default function WhiteboardCanvas() {
                     if (isSelectTool) {
                       dispatch({ type: 'SET_SELECTED_IDS', payload: [obj.id] });
                     } else if (isEraserTool) {
+                      dispatch({ type: 'REMOVE_OBJECT', payload: obj.id });
+                    }
+                  }}
+                  onMouseEnter={(e: any) => {
+                    if (isEraserTool && e.evt.buttons === 1) {
                       dispatch({ type: 'REMOVE_OBJECT', payload: obj.id });
                     }
                   }}
