@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useCalculator } from '../contexts/CalculatorContext';
 import { X, Minimize2, Maximize2, Calculator, Settings2, History, Trash2, LineChart, ZoomIn, ZoomOut } from 'lucide-react';
 import * as math from 'mathjs';
+import nerdamer from 'nerdamer';
+import 'nerdamer/Solve.js';
 import 'katex/dist/katex.min.css';
 import { MathText } from './MathText';
 import { MathInput, MathInputRef } from './MathInput';
@@ -11,6 +13,7 @@ type CalcMode = 'COMP' | 'EQN' | 'GRAPH';
 export const CalculatorWidget: React.FC = () => {
   const { isCalculatorVisible, setCalculatorVisible } = useCalculator();
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [mode, setMode] = useState<CalcMode>('COMP');
   const [display, setDisplay] = useState('');
   const [result, setResult] = useState<string | null>(null);
@@ -29,11 +32,13 @@ export const CalculatorWidget: React.FC = () => {
   // Result formatting
   const [resultFormat, setResultFormat] = useState<'decimal' | 'fraction'>('decimal');
   const displayRef = useRef<MathInputRef>(null);
+  const freeEqnRef = useRef<MathInputRef>(null);
 
   // Equation state
-  const [eqnType, setEqnType] = useState<'linear' | 'quadratic' | 'system'>('quadratic');
+  const [eqnType, setEqnType] = useState<'linear' | 'quadratic' | 'system' | 'free'>('quadratic');
   const [coeffs, setCoeffs] = useState({ a: '1', b: '0', c: '0', a1: '1', b1: '1', c1: '5', a2: '1', b2: '-1', c2: '1' });
-  const [focusedField, setFocusedField] = useState<'display' | 'graph' | 'a' | 'b' | 'c' | 'a1' | 'b1' | 'c1' | 'a2' | 'b2' | 'c2'>('display');
+  const [freeEqn, setFreeEqn] = useState('');
+  const [focusedField, setFocusedField] = useState<'display' | 'graph' | 'a' | 'b' | 'c' | 'a1' | 'b1' | 'c1' | 'a2' | 'b2' | 'c2' | 'freeEqn'>('display');
 
   useEffect(() => {
     if (mode === 'GRAPH' && canvasRef.current) {
@@ -47,6 +52,7 @@ export const CalculatorWidget: React.FC = () => {
     else if (mode === 'GRAPH') setFocusedField('graph');
     else if (mode === 'EQN') {
       if (eqnType === 'system') setFocusedField('a1');
+      else if (eqnType === 'free') setFocusedField('freeEqn');
       else setFocusedField('a');
     }
   }, [mode, eqnType]);
@@ -117,6 +123,23 @@ export const CalculatorWidget: React.FC = () => {
 
   const solveEquation = () => {
     try {
+      if (eqnType === 'free') {
+        let eq = freeEqnRef.current?.getAsciiMath() || freeEqn;
+        eq = eq
+          .replace(/cdot/g, '*')
+          .replace(/times/g, '*')
+          .replace(/div/g, '/')
+          .replace(/pi/g, 'pi')
+          .replace(/sqrt/g, 'sqrt');
+          
+        if (!eq.includes('=')) {
+          eq = eq + '=0';
+        }
+        const sol = nerdamer.solveEquations(eq, 'x');
+        setResult(`x = ${sol.toString()}`);
+        return;
+      }
+
       if (eqnType === 'system') {
         const a1 = parseFloat(coeffs.a1);
         const b1 = parseFloat(coeffs.b1);
@@ -214,6 +237,8 @@ export const CalculatorWidget: React.FC = () => {
         setGraphFunctions(newFuncs);
       } else if (mode === 'EQN') {
         setCoeffs({ a: '0', b: '0', c: '0', a1: '0', b1: '0', c1: '0', a2: '0', b2: '0', c2: '0' });
+        setFreeEqn('');
+        freeEqnRef.current?.setLatex('');
         setResult(null);
       }
       return;
@@ -226,10 +251,14 @@ export const CalculatorWidget: React.FC = () => {
         const newFuncs = [...graphFunctions];
         newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex].slice(0, -1);
         setGraphFunctions(newFuncs);
+      } else if (focusedField === 'freeEqn') {
+        freeEqnRef.current?.executeCommand(['deleteBackward']);
       }
       else {
         const field = focusedField as keyof typeof coeffs;
-        setCoeffs({ ...coeffs, [field]: coeffs[field].slice(0, -1) });
+        if (coeffs[field] !== undefined) {
+          setCoeffs({ ...coeffs, [field]: coeffs[field].slice(0, -1) });
+        }
       }
       return;
     }
@@ -247,9 +276,14 @@ export const CalculatorWidget: React.FC = () => {
         const newFuncs = [...graphFunctions];
         newFuncs[activeGraphIndex] = newFuncs[activeGraphIndex] + latex;
         setGraphFunctions(newFuncs);
+      } else if (focusedField === 'freeEqn') {
+        freeEqnRef.current?.executeCommand(['insert', latex]);
+        freeEqnRef.current?.focus();
       } else {
         const field = focusedField as keyof typeof coeffs;
-        setCoeffs({ ...coeffs, [field]: coeffs[field] + latex });
+        if (coeffs[field] !== undefined) {
+          setCoeffs({ ...coeffs, [field]: coeffs[field] + latex });
+        }
       }
     };
 
@@ -311,12 +345,19 @@ export const CalculatorWidget: React.FC = () => {
 
     // Draw labels/points
     ctx.fillStyle = '#4b5563';
-    ctx.font = '8px Arial';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     
+    let step = 1;
+    if (scale < 15) step = 5;
+    if (scale < 5) step = 10;
+    if (scale > 50) step = 0.5;
+
     const xRange = Math.ceil(width / scale / 2) + Math.abs(Math.ceil(graphOffset.x / scale));
     const yRange = Math.ceil(height / scale / 2) + Math.abs(Math.ceil(graphOffset.y / scale));
 
-    for (let i = -xRange * 2; i <= xRange * 2; i++) {
+    for (let i = -xRange * 2; i <= xRange * 2; i += step) {
       if (i === 0) continue;
       const xPos = centerX + i * scale;
       if (xPos < 0 || xPos > width) continue;
@@ -324,10 +365,10 @@ export const CalculatorWidget: React.FC = () => {
       ctx.moveTo(xPos, centerY - 3);
       ctx.lineTo(xPos, centerY + 3);
       ctx.stroke();
-      ctx.fillText(i.toString(), xPos - 3, centerY + 12);
+      ctx.fillText(i.toString(), xPos, centerY + 15);
     }
 
-    for (let i = -yRange * 2; i <= yRange * 2; i++) {
+    for (let i = -yRange * 2; i <= yRange * 2; i += step) {
       if (i === 0) continue;
       const yPos = centerY - i * scale;
       if (yPos < 0 || yPos > height) continue;
@@ -335,7 +376,9 @@ export const CalculatorWidget: React.FC = () => {
       ctx.moveTo(centerX - 3, yPos);
       ctx.lineTo(centerX + 3, yPos);
       ctx.stroke();
-      ctx.fillText(i.toString(), centerX - 12, yPos + 3);
+      ctx.textAlign = 'right';
+      ctx.fillText(i.toString(), centerX - 8, yPos);
+      ctx.textAlign = 'center';
     }
 
     // Draw functions
@@ -416,15 +459,22 @@ export const CalculatorWidget: React.FC = () => {
     );
   }
 
+  const containerClass = isFullscreen
+    ? "fixed inset-0 z-[9999] bg-[#2c2c2c] flex flex-col font-sans overflow-hidden"
+    : "fixed bottom-4 right-4 z-50 w-80 bg-[#2c2c2c] rounded-2xl shadow-2xl border-4 border-[#1a1a1a] flex flex-col font-sans overflow-hidden";
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 bg-[#2c2c2c] rounded-2xl shadow-2xl border-4 border-[#1a1a1a] overflow-hidden flex flex-col font-sans">
+    <div className={containerClass}>
       {/* Header */}
-      <div className="bg-[#1a1a1a] p-2 flex items-center justify-between">
+      <div className="bg-[#1a1a1a] p-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <div className="bg-gray-700 px-2 py-0.5 rounded text-[10px] font-bold text-gray-300">CASIO</div>
           <div className="text-[10px] text-gray-500 font-mono">fx-580VN X</div>
         </div>
         <div className="flex items-center gap-1">
+          <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1 text-gray-400 hover:text-white rounded">
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
           <button onClick={() => setIsMinimized(true)} className="p-1 text-gray-400 hover:text-white rounded">
             <Minimize2 className="w-4 h-4" />
           </button>
@@ -434,9 +484,10 @@ export const CalculatorWidget: React.FC = () => {
         </div>
       </div>
 
-      {/* Screen Area */}
-      <div className="p-4 bg-[#9eb0a3] m-2 rounded-sm shadow-inner border-2 border-[#8a9b8f] min-h-[200px] flex flex-col justify-between relative overflow-hidden">
-        {/* Mode Indicator */}
+      <div className={`flex flex-1 overflow-hidden ${isFullscreen ? 'flex-row' : 'flex-col'}`}>
+        {/* Screen Area */}
+        <div className={`bg-[#9eb0a3] m-2 rounded-sm shadow-inner border-2 border-[#8a9b8f] flex flex-col relative overflow-hidden ${isFullscreen ? 'w-3/5 order-2 p-6' : 'p-4 min-h-[200px] order-1'}`}>
+          {/* Mode Indicator */}
         <div className="absolute top-1 left-1 text-[8px] font-bold text-gray-700 flex gap-2">
           <span className={mode === 'COMP' ? 'underline' : ''}>COMP</span>
           <span className={mode === 'EQN' ? 'underline' : ''}>EQN</span>
@@ -542,9 +593,31 @@ export const CalculatorWidget: React.FC = () => {
               >
                 Hệ PT
               </button>
+              <button 
+                onClick={() => setEqnType('free')}
+                className={`text-[8px] px-2 py-0.5 rounded ${eqnType === 'free' ? 'bg-gray-700 text-white' : 'bg-gray-400 text-gray-800'}`}
+              >
+                Tự do
+              </button>
             </div>
             
-            {eqnType === 'system' ? (
+            {eqnType === 'free' ? (
+              <div className="flex flex-col items-center justify-center flex-1 w-full">
+                <span className="text-[10px] text-gray-600 mb-1">Nhập phương trình (ẩn x):</span>
+                <div 
+                  className={`w-full bg-transparent border-b text-center text-sm font-mono ${focusedField === 'freeEqn' ? 'border-gray-800' : 'border-gray-600'} cursor-text`} 
+                  onClick={() => { setFocusedField('freeEqn'); freeEqnRef.current?.focus(); }}
+                >
+                  <MathInput
+                    ref={freeEqnRef}
+                    value={freeEqn}
+                    onChange={setFreeEqn}
+                    style={{ textAlign: 'center' }}
+                    onEnter={() => handleKeyPress('=')}
+                  />
+                </div>
+              </div>
+            ) : eqnType === 'system' ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-1 text-[10px] font-mono">
                   <input value={coeffs.a1} onFocus={() => setFocusedField('a1')} onChange={(e) => setCoeffs({...coeffs, a1: e.target.value})} className={`w-8 bg-transparent border-b text-center ${focusedField === 'a1' ? 'border-gray-800' : 'border-gray-600'}`} />
@@ -620,7 +693,7 @@ export const CalculatorWidget: React.FC = () => {
       </div>
 
       {/* Buttons Area */}
-      <div className="p-3 grid grid-cols-5 gap-2 bg-[#2c2c2c]">
+      <div className={`p-3 grid grid-cols-5 gap-2 bg-[#2c2c2c] ${isFullscreen ? 'w-2/5 overflow-y-auto content-start order-1' : 'order-2'}`}>
         {/* Top Row - Function Keys */}
         <button onClick={() => setMode('COMP')} className="bg-[#3d3d3d] text-white text-[10px] py-1 rounded shadow-md hover:bg-gray-600">COMP</button>
         <button onClick={() => setMode('EQN')} className="bg-[#3d3d3d] text-white text-[10px] py-1 rounded shadow-md hover:bg-gray-600">EQN</button>
@@ -672,6 +745,7 @@ export const CalculatorWidget: React.FC = () => {
         <button onClick={() => handleKeyPress('.')} className="bg-[#e5e7eb] text-gray-900 font-bold py-2 rounded shadow-md hover:bg-white">.</button>
         <button onClick={() => handleKeyPress('-')} className="bg-[#4b5563] text-white font-bold py-2 rounded shadow-md hover:bg-gray-500">-</button>
         <button onClick={() => handleKeyPress('=')} className="bg-[#4b5563] text-white font-bold py-2 rounded shadow-md hover:bg-gray-500">=</button>
+      </div>
       </div>
       
       {/* Footer Info */}

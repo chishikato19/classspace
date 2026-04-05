@@ -72,7 +72,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div className="mt-8 space-y-6">
+        <div className="mt-8 space-y-4">
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -97,6 +97,22 @@ export default function LoginPage() {
               />
             </svg>
             {loading ? 'Đang xử lý...' : 'Đăng nhập với Google'}
+          </button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">Hoặc</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/guest')}
+            className="group relative flex w-full justify-center items-center gap-3 rounded-md bg-indigo-50 border border-indigo-100 px-3 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 shadow-sm transition-colors"
+          >
+            Tiếp tục với tư cách Khách
           </button>
         </div>
       </div>

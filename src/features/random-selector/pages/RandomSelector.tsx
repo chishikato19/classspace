@@ -23,13 +23,13 @@ import { StudentGroup } from '../../../types';
 import { auth } from '../../../config/firebase';
 
 type SelectionMode = 'random' | 'targeted';
-type RandomMethod = 'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard' | 'random';
+type RandomMethod = 'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard' | 'claw' | 'random';
 type ListSource = 'manual' | 'class';
 
-export default function RandomSelector() {
+export default function RandomSelector({ isGuestMode = false }: { isGuestMode?: boolean }) {
   const [mode, setMode] = useState<SelectionMode>('random');
   const [randomMethod, setRandomMethod] = useState<RandomMethod>('wheel');
-  const [activeRandomMethod, setActiveRandomMethod] = useState<'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard'>('wheel');
+  const [activeRandomMethod, setActiveRandomMethod] = useState<'wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard' | 'claw'>('wheel');
   const [isSelecting, setIsSelecting] = useState(false);
   const [students, setStudents] = useState<StudentData[]>([]);
   const [manualInput, setManualInput] = useState('');
@@ -79,6 +79,7 @@ export default function RandomSelector() {
 
   // Fetch classes on mount
   useEffect(() => {
+    if (isGuestMode) return;
     const fetchClasses = async () => {
       setIsLoadingClasses(true);
       try {
@@ -94,7 +95,7 @@ export default function RandomSelector() {
       }
     };
     fetchClasses();
-  }, []);
+  }, [isGuestMode]);
 
   // Update students based on source
   useEffect(() => {
@@ -145,7 +146,7 @@ export default function RandomSelector() {
   // Auto-change method after selection if 'random' is selected
   useEffect(() => {
     if (!currentSelectedStudent && isSelecting && randomMethod === 'random') {
-      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck', 'bingo', 'magiccard'];
+      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard' | 'claw')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck', 'bingo', 'magiccard', 'claw'];
       const randomIndex = Math.floor(Math.random() * methods.length);
       setActiveRandomMethod(methods[randomIndex]);
     }
@@ -161,7 +162,7 @@ export default function RandomSelector() {
     }
 
     if (randomMethod === 'random') {
-      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck', 'bingo', 'magiccard'];
+      const methods: ('wheel' | 'name' | 'card' | 'box' | 'magic' | 'slot' | 'elimination' | 'balloon' | 'race' | 'scratch' | 'duck' | 'bingo' | 'magiccard' | 'claw')[] = ['wheel', 'name', 'card', 'box', 'magic', 'slot', 'elimination', 'balloon', 'race', 'scratch', 'duck', 'bingo', 'magiccard', 'claw'];
       const randomIndex = Math.floor(Math.random() * methods.length);
       setActiveRandomMethod(methods[randomIndex]);
     }
@@ -318,14 +319,16 @@ export default function RandomSelector() {
                 >
                   Nhập tay
                 </button>
-                <button
-                  onClick={() => setListSource('class')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    listSource === 'class' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Từ lớp học
-                </button>
+                {!isGuestMode && (
+                  <button
+                    onClick={() => setListSource('class')}
+                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      listSource === 'class' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Từ lớp học
+                  </button>
+                )}
               </div>
 
               {listSource === 'manual' ? (
@@ -525,6 +528,14 @@ export default function RandomSelector() {
                       Bài ma thuật
                     </button>
                     <button
+                      onClick={() => setRandomMethod('claw')}
+                      className={`py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        randomMethod === 'claw' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Gắp thú
+                    </button>
+                    <button
                       onClick={() => setRandomMethod('random')}
                       className={`py-2 px-3 rounded-md text-sm font-medium transition-colors col-span-2 ${
                         randomMethod === 'random' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -624,6 +635,7 @@ export default function RandomSelector() {
                   {activeRandomMethod === 'duck' && <DuckShoot students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'bingo' && <BingoCage students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                   {activeRandomMethod === 'magiccard' && <MagicCardFlip students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
+                  {activeRandomMethod === 'claw' && <ClawMachine students={displayStudents} onSelect={handleStudentSelected} selectableIds={availableStudents.map(s => s.id)} hideSelected={hideSelected} />}
                 </div>
               </div>
             )

@@ -537,7 +537,13 @@ export default function GameJoinPage() {
       </div>
       
       {/* Teacher Login Link */}
-      <div className="mt-8 text-center flex flex-col gap-2">
+      <div className="mt-8 text-center flex flex-col gap-3">
+        <button
+          onClick={() => navigate('/guest')}
+          className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full text-sm font-medium transition-colors border border-white/20 shadow-sm"
+        >
+          Tiếp tục với tư cách Khách (Công cụ trợ giảng)
+        </button>
         <button
           onClick={() => navigate('/login')}
           className="text-white/80 hover:text-white text-sm font-medium transition-colors"

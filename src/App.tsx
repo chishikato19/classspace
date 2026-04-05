@@ -26,6 +26,7 @@ import RandomSelector from './features/random-selector/pages/RandomSelector';
 import VideoPlayer from './features/video-player/pages/VideoPlayer';
 import ShowcaseDashboard from './features/showcase/pages/ShowcaseDashboard';
 import WhiteboardPage from './features/whiteboard/pages/WhiteboardPage';
+import GuestDashboard from './features/guest/GuestDashboard';
 
 import ResourceRepository from './features/resources/pages/ResourceRepository';
 
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="/" element={<GameJoinPage />} />
             <Route path="/join" element={<GameJoinPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/guest" element={<GuestDashboard />} />
             
             {/* Student Shop Route */}
             <Route path="/student/shop/:studentId" element={<StudentDashboardWrapper />} />

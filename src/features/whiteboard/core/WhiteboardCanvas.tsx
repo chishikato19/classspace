@@ -93,12 +93,27 @@ export default function WhiteboardCanvas() {
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
 
-  // Handle window resize and paste events
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', handleResize);
+    if (!containerRef.current) return;
     
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height
+        });
+      }
+    });
+    
+    observer.observe(containerRef.current);
+    
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (e.clipboardData) {
         const items = e.clipboardData.items;
@@ -111,8 +126,8 @@ export default function WhiteboardCanvas() {
                 const src = event.target?.result as string;
                 const img = new window.Image();
                 img.onload = () => {
-                  const centerX = (-state.pan.x + window.innerWidth / 2) / state.zoom;
-                  const centerY = (-state.pan.y + window.innerHeight / 2) / state.zoom;
+                  const centerX = (-state.pan.x + dimensions.width / 2) / state.zoom;
+                  const centerY = (-state.pan.y + dimensions.height / 2) / state.zoom;
                   const newImage: ImageObject = {
                     id: uuidv4(),
                     type: 'image',
@@ -135,10 +150,9 @@ export default function WhiteboardCanvas() {
     window.addEventListener('paste', handlePaste);
     
     return () => {
-      window.removeEventListener('resize', handleResize);
       window.removeEventListener('paste', handlePaste);
     };
-  }, [dispatch, state.pan, state.zoom]);
+  }, [dispatch, state.pan, state.zoom, dimensions]);
 
   const getPointerPosition = () => {
     const stage = stageRef.current;
@@ -513,7 +527,7 @@ export default function WhiteboardCanvas() {
   };
 
   return (
-    <div className="w-full h-full overflow-hidden bg-gray-200 relative" style={{ touchAction: 'none', cursor: getCursor() }}>
+    <div ref={containerRef} className="w-full h-full overflow-hidden bg-gray-200 relative" style={{ touchAction: 'none', cursor: getCursor() }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
