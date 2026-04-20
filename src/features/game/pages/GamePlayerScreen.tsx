@@ -31,6 +31,7 @@ export default function GamePlayerScreen() {
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>({});
   const [showReview, setShowReview] = useState(false);
   const [playerAnswers, setPlayerAnswers] = useState<Record<string, any>>({});
+  const [player, setPlayer] = useState<Player | null>(null);
   
   const quizLoadingRef = useRef(false);
   const initializationRef = useRef(false);
@@ -146,6 +147,19 @@ export default function GamePlayerScreen() {
       if (unsubscribe) unsubscribe();
     };
   }, [sessionId, shuffledQuestions.length]);
+
+  // 1.5 Subscribe to player data
+  useEffect(() => {
+    if (!sessionId) return;
+    const playerId = sessionStorage.getItem('currentPlayerId');
+    if (!playerId) return;
+
+    const unsubscribe = gameService.subscribeToPlayer(sessionId, playerId, (playerData) => {
+      setPlayer(playerData);
+    });
+
+    return () => unsubscribe();
+  }, [sessionId]);
 
   // 2. Load quiz data (with Eco Mode caching)
   useEffect(() => {
@@ -266,7 +280,6 @@ export default function GamePlayerScreen() {
     setShuffledQuestions(questions);
 
     // Determine starting question index based on previous answers
-    const player = session.players?.find(p => p.id === playerId);
     let startIndex = 0;
     
     // Load local answers for ecoMode

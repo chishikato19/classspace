@@ -30,6 +30,8 @@ const URLImage = ({ image, isSelected, onSelect, onChange, activeTool, onMouseEn
   return (
     <React.Fragment>
       <KonvaImage
+        id={image.id}
+        name="image"
         onClick={onSelect}
         onTap={onSelect}
         onMouseEnter={onMouseEnter}
@@ -90,6 +92,7 @@ export default function WhiteboardCanvas() {
   const [currentShape, setCurrentShape] = useState<ShapeObject | null>(null);
   const [splitY, setSplitY] = useState<number | null>(null);
   const [selectionBox, setSelectionBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const [editingText, setEditingText] = useState<{ id: string; x: number; y: number; text: string; isNew: boolean } | null>(null);
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
 
@@ -194,29 +197,23 @@ export default function WhiteboardCanvas() {
         fill: state.fillColor !== 'transparent' ? state.fillColor : undefined,
       });
     } else if (state.activeTool === 'select') {
-      // Clicked on empty space, start selection box
-      if (isBackground) {
+      const isImage = e.target.name() === 'image';
+      const isSelected = state.selectedIds.includes(e.target.id());
+
+      // Clicked on empty space or unselected image, start selection box
+      if (isBackground || (isImage && !isSelected)) {
         dispatch({ type: 'SET_SELECTED_IDS', payload: [] });
         setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
       }
     } else if (state.activeTool === 'text') {
-      if (isBackground) {
-        const text = prompt('Nhập nội dung văn bản:');
-        if (text) {
-          const newText: TextObject = {
-            id: uuidv4(),
-            type: 'text',
-            x: pos.x,
-            y: pos.y,
-            text: text,
-            fontSize: 24,
-            fontFamily: 'Arial',
-            fill: state.strokeColor,
-          };
-          dispatch({ type: 'ADD_OBJECT', payload: newText });
-          dispatch({ type: 'SET_TOOL', payload: 'select' });
-          dispatch({ type: 'SET_SELECTED_IDS', payload: [newText.id] });
-        }
+      if (isBackground || (e.target.name() === 'image')) {
+        setEditingText({
+          id: uuidv4(),
+          x: pos.x,
+          y: pos.y,
+          text: '',
+          isNew: true
+        });
       }
     } else if (state.activeTool === 'math') {
       if (isBackground) {
@@ -676,6 +673,9 @@ export default function WhiteboardCanvas() {
             }
             if (obj.type === 'text') {
               const txt = obj as TextObject;
+              if (editingText && editingText.id === txt.id) {
+                return null;
+              }
               return (
                 <Text
                   key={txt.id}
@@ -692,6 +692,28 @@ export default function WhiteboardCanvas() {
                   scaleY={txt.scaleY || 1}
                   draggable={isSelectTool && isSelected}
                   listening={isSelectTool || isEraserTool}
+                  onDblClick={() => {
+                    if (isSelectTool) {
+                      setEditingText({
+                        id: txt.id,
+                        x: txt.x,
+                        y: txt.y,
+                        text: txt.text,
+                        isNew: false
+                      });
+                    }
+                  }}
+                  onDblTap={() => {
+                    if (isSelectTool) {
+                      setEditingText({
+                        id: txt.id,
+                        x: txt.x,
+                        y: txt.y,
+                        text: txt.text,
+                        isNew: false
+                      });
+                    }
+                  }}
                   onClick={() => {
                     if (isSelectTool) {
                       dispatch({ type: 'SET_SELECTED_IDS', payload: [txt.id] });
@@ -1099,6 +1121,64 @@ export default function WhiteboardCanvas() {
           </div>
         );
       })}
+      
+      {/* Inline Text Editing */}
+      {editingText && (
+        <textarea
+          autoFocus
+          value={editingText.text}
+          onChange={(e) => setEditingText({ ...editingText, text: e.target.value })}
+          onBlur={() => {
+            if (editingText.text.trim()) {
+              if (editingText.isNew) {
+                dispatch({
+                  type: 'ADD_OBJECT',
+                  payload: {
+                    id: editingText.id,
+                    type: 'text',
+                    x: editingText.x,
+                    y: editingText.y,
+                    text: editingText.text,
+                    fontSize: 24,
+                    fontFamily: 'Arial',
+                    fill: state.strokeColor,
+                  } as TextObject
+                });
+              } else {
+                dispatch({
+                  type: 'UPDATE_OBJECT',
+                  payload: {
+                    id: editingText.id,
+                    updates: { text: editingText.text }
+                  }
+                });
+              }
+            } else if (!editingText.isNew) {
+                dispatch({ type: 'REMOVE_OBJECT',  payload: editingText.id });
+            }
+            setEditingText(null);
+            dispatch({ type: 'SET_TOOL', payload: 'select' });
+          }}
+          style={{
+            position: 'absolute',
+            top: editingText.y * state.zoom + state.pan.y,
+            left: editingText.x * state.zoom + state.pan.x,
+            transform: 'translate(-2px, -2px)',
+            fontSize: `${24 * state.zoom}px`,
+            fontFamily: 'Arial',
+            color: state.strokeColor,
+            background: 'transparent',
+            border: '1px dashed #3B82F6',
+            outline: 'none',
+            resize: 'none',
+            overflow: 'hidden',
+            whiteSpace: 'pre',
+            minWidth: `${100 * state.zoom}px`,
+            minHeight: `${30 * state.zoom}px`,
+            zIndex: 50,
+          }}
+        />
+      )}
     </div>
   );
 }

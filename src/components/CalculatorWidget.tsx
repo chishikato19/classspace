@@ -135,7 +135,7 @@ export const CalculatorWidget: React.FC = () => {
         if (!eq.includes('=')) {
           eq = eq + '=0';
         }
-        const sol = nerdamer.solveEquations(eq, 'x');
+        const sol = (nerdamer as any).solveEquations(eq, 'x');
         setResult(`x = ${sol.toString()}`);
         return;
       }

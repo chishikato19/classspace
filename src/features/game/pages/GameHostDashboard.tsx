@@ -13,13 +13,14 @@ export default function GameHostDashboard() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
+  const [players, setPlayers] = useState<any[]>([]);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
+    const unsubscribeSession = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
       if (data.quizId) {
         // Fetch quiz only if not already fetched
@@ -31,7 +32,15 @@ export default function GameHostDashboard() {
         });
       }
     });
-    return () => unsubscribe();
+
+    const unsubscribePlayers = gameService.subscribeToPlayers(sessionId, (playersData) => {
+      setPlayers(playersData);
+    });
+
+    return () => {
+      unsubscribeSession();
+      unsubscribePlayers();
+    };
   }, [sessionId]);
 
   // Timer for Teacher-paced and Plickers mode
@@ -81,10 +90,10 @@ export default function GameHostDashboard() {
   if (!session || !quiz) return <div className="flex h-screen items-center justify-center text-white bg-gray-900">Đang tải...</div>;
 
   const currentQuestion = quiz.questions[session.currentQuestionIndex];
-  const sortedPlayers = [...(session.players || [])].sort((a, b) => b.score - a.score);
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   
-  const answeredCount = session.players?.filter(p => p.answers && p.answers[currentQuestion.id])?.length || 0;
-  const totalPlayers = session.players?.length || 0;
+  const answeredCount = players.filter(p => p.answers && p.answers[currentQuestion.id])?.length || 0;
+  const totalPlayers = players.length || 0;
 
   const handleNext = async () => {
     if (session.status === 'QUESTION') {
@@ -107,7 +116,7 @@ export default function GameHostDashboard() {
       optionCounts[opt.id] = 0;
     });
 
-    session.players?.forEach(player => {
+    players.forEach(player => {
       const answer = player.answers?.[currentQuestion.id];
       if (answer && answer.optionId && optionCounts[answer.optionId] !== undefined) {
         optionCounts[answer.optionId]++;
@@ -260,7 +269,7 @@ export default function GameHostDashboard() {
               </div>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2 overflow-y-auto max-h-[600px] pr-1 custom-scrollbar">
-                {session.players?.map((p, idx) => {
+                {players.map((p, idx) => {
                   const hasAnswered = !!p.answers?.[currentQuestion.id];
                   // Extract last name
                   const nameParts = p.name.trim().split(' ');
@@ -435,7 +444,7 @@ export default function GameHostDashboard() {
         <tbody className="divide-y divide-gray-700">
           {sortedPlayers.map((player, index) => {
             const nonSurveyQuestions = quiz.questions.filter(q => q.type !== 'SURVEY');
-            const correctCount = Object.values(player.answers || {}).filter(a => a.isCorrect).length;
+            const correctCount = Object.values(player.answers || {}).filter((a: any) => a.isCorrect).length;
             const percentage = nonSurveyQuestions.length > 0 ? Math.round((correctCount / nonSurveyQuestions.length) * 100) : 0;
             const totalAnswered = Object.keys(player.answers || {}).length;
             

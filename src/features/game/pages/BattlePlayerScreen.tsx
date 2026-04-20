@@ -26,6 +26,8 @@ export default function BattlePlayerScreen() {
   const [hasFinished, setHasFinished] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const [players, setPlayers] = useState<Player[]>([]);
+
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
   const activeEffects = player ? (player.statusEffects || []).filter(e => e.expiresAt > currentTime) : [];
   const isParalyzed = activeEffects.some(e => e.type === 'PARALYZED');
@@ -102,10 +104,8 @@ export default function BattlePlayerScreen() {
     const playerId = sessionStorage.getItem('currentPlayerId');
     if (!sessionId || !playerId) return;
 
-    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
+    const unsubscribeSession = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
-      const p = data.players?.find(p => p.id === playerId);
-      setPlayer(p || null);
 
       if (!quiz && data.quizId) {
         const quizData = await quizService.getQuizById(data.quizId);
@@ -119,7 +119,17 @@ export default function BattlePlayerScreen() {
         }
       }
     });
-    return () => unsubscribe();
+
+    const unsubscribePlayers = gameService.subscribeToPlayers(sessionId, (playersData) => {
+      setPlayers(playersData);
+      const p = playersData.find(p => p.id === playerId);
+      setPlayer(p || null);
+    });
+
+    return () => {
+      unsubscribeSession();
+      unsubscribePlayers();
+    };
   }, [sessionId, quiz]);
 
   const handleAnswer = async (optionId: string | null) => {
@@ -243,7 +253,7 @@ export default function BattlePlayerScreen() {
   }
 
   if (hasFinished || session.status === 'FINISHED') {
-    const winner = (session.players || []).filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
+    const winner = players.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0];
     const isWinner = winner?.id === player.id;
 
     return (
@@ -295,7 +305,7 @@ export default function BattlePlayerScreen() {
   if (targetSelection) {
     // Target Selection Screen
     // For HEAL, include self
-    const targets = (session.players || []).filter(p => {
+    const targets = players.filter(p => {
       if (targetSelection === 'HEAL') return (p.hp || 0) > 0; // Can heal self or others
       return p.id !== player.id && (p.hp || 0) > 0; // Others only for offensive items
     });

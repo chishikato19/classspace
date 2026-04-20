@@ -31,6 +31,7 @@ export default function GameHostLobby() {
     allowAvatars: true
   });
   const [sessionTitle, setSessionTitle] = useState('');
+  const [players, setPlayers] = useState<any[]>([]);
   
   // New settings
   const [classes, setClasses] = useState<ClassData[]>([]);
@@ -52,6 +53,27 @@ export default function GameHostLobby() {
     
     return () => unsubscribe();
   }, []);
+
+  const [sessionIdState, setSessionIdState] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionIdState) return;
+
+    const unsubscribeSession = gameService.subscribeToSession(sessionIdState, (data) => {
+      setSession(data);
+      setLoading(false);
+      setSetupMode(false);
+    });
+
+    const unsubscribePlayers = gameService.subscribeToPlayers(sessionIdState, (playersData) => {
+      setPlayers(playersData);
+    });
+
+    return () => {
+      unsubscribeSession();
+      unsubscribePlayers();
+    };
+  }, [sessionIdState]);
 
   const handleCreateSession = async () => {
     if (!quizId) return;
@@ -82,35 +104,12 @@ export default function GameHostLobby() {
         }
       );
       
-      // Lắng nghe thay đổi - Sẽ được dọn dẹp bởi useEffect khi component unmount
-      const unsubscribe = gameService.subscribeToSession(sessionId, (data) => {
-        setSession(data);
-        setLoading(false);
-        setSetupMode(false);
-      });
-
-      // Lưu unsubscribe để dọn dẹp nếu cần (nhưng ở đây handleCreateSession chỉ chạy 1 lần)
-      // Một cách tốt hơn là dùng useEffect để quản lý subscription dựa trên sessionId
       setSessionIdState(sessionId);
     } catch (error) {
       console.error("Error creating session:", error);
       setLoading(false);
     }
   };
-
-  const [sessionIdState, setSessionIdState] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!sessionIdState) return;
-
-    const unsubscribe = gameService.subscribeToSession(sessionIdState, (data) => {
-      setSession(data);
-      setLoading(false);
-      setSetupMode(false);
-    });
-
-    return () => unsubscribe();
-  }, [sessionIdState]);
 
   const handleStartGame = async () => {
     if (!session) return;
@@ -455,17 +454,17 @@ export default function GameHostLobby() {
         </div>
         <button
           onClick={handleStartGame}
-          disabled={session.players?.length === 0}
+          disabled={players.length === 0}
           className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          BẮT ĐẦU ({session.players?.length || 0})
+          BẮT ĐẦU ({players.length})
         </button>
       </div>
 
       {/* Player List */}
       <div className="flex-1 p-8 overflow-y-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {session.players?.map((player, index) => (
+          {players.map((player, index) => (
             <div 
               key={index} 
               className="bg-indigo-700 p-4 rounded-lg text-center font-bold text-lg animate-bounce shadow-md border border-indigo-500 flex flex-col items-center gap-2 relative group"
@@ -497,7 +496,7 @@ export default function GameHostLobby() {
               <span className="truncate w-full">{player.name}</span>
             </div>
           ))}
-          {(!session.players || session.players.length === 0) && (
+          {players.length === 0 && (
             <div className="col-span-full text-center text-indigo-300 text-xl mt-20 animate-pulse">
               {session.mode === 'PLICKERS' ? 'Lớp học chưa có học sinh nào.' : 'Đang chờ người chơi tham gia...'}
             </div>

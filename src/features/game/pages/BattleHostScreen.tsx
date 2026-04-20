@@ -11,6 +11,7 @@ export default function BattleHostScreen() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [currentTime, setCurrentTime] = useState(timeService.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -45,19 +46,26 @@ export default function BattleHostScreen() {
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
+    const unsubscribeSession = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
       if (!quiz && data.quizId) {
         const quizData = await quizService.getQuizById(data.quizId);
         setQuiz(quizData);
       }
     });
-    return () => unsubscribe();
+    
+    const unsubscribePlayers = gameService.subscribeToPlayers(sessionId, (playersData) => {
+      setPlayers(playersData);
+    });
+
+    return () => {
+      unsubscribeSession();
+      unsubscribePlayers();
+    };
   }, [sessionId, quiz]);
 
   if (!session) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
 
-  const players = session.players || [];
   const pacing = session?.settings?.pacing || 'STUDENT';
   const totalQuestions = quiz?.questions?.length || 0;
 
@@ -76,7 +84,7 @@ export default function BattleHostScreen() {
 
   // Find winner if game finished
   const winner = session?.status === 'FINISHED' 
-    ? session.players?.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0] 
+    ? players.filter(p => (p.hp || 0) > 0).sort((a, b) => b.score - a.score)[0] 
     : null;
 
   if (session?.status === 'FINISHED') {

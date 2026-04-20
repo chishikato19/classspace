@@ -145,7 +145,6 @@ export interface GameSession {
   nameInputType?: 'MANUAL' | 'CLASS_LIST';
   selectedClassId?: string;
   isGroupPlay?: boolean;
-  players?: Player[]; // Danh sách người chơi
 }
 
 export interface Player {

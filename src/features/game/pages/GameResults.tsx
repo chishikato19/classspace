@@ -12,7 +12,7 @@ import { MathText } from '../../../components/MathText';
 export default function GameResults() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const [session, setSession] = useState<GameSession | null>(null);
+  const [session, setSession] = useState<(GameSession & { players?: Player[] }) | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'questions'>('overview');
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
@@ -25,7 +25,7 @@ export default function GameResults() {
   useEffect(() => {
     if (!sessionId) return;
     const loadData = async () => {
-      const sessionData = await gameService.getSessionById(sessionId);
+      const sessionData = await gameService.getSessionById(sessionId, true);
       if (sessionData) {
         setSession(sessionData);
         if (sessionData.quizId) {

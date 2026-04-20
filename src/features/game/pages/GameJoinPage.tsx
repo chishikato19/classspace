@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { ClassGroup, Student, AvatarConfig, GameSession } from '../../../types';
+import { ClassGroup, Student, AvatarConfig, GameSession, Player } from '../../../types';
 import { adminService } from '../../admin/services/adminService';
 import { gameService } from '../services/gameService';
 import { DEFAULT_AVATAR_STYLE, AvatarStyle } from '../../../utils/avatarUtils';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { AvatarEditor } from '../../../components/Avatar/AvatarEditor';
 import { Edit2 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 
 export default function GameJoinPage() {
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<'PIN' | 'CLASS' | 'STUDENT' | 'PASSCODE' | 'NAME_INPUT'>('PIN');
   const [pin, setPin] = useState(searchParams.get('pin') || '');
-  const [session, setSession] = useState<GameSession | null>(null);
+  const [session, setSession] = useState<(GameSession & { players?: Player[] }) | null>(null);
   
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -270,7 +272,8 @@ export default function GameJoinPage() {
       
       if (isEcoHomework) {
         // Local check for maxAttempts/allowRetry since we skip the server-side check in joinSession
-        const existingPlayer = session.players?.find(p => p.id === playerId);
+        const existingPlayerDoc = await getDoc(doc(db, "sessions", session.id, "players", playerId));
+        const existingPlayer = existingPlayerDoc.exists() ? existingPlayerDoc.data() : null;
         if (existingPlayer && existingPlayer.finished) {
           const maxAttempts = session.settings?.maxAttempts || 1;
           const allowRetry = session.settings?.allowRetry || maxAttempts > 1;

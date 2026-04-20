@@ -12,6 +12,7 @@ import {
   runTransaction,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { db, auth, storage, handleFirestoreError, OperationType } from "../../../config/firebase";
@@ -42,8 +43,6 @@ const removeUndefined = (obj: any): any => {
 
 const getSessionsRef = () => collection(db, "sessions");
 
-// In-memory cache for sessions to reduce Firestore reads
-const sessionCache = new Map<string, GameSession>();
 const teacherSessionsCache = new Map<string, { data: GameSession[], timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
@@ -123,7 +122,6 @@ export const gameService = {
       status,
       mode,
       createdAt: Date.now(),
-      players: initialPlayers,
       currentQuestionIndex: 0,
       settings,
       nameInputType: nameInputConfig?.type || "MANUAL",
@@ -145,6 +143,16 @@ export const gameService = {
     // Sanitize sessionData to remove undefined values for Firestore
     const sanitizedData = JSON.parse(JSON.stringify(sessionData));
     const docRef = await addDoc(getSessionsRef(), sanitizedData);
+    
+    // Batch write players to subcollection
+    if (initialPlayers.length > 0) {
+      const batch = writeBatch(db);
+      initialPlayers.forEach(player => {
+        const playerRef = doc(db, "sessions", docRef.id, "players", player.id);
+        batch.set(playerRef, player);
+      });
+      await batch.commit();
+    }
     
     // Nếu bật chế độ JSON (Quizizz Mode), tạo file JSON và lưu URL
     if (settings?.jsonDeliveryMode && storage) {
@@ -225,17 +233,18 @@ export const gameService = {
   },
 
   // Lấy thông tin phòng bằng ID
-  getSessionById: async (sessionId: string): Promise<GameSession | null> => {
-    if (sessionCache.has(sessionId)) {
-      return sessionCache.get(sessionId)!;
-    }
-
+  getSessionById: async (sessionId: string, includePlayers: boolean = false): Promise<GameSession & { players?: Player[] } | null> => {
     try {
       const docRef = doc(db, "sessions", sessionId);
       const snapshot = await getDoc(docRef);
       if (!snapshot.exists()) return null;
-      const session = { id: snapshot.id, ...snapshot.data() } as GameSession;
-      sessionCache.set(sessionId, session);
+      const session = { id: snapshot.id, ...snapshot.data() } as GameSession & { players?: Player[] };
+      
+      if (includePlayers) {
+        const playersSnap = await getDocs(collection(db, "sessions", sessionId, "players"));
+        session.players = playersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
+      }
+      
       return session;
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}`);
@@ -302,70 +311,71 @@ export const gameService = {
   ): Promise<void> => {
     if (answers.length === 0) return;
 
-    const sessionRef = doc(db, "sessions", sessionId);
+    // Use a batch write instead of transaction for multiple independent player docs
+    const batch = writeBatch(db);
+    
+    // We need to fetch existing player docs to update them correctly
+    // Since we can't easily do multiple gets in a batch, and we don't want to lock the whole session,
+    // we'll fetch the players we need first.
+    const playerIds = Array.from(new Set(answers.map(a => a.playerId)));
+    const playersMap = new Map<string, Player>();
+    
+    // Fetch in chunks of 10 if needed, but usually Plickers has ~30 students, so we can fetch them individually or use 'in' query
+    if (playerIds.length > 0) {
+      // Firestore 'in' query supports up to 10 items. For simplicity, we can just fetch the whole subcollection
+      // since it's only ~30-50 players.
+      const playersSnap = await getDocs(collection(db, "sessions", sessionId, "players"));
+      playersSnap.docs.forEach(doc => {
+        playersMap.set(doc.id, doc.data() as Player);
+      });
+    }
 
-    await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw new Error("Session not found");
+    for (const ans of answers) {
+      const playerRef = doc(db, "sessions", sessionId, "players", ans.playerId);
+      let player = playersMap.get(ans.playerId);
 
-      const sessionData = sessionDoc.data() as GameSession;
-      let players = sessionData.players || [];
-      let hasChanges = false;
-
-      for (const ans of answers) {
-        let playerIndex = players.findIndex((p) => p.id === ans.playerId);
-
-        if (playerIndex === -1) {
-          const newPlayer: Player = {
-            id: ans.playerId,
-            name: ans.playerName,
-            studentIds: [ans.playerId],
-            progress: 0,
-            finished: false,
-            cardNumber: ans.cardNumber,
-            score: 0,
-            answers: {},
-            streak: 0,
-          };
-          players.push(newPlayer);
-          playerIndex = players.length - 1;
-          hasChanges = true;
-        }
-
-        const player = players[playerIndex];
-
-        if (!player.cardNumber) {
-          player.cardNumber = ans.cardNumber;
-          hasChanges = true;
-        }
-        if (!player.answers) {
-          player.answers = {};
-          hasChanges = true;
-        }
-
-        const isCorrect = ans.question.options.find((o) => o.id === ans.optionId)?.isCorrect || false;
-
-        const currentAnswer = player.answers[ans.questionId];
-        if (!currentAnswer || currentAnswer.optionId !== ans.optionId) {
-          player.answers[ans.questionId] = {
-            optionId: ans.optionId,
-            isCorrect,
-            timeTaken: 0,
-            pointsAwarded: isCorrect ? 1000 : 0,
-          };
-
-          player.score = Object.values(player.answers).reduce(
-            (total, a) => total + (a.pointsAwarded || 0),
-            0,
-          );
-          hasChanges = true;
-        }
+      if (!player) {
+        player = {
+          id: ans.playerId,
+          name: ans.playerName,
+          studentIds: [ans.playerId],
+          progress: 0,
+          finished: false,
+          cardNumber: ans.cardNumber,
+          score: 0,
+          answers: {},
+          streak: 0,
+        };
       }
 
-      if (hasChanges) {
-        transaction.update(sessionRef, { players });
+      if (!player.cardNumber) {
+        player.cardNumber = ans.cardNumber;
       }
-    });
+      if (!player.answers) {
+        player.answers = {};
+      }
+
+      const isCorrect = ans.question.options.find((o) => o.id === ans.optionId)?.isCorrect || false;
+
+      const currentAnswer = player.answers[ans.questionId];
+      if (!currentAnswer || currentAnswer.optionId !== ans.optionId) {
+        player.answers[ans.questionId] = {
+          optionId: ans.optionId,
+          isCorrect,
+          timeTaken: 0,
+          pointsAwarded: isCorrect ? 1000 : 0,
+        };
+
+        player.score = Object.values(player.answers).reduce(
+          (total, a) => total + (a.pointsAwarded || 0),
+          0,
+        );
+        
+        batch.set(playerRef, player);
+      }
+    }
+
+    await batch.commit();
   },
 
   // Cập nhật câu trả lời từ máy quét Plickers
@@ -378,20 +388,14 @@ export const gameService = {
     optionId: string,
     question: Question,
   ): Promise<void> => {
-    const sessionRef = doc(db, "sessions", sessionId);
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
 
     await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw new Error("Session not found");
-
-      const sessionData = sessionDoc.data() as GameSession;
-      let players = sessionData.players || [];
-
-      let playerIndex = players.findIndex((p) => p.id === playerId);
-
-      // Nếu học sinh chưa có trong danh sách, thêm mới
-      if (playerIndex === -1) {
-        const newPlayer: Player = {
+      const playerDoc = await transaction.get(playerRef);
+      
+      let player: Player;
+      if (!playerDoc.exists()) {
+        player = {
           id: playerId,
           name: playerName,
           studentIds: [playerId],
@@ -402,11 +406,9 @@ export const gameService = {
           answers: {},
           streak: 0,
         };
-        players.push(newPlayer);
-        playerIndex = players.length - 1;
+      } else {
+        player = playerDoc.data() as Player;
       }
-
-      const player = players[playerIndex];
 
       // Cập nhật cardNumber nếu chưa có
       if (!player.cardNumber) player.cardNumber = cardNumber;
@@ -432,25 +434,25 @@ export const gameService = {
         0,
       );
 
-      transaction.update(sessionRef, { players });
+      transaction.set(playerRef, player);
     });
   },
   joinSession: async (sessionId: string, player: Player): Promise<void> => {
     const sessionRef = doc(db, "sessions", sessionId);
+    const playerRef = doc(db, "sessions", sessionId, "players", player.id);
 
     await runTransaction(db, async (transaction) => {
       const sessionDoc = await transaction.get(sessionRef);
       if (!sessionDoc.exists()) throw new Error("Session not found");
 
       const sessionData = sessionDoc.data();
-      const players = (sessionData.players || []) as Player[];
       const settings = sessionData.settings || {};
 
-      const existingPlayerIndex = players.findIndex((p) => p.id === player.id);
+      const playerDoc = await transaction.get(playerRef);
 
-      if (existingPlayerIndex !== -1) {
+      if (playerDoc.exists()) {
         // Player exists
-        const existingPlayer = players[existingPlayerIndex];
+        const existingPlayer = playerDoc.data() as Player;
 
         // Check if they have played (score > 0 or answers not empty)
         const hasPlayed =
@@ -471,18 +473,15 @@ export const gameService = {
         }
 
         // Update player info but preserve progress
-        players[existingPlayerIndex] = removeUndefined({
-          ...existingPlayer,
+        transaction.update(playerRef, removeUndefined({
           name: player.name,
           avatarConfig: player.avatarConfig,
           studentIds: player.studentIds,
-        });
+        }));
       } else {
         // New player
-        players.push(removeUndefined(player));
+        transaction.set(playerRef, removeUndefined(player));
       }
-
-      transaction.update(sessionRef, { players });
     });
   },
 
@@ -505,22 +504,30 @@ export const gameService = {
         updates.questionStartTime = Date.now();
       } else if (sessionData.mode === "BATTLE") {
         updates.status = "PLAYING";
-        // Initialize Battle Stats for all players
-        const players = sessionData.players || [];
-        const initializedPlayers = players.map((p) => ({
-          ...p,
-          hp: 100,
-          maxHp: 100,
-          items: [], // Start empty or with 1 item? Let's start empty.
-          statusEffects: [],
-        }));
-        updates.players = initializedPlayers;
       } else {
         updates.status = "PLAYING";
       }
 
       transaction.update(sessionRef, updates);
     });
+    
+    // Initialize Battle Stats for all players outside transaction to avoid read/write limits
+    const sessionDoc = await getDoc(sessionRef);
+    if (sessionDoc.exists() && sessionDoc.data().mode === "BATTLE") {
+      const playersSnap = await getDocs(collection(db, "sessions", sessionId, "players"));
+      if (!playersSnap.empty) {
+        const batch = writeBatch(db);
+        playersSnap.docs.forEach(playerDoc => {
+          batch.update(playerDoc.ref, {
+            hp: 100,
+            maxHp: 100,
+            items: [],
+            statusEffects: [],
+          });
+        });
+        await batch.commit();
+      }
+    }
   },
 
   // Battle Mode: Use Item
@@ -531,27 +538,26 @@ export const gameService = {
     itemType: string,
   ) => {
     const sessionRef = doc(db, "sessions", sessionId);
+    const sourcePlayerRef = doc(db, "sessions", sessionId, "players", sourcePlayerId);
+    const targetPlayerRef = doc(db, "sessions", sessionId, "players", targetPlayerId);
 
     await runTransaction(db, async (transaction) => {
       const sessionDoc = await transaction.get(sessionRef);
       if (!sessionDoc.exists()) throw "Session not found";
-
       const data = sessionDoc.data();
-      const players = data.players as Player[];
 
-      const sourceIndex = players.findIndex((p) => p.id === sourcePlayerId);
-      const targetIndex = players.findIndex((p) => p.id === targetPlayerId);
-
-      if (sourceIndex === -1 || targetIndex === -1) throw "Player not found";
-
-      const sourcePlayer = { ...players[sourceIndex] };
+      const sourceDoc = await transaction.get(sourcePlayerRef);
+      if (!sourceDoc.exists()) throw "Source player not found";
+      const sourcePlayer = sourceDoc.data() as Player;
 
       // Handle self-targeting or separate targets
       let targetPlayer: Player;
       if (sourcePlayerId === targetPlayerId) {
         targetPlayer = sourcePlayer;
       } else {
-        targetPlayer = { ...players[targetIndex] };
+        const targetDoc = await transaction.get(targetPlayerRef);
+        if (!targetDoc.exists()) throw "Target player not found";
+        targetPlayer = targetDoc.data() as Player;
       }
 
       // Remove item from source
@@ -622,31 +628,27 @@ export const gameService = {
         });
       }
 
-      // Update players array
-      players[sourceIndex] = sourcePlayer;
+      transaction.set(sourcePlayerRef, sourcePlayer, { merge: true });
       if (sourcePlayerId !== targetPlayerId) {
-        players[targetIndex] = targetPlayer;
+        transaction.set(targetPlayerRef, targetPlayer, { merge: true });
       }
-
-      transaction.update(sessionRef, { players });
     });
   },
 
   // Hồi sinh người chơi (Battle Mode)
   revivePlayer: async (sessionId: string, playerId: string) => {
     const sessionRef = doc(db, "sessions", sessionId);
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
 
     await runTransaction(db, async (transaction) => {
       const sessionDoc = await transaction.get(sessionRef);
       if (!sessionDoc.exists()) throw "Session not found";
+      const data = sessionDoc.data();
 
-      const data = sessionDoc.data() as GameSession;
-      const players = [...(data.players || [])];
-      const playerIndex = players.findIndex((p) => p.id === playerId);
+      const playerDoc = await transaction.get(playerRef);
+      if (!playerDoc.exists()) throw "Player not found";
 
-      if (playerIndex === -1) throw "Player not found";
-
-      const player = players[playerIndex];
+      const player = playerDoc.data() as Player;
       const cost = data.settings?.reviveCost || 1000; // Mặc định 1000 điểm
 
       // Trừ điểm (chấp nhận âm)
@@ -658,26 +660,14 @@ export const gameService = {
       // Xóa hiệu ứng xấu
       player.statusEffects = [];
 
-      players[playerIndex] = player;
-      transaction.update(sessionRef, { players });
+      transaction.set(playerRef, player, { merge: true });
     });
   },
 
   // Xóa người chơi khỏi phòng
   removePlayer: async (sessionId: string, playerId: string): Promise<void> => {
-    const sessionRef = doc(db, "sessions", sessionId);
-
-    await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw new Error("Session not found");
-
-      const sessionData = sessionDoc.data();
-      const players = (sessionData.players || []) as Player[];
-
-      const newPlayers = players.filter((p) => p.id !== playerId);
-
-      transaction.update(sessionRef, { players: newPlayers });
-    });
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
+    await deleteDoc(playerRef);
   },
 
   // Chuyển sang câu hỏi tiếp theo
@@ -717,13 +707,7 @@ export const gameService = {
       });
       
       // Invalidate cache
-      const session = sessionCache.get(sessionId);
-      if (session) {
-        teacherSessionsCache.delete(session.hostId);
-      } else {
-        teacherSessionsCache.clear();
-      }
-      sessionCache.delete(sessionId);
+      teacherSessionsCache.clear();
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `sessions/${sessionId}`);
     }
@@ -733,13 +717,11 @@ export const gameService = {
   deleteSession: async (sessionId: string): Promise<void> => {
     try {
       const docRef = doc(db, "sessions", sessionId);
-      let session = sessionCache.get(sessionId);
+      let session: GameSession | null = null;
       
-      if (!session) {
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          session = { id: snap.id, ...snap.data() } as GameSession;
-        }
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        session = { id: snap.id, ...snap.data() } as GameSession;
       }
 
       // Xóa file JSON nếu có
@@ -754,7 +736,6 @@ export const gameService = {
       }
 
       await deleteDoc(docRef);
-      sessionCache.delete(sessionId);
       if (session) {
         teacherSessionsCache.delete(session.hostId);
       } else {
@@ -774,19 +755,13 @@ export const gameService = {
     points: number = 1000,
     optionId?: string
   ) => {
-    const sessionRef = doc(db, "sessions", sessionId);
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
 
     await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw "Session not found";
+      const playerDoc = await transaction.get(playerRef);
+      if (!playerDoc.exists()) throw "Player not found";
 
-      const data = sessionDoc.data() as GameSession;
-      const players = [...(data.players || [])];
-      const playerIndex = players.findIndex((p) => p.id === playerId);
-
-      if (playerIndex === -1) throw "Player not found";
-
-      const player = { ...players[playerIndex] };
+      const player = playerDoc.data() as Player;
       if (!player.answers) player.answers = {};
 
       const pointsAwarded = isCorrect ? points : 0;
@@ -809,8 +784,7 @@ export const gameService = {
         player.streak = 0;
       }
 
-      players[playerIndex] = player;
-      transaction.update(sessionRef, { players });
+      transaction.set(playerRef, player, { merge: true });
     });
   },
 
@@ -822,19 +796,16 @@ export const gameService = {
     answerData: any,
   ) => {
     const sessionRef = doc(db, "sessions", sessionId);
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
 
     await runTransaction(db, async (transaction) => {
       const sessionDoc = await transaction.get(sessionRef);
       if (!sessionDoc.exists()) throw "Session not found";
-
       const data = sessionDoc.data();
-      const players = data.players as Player[];
-      const playerIndex = players.findIndex((p) => p.id === playerId);
 
-      if (playerIndex === -1) throw "Player not found";
-
-      // Cập nhật thông tin người chơi
-      const player = { ...players[playerIndex] };
+      const playerDoc = await transaction.get(playerRef);
+      if (!playerDoc.exists()) throw "Player not found";
+      const player = playerDoc.data() as Player;
 
       // BATTLE MODE: Check for status effects
       if (data.mode === "BATTLE" && player.statusEffects) {
@@ -929,31 +900,14 @@ export const gameService = {
         },
       };
 
-      players[playerIndex] = player;
-
-      transaction.update(sessionRef, { players });
+      transaction.set(playerRef, player, { merge: true });
     });
   },
 
   // Đánh dấu người chơi đã hoàn thành bài thi
   finishPlayerSession: async (sessionId: string, playerId: string) => {
-    const sessionRef = doc(db, "sessions", sessionId);
-
-    await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw "Session not found";
-
-      const data = sessionDoc.data();
-      const players = data.players as Player[];
-      const playerIndex = players.findIndex((p: Player) => p.id === playerId);
-
-      if (playerIndex === -1) throw "Player not found";
-
-      // Cập nhật trạng thái hoàn thành
-      players[playerIndex].finished = true;
-
-      transaction.update(sessionRef, { players });
-    });
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
+    await updateDoc(playerRef, { finished: true });
   },
 
   // Nộp toàn bộ tiến độ (dành cho Eco Mode)
@@ -963,24 +917,23 @@ export const gameService = {
     playerData: Partial<Player>
   ) => {
     const sessionRef = doc(db, "sessions", sessionId);
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
 
     await runTransaction(db, async (transaction) => {
       const sessionDoc = await transaction.get(sessionRef);
       if (!sessionDoc.exists()) throw new Error("Session not found");
-
       const data = sessionDoc.data();
       const settings = data.settings || {};
-      const players = [...(data.players || [])] as Player[];
-      let playerIndex = players.findIndex((p) => p.id === playerId);
 
+      const playerDoc = await transaction.get(playerRef);
+      
       // If saveDetailedAnswers is false, strip the answers object from the incoming data
       const finalPlayerData = removeUndefined({ ...playerData });
       if (settings.saveDetailedAnswers === false) {
         finalPlayerData.answers = {};
       }
 
-      // If player not found (Silent Join), add them
-      if (playerIndex === -1) {
+      if (!playerDoc.exists()) {
         const newPlayer: Player = {
           id: playerId,
           name: finalPlayerData.name || "Unknown",
@@ -992,21 +945,19 @@ export const gameService = {
           answers: {},
           ...finalPlayerData
         };
-        players.push(newPlayer);
-        playerIndex = players.length - 1;
+        transaction.set(playerRef, newPlayer);
       } else {
-        // Update existing player info
-        players[playerIndex] = {
-          ...players[playerIndex],
+        const existingPlayer = playerDoc.data() as Player;
+        const updatedPlayer = {
+          ...existingPlayer,
           ...finalPlayerData,
           answers: settings.saveDetailedAnswers === false ? {} : {
-            ...players[playerIndex].answers,
+            ...existingPlayer.answers,
             ...finalPlayerData.answers
           }
         };
+        transaction.update(playerRef, updatedPlayer);
       }
-
-      transaction.update(sessionRef, { players });
     });
   },
 
@@ -1016,23 +967,8 @@ export const gameService = {
     playerId: string,
     avatarConfig: any,
   ) => {
-    const sessionRef = doc(db, "sessions", sessionId);
-
-    await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw "Session not found";
-
-      const data = sessionDoc.data();
-      const players = data.players as Player[];
-      const playerIndex = players.findIndex((p: Player) => p.id === playerId);
-
-      if (playerIndex === -1) throw "Player not found";
-
-      // Cập nhật avatar
-      players[playerIndex].avatarConfig = removeUndefined(avatarConfig);
-
-      transaction.update(sessionRef, { players });
-    });
+    const playerRef = doc(db, "sessions", sessionId, "players", playerId);
+    await updateDoc(playerRef, { avatarConfig: removeUndefined(avatarConfig) });
   },
 
   // Lắng nghe thay đổi của phòng (Real-time)
@@ -1050,6 +986,44 @@ export const gameService = {
         return;
       }
       handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}`);
+    });
+  },
+
+  // Lắng nghe danh sách người chơi (Real-time)
+  subscribeToPlayers: (
+    sessionId: string,
+    callback: (players: Player[]) => void,
+  ) => {
+    return onSnapshot(collection(db, "sessions", sessionId, "players"), (snapshot) => {
+      const players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+      callback(players);
+    }, (error) => {
+      if (error.message?.includes('Quota exceeded')) {
+        console.warn(`[GameService] Quota exceeded for players listener: ${sessionId}`);
+        return;
+      }
+      handleFirestoreError(error, OperationType.LIST, `sessions/${sessionId}/players`);
+    });
+  },
+
+  // Lắng nghe một người chơi cụ thể (Real-time)
+  subscribeToPlayer: (
+    sessionId: string,
+    playerId: string,
+    callback: (player: Player | null) => void,
+  ) => {
+    return onSnapshot(doc(db, "sessions", sessionId, "players", playerId), (doc) => {
+      if (doc.exists()) {
+        callback({ id: doc.id, ...doc.data() } as Player);
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      if (error.message?.includes('Quota exceeded')) {
+        console.warn(`[GameService] Quota exceeded for player listener: ${sessionId}/${playerId}`);
+        return;
+      }
+      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}/players/${playerId}`);
     });
   },
 };

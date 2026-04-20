@@ -30,6 +30,7 @@ export default function OralQuizDashboard() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<GameSession | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [groups, setGroups] = useState<StudentGroup[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -66,7 +67,7 @@ export default function OralQuizDashboard() {
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsubscribe = gameService.subscribeToSession(sessionId, async (data) => {
+    const unsubscribeSession = gameService.subscribeToSession(sessionId, async (data) => {
       setSession(data);
       if (data.quizId) {
         setQuiz(prevQuiz => {
@@ -90,7 +91,15 @@ export default function OralQuizDashboard() {
         setShowQuestion(false);
       }
     });
-    return () => unsubscribe();
+
+    const unsubscribePlayers = gameService.subscribeToPlayers(sessionId, (playersData) => {
+      setPlayers(playersData);
+    });
+
+    return () => {
+      unsubscribeSession();
+      unsubscribePlayers();
+    };
   }, [sessionId]);
 
   useEffect(() => {
@@ -109,7 +118,6 @@ export default function OralQuizDashboard() {
 
 
   const currentQuestion = quiz.questions[session.currentQuestionIndex];
-  const players = session.players || [];
 
   // Map players or groups to StudentData for random selectors
   const isGroupSelection = session.settings?.selectionTarget === 'group';

@@ -170,7 +170,7 @@ export default function ReportsDashboard() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Users className="w-4 h-4" />
-                      {session.players?.length || 0} người chơi
+                      {/* Player count is not directly available on GameSession anymore */}
                     </div>
                     <div className="flex items-center gap-1.5 font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">
                       PIN: {session.pin}

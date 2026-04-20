@@ -11,6 +11,7 @@ export default function Toolbar() {
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showStrokeWidthPicker, setShowStrokeWidthPicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showShapePicker, setShowShapePicker] = useState(false);
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
@@ -214,6 +215,7 @@ export default function Toolbar() {
         onScroll={() => {
           setShowColorPicker(false);
           setShowBgPicker(false);
+          setShowStrokeWidthPicker(false);
           setShowShapePicker(false);
         }}
       >
@@ -239,6 +241,7 @@ export default function Toolbar() {
               updatePickerPos(e);
               setShowShapePicker(!showShapePicker);
               setShowColorPicker(false);
+              setShowStrokeWidthPicker(false);
               setShowBgPicker(false);
               dispatch({ type: 'SET_TOOL', payload: 'shape' });
             }}
@@ -300,7 +303,9 @@ export default function Toolbar() {
             onClick={(e) => {
               updatePickerPos(e);
               setShowColorPicker(!showColorPicker);
+              setShowStrokeWidthPicker(false);
               setShowBgPicker(false);
+              setShowShapePicker(false);
             }}
             className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${showColorPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
             title="Màu sắc"
@@ -327,6 +332,48 @@ export default function Toolbar() {
           )}
         </div>
 
+        {/* Stroke Width Picker Toggle */}
+        <div className="relative flex items-center justify-center">
+          <button
+            onClick={(e) => {
+              updatePickerPos(e);
+              setShowStrokeWidthPicker(!showStrokeWidthPicker);
+              setShowColorPicker(false);
+              setShowBgPicker(false);
+              setShowShapePicker(false);
+            }}
+            className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${showStrokeWidthPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            title="Độ dày nét"
+          >
+            <div className="w-5 h-5 flex items-center justify-center">
+               <div className="bg-current rounded-full" style={{ width: Math.max(4, state.strokeWidth/2), height: Math.max(4, state.strokeWidth/2) }} />
+            </div>
+          </button>
+          
+          {showStrokeWidthPicker && (
+            <div 
+              className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-3 flex flex-col gap-2 w-36 z-50"
+              style={{ top: pickerPos.top, left: pickerPos.left }}
+            >
+              {[2, 4, 8, 12, 16, 24].map((width) => (
+                <button
+                  key={width}
+                  onClick={() => {
+                    dispatch({ type: 'SET_STROKE_WIDTH', payload: width });
+                    setShowStrokeWidthPicker(false);
+                  }}
+                  className={`flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 ${state.strokeWidth === width ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600'}`}
+                >
+                  <div className="w-8 flex justify-center">
+                    <div className="bg-current rounded-full" style={{ width: Math.max(4, width/2), height: Math.max(4, width/2) }} />
+                  </div>
+                  <span className="text-xs">{width}px</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Background Picker Toggle */}
         <div className="relative flex items-center justify-center">
           <button
@@ -334,6 +381,8 @@ export default function Toolbar() {
               updatePickerPos(e);
               setShowBgPicker(!showBgPicker);
               setShowColorPicker(false);
+              setShowStrokeWidthPicker(false);
+              setShowShapePicker(false);
             }}
             className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${showBgPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
             title="Nền bảng"

@@ -49,6 +49,7 @@ export default function PlickersScanner() {
   const workerRef = useRef<Worker | null>(null);
 
   const [session, setSession] = useState<GameSession | null>(null);
+  const [players, setPlayers] = useState<any[]>([]);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [results, setResults] = useState<Map<string, ScannedStudent>>(
@@ -66,7 +67,7 @@ export default function PlickersScanner() {
 
   useEffect(() => {
     if (!sessionId) return;
-    const unsubscribe = gameService.subscribeToSession(
+    const unsubscribeSession = gameService.subscribeToSession(
       sessionId,
       async (data) => {
         setSession(data);
@@ -88,7 +89,15 @@ export default function PlickersScanner() {
         }
       },
     );
-    return () => unsubscribe();
+
+    const unsubscribePlayers = gameService.subscribeToPlayers(sessionId, (playersData) => {
+      setPlayers(playersData);
+    });
+
+    return () => {
+      unsubscribeSession();
+      unsubscribePlayers();
+    };
   }, [sessionId, quiz, navigate]);
 
   const processBarcodes = useCallback(
@@ -366,7 +375,7 @@ export default function PlickersScanner() {
 
   const currentQuestion = quiz.questions[session.currentQuestionIndex];
   const answeredCount =
-    session.players?.filter((p) => p.answers && p.answers[currentQuestion?.id])
+    players.filter((p) => p.answers && p.answers[currentQuestion?.id])
       ?.length || 0;
 
   const TroubleshootingModal = () => (
