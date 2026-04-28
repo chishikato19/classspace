@@ -72,20 +72,9 @@ export default function ExamTakingPage() {
     attemptStatusRef.current = attempt?.status;
   }, [attempt?.status]);
 
-  // Handle Fullscreen & Anti-Cheat
+  // Handle Anti-Cheat
   useEffect(() => {
     let isMounted = true;
-    // 1. Enter Fullscreen
-    const enterFullscreen = async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch (e) {
-        console.warn("Could not request fullscreen", e);
-      }
-    };
-    enterFullscreen();
 
     // 3. F12 and Context Menu Prevention
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -105,9 +94,6 @@ export default function ExamTakingPage() {
       isMounted = false;
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(e => console.warn(e));
-      }
     };
   }, []);
 
@@ -210,17 +196,24 @@ export default function ExamTakingPage() {
   const calculateScore = (submissions: Record<string, number>): { score: number, correct: number } => {
     if (!exam) return { score: 0, correct: 0 };
     let correctCount = 0;
+    let totalScore = 0;
+    
+    // Legacy support: if all questions have no points, fallback to 10 points evenly divided
+    const isLegacy = exam.questions.every(q => typeof q.points !== 'number');
+    const legacyPointsPerQ = isLegacy ? 10 / exam.questions.length : 0;
     
     exam.questions.forEach(q => {
       const sub = submissions[q.id];
       if (sub !== undefined && q.obfuscatedAnswer) {
         const correctIndex = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
-        if (sub === correctIndex) correctCount++;
+        if (sub === correctIndex) {
+          correctCount++;
+          totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+        }
       }
     });
 
-    const score = (correctCount / exam.questions.length) * 10;
-    return { score: parseFloat(score.toFixed(2)), correct: correctCount };
+    return { score: parseFloat(totalScore.toFixed(2)), correct: correctCount };
   };
 
   const handleSubmitRequest = () => {
@@ -256,6 +249,10 @@ export default function ExamTakingPage() {
       localStorage.removeItem(`exam_submissions_${attemptId}`);
       localStorage.removeItem(`exam_layout_${attemptId}`);
       
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(e => console.warn(e));
+      }
+
       setShowSubmitModal(false);
       navigate(`/exam/${examId}/results/${attemptId}`);
     } catch (error) {

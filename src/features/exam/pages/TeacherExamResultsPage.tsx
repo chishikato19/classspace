@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db } from '../../../config/firebase';
 import { Exam, ExamAttempt } from '../types';
 import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search } from 'lucide-react';
+import { deobfuscateAnswer } from '../utils/obfuscator';
 
 export default function TeacherExamResultsPage() {
   const { examId } = useParams();
@@ -252,7 +253,7 @@ export default function TeacherExamResultsPage() {
                   // decode correct answer
                   let correctIndex = -1;
                   try {
-                    correctIndex = parseInt(atob(q.obfuscatedAnswer || '').replace(q.id, ''), 10);
+                    correctIndex = deobfuscateAnswer(q.obfuscatedAnswer || '', q.id);
                   } catch (e) {
                      console.error("Decode error:", e);
                   }
@@ -262,7 +263,12 @@ export default function TeacherExamResultsPage() {
 
                   return (
                     <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-50 border-green-200' : isUnanswered ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200'}`}>
-                      <p className="font-medium text-slate-800 mb-2">Câu {idx + 1}: {q.text}</p>
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-medium text-slate-800">Câu {idx + 1}: {q.text}</p>
+                        <span className="text-sm font-semibold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded border ml-4">
+                          {typeof q.points === 'number' ? q.points : (10/exam.questions.length).toFixed(2)} điểm
+                        </span>
+                      </div>
                       <div className="space-y-2 mt-3">
                          {q.options.map((opt, oIdx) => (
                             <div key={oIdx} className={`p-2 rounded-lg text-sm border ${

@@ -2,6 +2,7 @@ export interface ExamQuestion {
   id: string;
   text: string;
   imageUrl?: string;
+  points: number;
   options: string[];
   // Obfuscated index of the correct option (e.g. atob/btoa or simple XOR)
   obfuscatedAnswer?: string; 

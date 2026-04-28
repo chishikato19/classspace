@@ -5,6 +5,7 @@ import { db } from '../../../config/firebase';
 import { Exam } from '../types';
 import { User, Users, ArrowRight, ShieldCheck, Clock, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { classService, ClassData } from '../../random-selector/services/classService';
 
 export default function ExamJoinPage() {
   const { examId } = useParams();
@@ -13,6 +14,7 @@ export default function ExamJoinPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [studentName, setStudentName] = useState('');
   const [studentClass, setStudentClass] = useState('');
+  const [availableClasses, setAvailableClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -23,7 +25,13 @@ export default function ExamJoinPage() {
       try {
         const docRef = await getDoc(doc(db, 'exams', examId));
         if (docRef.exists()) {
-          setExam(docRef.data() as Exam);
+          const loadedExam = docRef.data() as Exam;
+          setExam(loadedExam);
+          
+          if (loadedExam.requireClassInput) {
+            const classes = await classService.getClassesByTeacher(loadedExam.teacherId);
+            setAvailableClasses(classes);
+          }
         } else {
           setError('Không tìm thấy đề thi. Mã đề có thể sai hoặc đã bị xóa.');
         }
@@ -63,7 +71,7 @@ export default function ExamJoinPage() {
         id: attemptId,
         examId: exam.id,
         studentName: studentName.trim(),
-        studentClass: studentClass.trim() || undefined,
+        studentClass: studentClass.trim() || null,
         startTime: Date.now(),
         submissions: {},
         score: 0,
@@ -183,16 +191,23 @@ export default function ExamJoinPage() {
 
               {exam.requireClassInput && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Thêm thông tin Lớp học</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Thông tin Lớp học</label>
                   <div className="relative">
                     <input
                       type="text"
+                      list="class-list"
                       required
-                      placeholder="Ví dụ: 10A1"
+                      placeholder="Chọn lớp hoặc nhập tên lớp..."
                       className="block w-full px-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 focus:bg-white transition-colors"
                       value={studentClass}
                       onChange={(e) => setStudentClass(e.target.value)}
+                      autoComplete="off"
                     />
+                    <datalist id="class-list">
+                      {availableClasses.map(c => (
+                        <option key={c.id} value={c.name} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               )}
