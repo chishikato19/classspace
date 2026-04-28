@@ -86,6 +86,7 @@ export default function App() {
             <Route path="/student/shop/:studentId" element={<StudentDashboardWrapper />} />
 
             {/* Exam Public Routes */}
+            <Route path="/e/:examId" element={<ExamJoinPage />} />
             <Route path="/exam/:examId/join" element={<ExamJoinPage />} />
             <Route path="/exam/:examId/take/:attemptId" element={<ExamTakingPage />} />
             <Route path="/exam/:examId/results/:attemptId" element={<ExamResultsPage />} />

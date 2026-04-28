@@ -98,7 +98,7 @@ export default function TeacherExamDashboard() {
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => {
-                       navigator.clipboard.writeText(`${window.location.origin}/#/exam/${exam.id}/join`);
+                       navigator.clipboard.writeText(`${window.location.origin}/#/e/${exam.id}`);
                        alert("Đã copy link bài thi!");
                     }}
                     className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg flex items-center gap-2 text-sm font-medium"

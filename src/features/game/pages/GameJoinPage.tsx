@@ -119,7 +119,17 @@ export default function GameJoinPage() {
           setStep('NAME_INPUT');
         }
       } else {
-        setError('Không tìm thấy phòng chơi với mã PIN này.');
+        // Fallback: check if this is an Exam ID
+        try {
+           const examSnap = await getDoc(doc(db, 'exams', pinToUse));
+           if (examSnap.exists()) {
+             navigate(`/e/${pinToUse}`);
+             return;
+           }
+        } catch (e) {
+           console.error("Exam check error:", e);
+        }
+        setError('Không tìm thấy phòng chơi hoặc bài thi với mã PIN này.');
       }
     } catch (err) {
       console.error(err);

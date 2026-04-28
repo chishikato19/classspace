@@ -36,7 +36,7 @@ export default function ExamEditor() {
     }
 
     setLoading(true);
-    const examId = uuidv4();
+    const examId = Math.random().toString(36).substring(2, 8).toUpperCase();
     
     const formattedQuestions: ExamQuestion[] = questions.map(q => {
       const qId = uuidv4();
