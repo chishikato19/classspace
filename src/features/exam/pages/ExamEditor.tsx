@@ -11,6 +11,9 @@ export default function ExamEditor() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [timeLimit, setTimeLimit] = useState(45);
+  const [allowStudentInputName, setAllowStudentInputName] = useState(true);
+  const [allowedStudentNamesText, setAllowedStudentNamesText] = useState('');
+  const [requireClassInput, setRequireClassInput] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [questions, setQuestions] = useState<{
@@ -34,6 +37,15 @@ export default function ExamEditor() {
       alert("Vui lòng nhập tên đề thi và ít nhất 1 câu hỏi.");
       return;
     }
+    
+    let allowedNames: string[] = [];
+    if (!allowStudentInputName) {
+      allowedNames = allowedStudentNamesText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+      if (allowedNames.length === 0) {
+        alert("Vui lòng nhập danh sách tên học sinh hợp lệ.");
+        return;
+      }
+    }
 
     setLoading(true);
     const examId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -53,7 +65,9 @@ export default function ExamEditor() {
       title: title.trim(),
       timeLimitMinutes: timeLimit,
       questions: formattedQuestions,
-      allowStudentInputName: true,
+      allowStudentInputName,
+      allowedStudentNames: allowStudentInputName ? [] : allowedNames,
+      requireClassInput,
       status: status,
       teacherId: auth.currentUser.uid,
       createdAt: Date.now()
@@ -91,7 +105,7 @@ export default function ExamEditor() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Tên đề thi</label>
             <input 
@@ -110,6 +124,42 @@ export default function ExamEditor() {
               onChange={e => setTimeLimit(parseInt(e.target.value) || 0)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input 
+                type="checkbox" 
+                checked={!allowStudentInputName} 
+                onChange={e => setAllowStudentInputName(!e.target.checked)}
+                className="w-4 h-4 text-indigo-600 rounded"
+              />
+              Yêu cầu học sinh chọn tên từ danh sách
+            </label>
+            {!allowStudentInputName && (
+              <textarea 
+                value={allowedStudentNamesText}
+                onChange={e => setAllowedStudentNamesText(e.target.value)}
+                placeholder="Nhập phần tên học sinh, mỗi người một dòng..."
+                className="w-full mt-2 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px] text-sm"
+              />
+            )}
+          </div>
+          <div>
+             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input 
+                type="checkbox" 
+                checked={requireClassInput} 
+                onChange={e => setRequireClassInput(e.target.checked)}
+                className="w-4 h-4 text-indigo-600 rounded"
+              />
+              Yêu cầu học sinh nhập/chọn thông tin lớp
+            </label>
+            <p className="text-xs text-slate-500 mt-1 ml-6">
+              Giúp phân loại trong báo cáo kết quả thi.
+            </p>
           </div>
         </div>
       </div>

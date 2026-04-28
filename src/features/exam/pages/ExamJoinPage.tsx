@@ -12,6 +12,7 @@ export default function ExamJoinPage() {
   
   const [exam, setExam] = useState<Exam | null>(null);
   const [studentName, setStudentName] = useState('');
+  const [studentClass, setStudentClass] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -38,7 +39,16 @@ export default function ExamJoinPage() {
 
   const handleStartExam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!exam || !studentName.trim()) return;
+    if (!exam) return;
+    if (exam.allowStudentInputName && !studentName.trim()) return;
+    if (!exam.allowStudentInputName && !studentName) {
+      alert("Vui lòng chọn tên của bạn!");
+      return;
+    }
+    if (exam.requireClassInput && !studentClass.trim()) {
+      alert("Vui lòng nhập lớp của bạn!");
+      return;
+    }
 
     if (exam.status !== 'published') {
       alert("Đề thi này chưa được mở hoặc đã đóng!");
@@ -53,6 +63,7 @@ export default function ExamJoinPage() {
         id: attemptId,
         examId: exam.id,
         studentName: studentName.trim(),
+        studentClass: studentClass.trim() || undefined,
         startTime: Date.now(),
         submissions: {},
         score: 0,
@@ -155,18 +166,34 @@ export default function ExamJoinPage() {
                 </div>
               ) : (
                 <div>
-                  {/* Here we would render a generic dropdown for class selection if we implemented that. For MVP, we pretend they input. */}
                   <label className="block text-sm font-medium text-slate-700 mb-2">Chọn tên của bạn</label>
                   <select 
                     required
-                    className="block w-full pl-3 pr-10 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500"
+                    className="block w-full pl-3 pr-10 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 focus:bg-white"
                     value={studentName}
                     onChange={(e) => setStudentName(e.target.value)}
                   >
                     <option value="">-- Chọn tên --</option>
-                    <option value="ID01 - Trương A">ID01 - Trương A</option>
-                    <option value="ID02 - Lại B">ID02 - Lại B</option>
+                    {exam.allowedStudentNames?.map((name, idx) => (
+                      <option key={idx} value={name}>{name}</option>
+                    ))}
                   </select>
+                </div>
+              )}
+
+              {exam.requireClassInput && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Thêm thông tin Lớp học</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ví dụ: 10A1"
+                      className="block w-full px-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 focus:bg-white transition-colors"
+                      value={studentClass}
+                      onChange={(e) => setStudentClass(e.target.value)}
+                    />
+                  </div>
                 </div>
               )}
             </div>

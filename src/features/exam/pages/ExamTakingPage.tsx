@@ -67,8 +67,14 @@ export default function ExamTakingPage() {
     return () => unsubAttempt();
   }, [examId, attemptId, navigate]);
 
+  const attemptStatusRef = useRef(attempt?.status);
+  useEffect(() => {
+    attemptStatusRef.current = attempt?.status;
+  }, [attempt?.status]);
+
   // Handle Fullscreen & Anti-Cheat
   useEffect(() => {
+    let isMounted = true;
     // 1. Enter Fullscreen
     const enterFullscreen = async () => {
       try {
@@ -80,23 +86,6 @@ export default function ExamTakingPage() {
       }
     };
     enterFullscreen();
-
-    // 2. Tab switch detection
-    const handleVisibilityChange = async () => {
-      if (document.hidden && attempt && attempt.status === 'in-progress') {
-        const newWarnings = tabWarnings + 1;
-        setTabWarnings(newWarnings);
-        alert(`Cảnh báo gian lận! Bạn đã chuyển tab ${newWarnings} lần. Hệ thống đã ghi nhận.`);
-        try {
-          await updateDoc(doc(db, 'examAttempts', attemptId!), {
-            tabSwitchCount: newWarnings
-          });
-        } catch (error) {
-          console.error("Lỗi cập nhật cảnh báo:", error);
-        }
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // 3. F12 and Context Menu Prevention
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -113,14 +102,37 @@ export default function ExamTakingPage() {
     window.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      isMounted = false;
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('contextmenu', handleContextMenu);
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(e => console.warn(e));
       }
     };
-  }, [attemptId, tabWarnings, attempt]);
+  }, []);
+
+  // Handle visibility separate
+  useEffect(() => {
+    // 2. Tab switch detection
+    const handleVisibilityChange = async () => {
+      if (document.hidden && attemptStatusRef.current === 'in-progress') {
+        const newWarnings = tabWarnings + 1;
+        setTabWarnings(newWarnings);
+        alert(`Cảnh báo gian lận! Bạn đã chuyển tab ${newWarnings} lần. Hệ thống đã ghi nhận.`);
+        try {
+          await updateDoc(doc(db, 'examAttempts', attemptId!), {
+            tabSwitchCount: newWarnings
+          });
+        } catch (error) {
+          console.error("Lỗi cập nhật cảnh báo:", error);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    }
+  }, [attemptId, tabWarnings]);
 
   // Shuffle Questions and Answers for this user once
   useEffect(() => {

@@ -12,7 +12,9 @@ export interface Exam {
   title: string;
   timeLimitMinutes: number;
   questions: ExamQuestion[];
-  allowStudentInputName: boolean; // if false, they must pick from a class list
+  allowStudentInputName: boolean; // if false, they must pick from allowedStudentNames
+  allowedStudentNames?: string[];
+  requireClassInput?: boolean; 
   status: 'published' | 'closed';
   teacherId: string;
   createdAt: number;
@@ -22,6 +24,7 @@ export interface ExamAttempt {
   id: string;
   examId: string;
   studentName: string;
+  studentClass?: string;
   startTime: number;
   endTime?: number;
   submissions: Record<string, number>; // questionId -> selected option index

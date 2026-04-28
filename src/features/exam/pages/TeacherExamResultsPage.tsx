@@ -39,18 +39,35 @@ export default function TeacherExamResultsPage() {
     fetchData();
   }, [examId]);
 
-  const filteredAttempts = attempts.filter(a => 
-    a.studentName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
+
+  const classes = Array.from(new Set(attempts.map(a => a.studentClass || 'Khác'))).sort();
+
+  const filteredAttempts = attempts.filter(a => {
+    const matchesName = a.studentName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClass = selectedClass === 'all' || (a.studentClass || 'Khác') === selectedClass;
+    return matchesName && matchesClass;
+  });
+
+  const formatTime = (ts: number) => {
+    return new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit', minute: '2-digit',
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    }).format(new Date(ts));
+  };
 
   const exportToCSV = () => {
     if (!exam || attempts.length === 0) return;
     
-    const headers = ["Họ tên", "Số câu đúng", "Điểm", "Thời gian làm (phút)", "Số lần chuyển tab"];
-    const rows = attempts.map(a => [
-      a.studentName,
+    const headers = ["Họ tên", "Lớp", "Số câu đúng", "Điểm", "Bắt đầu", "Kết thúc", "Thời gian làm (phút)", "Số lần chuyển tab"];
+    const rows = filteredAttempts.map(a => [
+      `"${a.studentName}"`,
+      `"${a.studentClass || 'Khác'}"`,
       a.totalCorrect,
       a.score,
+      `"${formatTime(a.startTime)}"`,
+      `"${a.endTime ? formatTime(a.endTime) : 'Chưa nộp'}"`,
       a.endTime ? Math.round((a.endTime - a.startTime) / 60000) : 0,
       a.tabSwitchCount
     ]);
@@ -124,8 +141,8 @@ export default function TeacherExamResultsPage() {
 
       {/* Search and Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-slate-50/50">
-          <div className="relative max-w-md">
+        <div className="p-4 border-b bg-slate-50/50 flex gap-4">
+          <div className="relative max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               type="text"
@@ -135,6 +152,18 @@ export default function TeacherExamResultsPage() {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
+          {classes.length > 0 && (
+            <select
+              className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
+              value={selectedClass}
+              onChange={e => setSelectedClass(e.target.value)}
+            >
+              <option value="all">Tất cả các lớp</option>
+              {classes.map(c => (
+                <option key={c} value={c}>Lớp: {c}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -142,6 +171,7 @@ export default function TeacherExamResultsPage() {
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-sm font-semibold uppercase tracking-wider">
                 <th className="px-6 py-4">Học sinh</th>
+                <th className="px-6 py-4">Lớp</th>
                 <th className="px-6 py-4">Số câu đúng</th>
                 <th className="px-6 py-4">Điểm</th>
                 <th className="px-6 py-4">Thời gian</th>
@@ -155,6 +185,9 @@ export default function TeacherExamResultsPage() {
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-800">{attempt.studentName}</span>
                   </td>
+                  <td className="px-6 py-4 text-slate-600 font-medium">
+                    {attempt.studentClass || '-'}
+                  </td>
                   <td className="px-6 py-4 text-slate-600">
                     {attempt.totalCorrect} / {exam.questions.length}
                   </td>
@@ -164,7 +197,7 @@ export default function TeacherExamResultsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-sm">
-                    {attempt.endTime ? <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.round((attempt.endTime - attempt.startTime) / 60000)} phút</span> : 'N/A'}
+                    {attempt.endTime ? <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.round((attempt.endTime - attempt.startTime) / 60000)} phút</span> : 'Chưa nộp'}
                   </td>
                   <td className="px-6 py-4">
                     {attempt.tabSwitchCount > 0 ? (
@@ -177,13 +210,18 @@ export default function TeacherExamResultsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Chi tiết</button>
+                    <button 
+                      onClick={() => setSelectedAttempt(attempt)}
+                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                    >
+                      Chi tiết
+                    </button>
                   </td>
                 </tr>
               ))}
               {filteredAttempts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                     Không tìm thấy dữ liệu phù hợp
                   </td>
                 </tr>
@@ -192,6 +230,59 @@ export default function TeacherExamResultsPage() {
           </table>
         </div>
       </div>
+
+      {selectedAttempt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Chi tiết bài thi - {selectedAttempt.studentName}</h3>
+                <p className="text-slate-500 text-sm mt-1">Đạt {selectedAttempt.score.toFixed(1)} điểm ({selectedAttempt.totalCorrect}/{exam.questions.length})</p>
+              </div>
+              <button 
+                onClick={() => setSelectedAttempt(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-6">
+               {exam.questions.map((q, idx) => {
+                  const studentAnswerIdx = selectedAttempt.submissions[q.id];
+                  // decode correct answer
+                  let correctIndex = -1;
+                  try {
+                    correctIndex = parseInt(atob(q.obfuscatedAnswer || '').replace(q.id, ''), 10);
+                  } catch (e) {
+                     console.error("Decode error:", e);
+                  }
+                  
+                  const isCorrect = studentAnswerIdx === correctIndex;
+                  const isUnanswered = studentAnswerIdx === undefined;
+
+                  return (
+                    <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-50 border-green-200' : isUnanswered ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200'}`}>
+                      <p className="font-medium text-slate-800 mb-2">Câu {idx + 1}: {q.text}</p>
+                      <div className="space-y-2 mt-3">
+                         {q.options.map((opt, oIdx) => (
+                            <div key={oIdx} className={`p-2 rounded-lg text-sm border ${
+                              oIdx === correctIndex ? 'bg-green-100 border-green-300 text-green-800 font-medium' :
+                              oIdx === studentAnswerIdx ? 'bg-red-100 border-red-300 text-red-800 font-medium' :
+                              'bg-white border-slate-200 text-slate-600'
+                            }`}>
+                               {String.fromCharCode(65 + oIdx)}. {opt}
+                               {oIdx === correctIndex && " (Đáp án đúng)"}
+                               {oIdx === studentAnswerIdx && oIdx !== correctIndex && " (Đã chọn)"}
+                            </div>
+                         ))}
+                      </div>
+                    </div>
+                  );
+               })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
