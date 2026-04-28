@@ -5,7 +5,7 @@ import { db, auth } from '../../../config/firebase';
 import { Exam, ExamQuestion } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { obfuscateAnswer } from '../utils/obfuscator';
-import { Pickaxe, Save, Upload, FileText } from 'lucide-react';
+import { Pickaxe, Save, Upload, FileText, PlusCircle } from 'lucide-react';
 
 export default function ExamEditor() {
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ export default function ExamEditor() {
     ]);
   };
 
-  const handleSave = async (status: 'draft' | 'published') => {
+  const handleSave = async (status: 'published' | 'closed') => {
     if (!auth.currentUser) return;
     if (!title.trim() || questions.length === 0) {
       alert("Vui lòng nhập tên đề thi và ít nhất 1 câu hỏi.");

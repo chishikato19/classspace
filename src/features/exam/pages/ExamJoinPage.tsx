@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { Exam } from '../types';
-import { User, Users, ArrowRight, ShieldCheck, Clock } from 'lucide-react';
+import { User, Users, ArrowRight, ShieldCheck, Clock, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function ExamJoinPage() {
