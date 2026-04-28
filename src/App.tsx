@@ -48,6 +48,13 @@ import { CalculatorWidget } from './components/CalculatorWidget';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+import TeacherExamDashboard from './features/exam/pages/TeacherExamDashboard';
+import ExamEditor from './features/exam/pages/ExamEditor';
+import ExamJoinPage from './features/exam/pages/ExamJoinPage';
+import ExamTakingPage from './features/exam/pages/ExamTakingPage';
+import ExamResultsPage from './features/exam/pages/ExamResultsPage';
+import TeacherExamResultsPage from './features/exam/pages/TeacherExamResultsPage';
+
 export default function App() {
   useEffect(() => {
     if (isFirebaseConfigured) {
@@ -78,6 +85,11 @@ export default function App() {
             {/* Student Shop Route */}
             <Route path="/student/shop/:studentId" element={<StudentDashboardWrapper />} />
 
+            {/* Exam Public Routes */}
+            <Route path="/exam/:examId/join" element={<ExamJoinPage />} />
+            <Route path="/exam/:examId/take/:attemptId" element={<ExamTakingPage />} />
+            <Route path="/exam/:examId/results/:attemptId" element={<ExamResultsPage />} />
+
             {/* Game Routes (No Layout) */}
             <Route path="/game/lobby/:sessionId" element={<GamePlayerLobby />} />
             <Route path="/game/play/:sessionId" element={<GamePlayerScreen />} />
@@ -96,6 +108,10 @@ export default function App() {
               <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
               <Route path="/teacher/class-session/:sessionId" element={<ClassSessionDashboard />} />
               <Route path="/teacher/shop" element={<ShopManager />} />
+              <Route path="/teacher/exams" element={<TeacherExamDashboard />} />
+              <Route path="/teacher/exams/new" element={<ExamEditor />} />
+              <Route path="/teacher/exams/:examId/edit" element={<ExamEditor />} />
+              <Route path="/teacher/exams/:examId/results" element={<TeacherExamResultsPage />} />
               <Route path="/teacher/random-selector" element={<RandomSelector />} />
               <Route path="/teacher/video-player" element={<VideoPlayer />} />
               <Route path="/teacher/showcase" element={<ShowcaseDashboard />} />

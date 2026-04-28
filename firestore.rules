@@ -133,6 +133,23 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
+    function isValidExam(data) {
+      return data.title is string && data.title.size() > 0 &&
+             data.timeLimitMinutes is number &&
+             data.questions is list &&
+             data.status in ['published', 'closed'] &&
+             data.teacherId is string &&
+             data.createdAt is number;
+    }
+
+    function isValidExamAttempt(data) {
+      return data.examId is string &&
+             data.studentName is string &&
+             data.startTime is number &&
+             data.submissions is map &&
+             data.status in ['in-progress', 'submitted'];
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -205,6 +222,21 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidShowcaseImage(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
       allow update: if isAuthenticated() && isValidShowcaseImage(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /exams/{examId} {
+      allow get: if true;
+      allow list: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+      allow create: if isAuthenticated() && isValidExam(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidExam(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /examAttempts/{attemptId} {
+      allow read: if true;
+      allow create: if isValidExamAttempt(request.resource.data);
+      allow update: if true; // Simple update for progress/tab switches
+      allow delete: if isAuthenticated() && isAdmin();
     }
 
     match /time_sync/{docId} {

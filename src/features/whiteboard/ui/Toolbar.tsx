@@ -216,6 +216,7 @@ export default function Toolbar() {
           setShowColorPicker(false);
           setShowBgPicker(false);
           setShowStrokeWidthPicker(false);
+          setShowStrokeWidthPicker(false);
           setShowShapePicker(false);
         }}
       >
@@ -327,6 +328,48 @@ export default function Toolbar() {
                   }`}
                   style={{ backgroundColor: color }}
                 />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Stroke Width Picker Toggle */}
+        <div className="relative flex items-center justify-center">
+          <button
+            onClick={(e) => {
+              updatePickerPos(e);
+              setShowStrokeWidthPicker(!showStrokeWidthPicker);
+              setShowColorPicker(false);
+              setShowBgPicker(false);
+              setShowShapePicker(false);
+            }}
+            className={`p-3 rounded-xl transition-all w-full flex items-center justify-center ${showStrokeWidthPicker ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            title="Độ dày nét"
+          >
+            <div className="w-5 h-5 flex items-center justify-center">
+               <div className="bg-current rounded-full" style={{ width: Math.max(4, state.strokeWidth/2), height: Math.max(4, state.strokeWidth/2) }} />
+            </div>
+          </button>
+          
+          {showStrokeWidthPicker && (
+            <div 
+              className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 p-3 flex flex-col gap-2 w-36 z-50"
+              style={{ top: pickerPos.top, left: pickerPos.left }}
+            >
+              {[2, 4, 8, 12, 16, 24].map((width) => (
+                <button
+                  key={width}
+                  onClick={() => {
+                    dispatch({ type: 'SET_STROKE_WIDTH', payload: width });
+                    setShowStrokeWidthPicker(false);
+                  }}
+                  className={`flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 ${state.strokeWidth === width ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600'}`}
+                >
+                  <div className="w-8 flex justify-center">
+                    <div className="bg-current rounded-full" style={{ width: Math.max(4, width/2), height: Math.max(4, width/2) }} />
+                  </div>
+                  <span className="text-xs">{width}px</span>
+                </button>
               ))}
             </div>
           )}

@@ -39,6 +39,12 @@ export default function Layout() {
                 Quizizz
               </button>
               <button 
+                onClick={() => navigate('/teacher/exams')}
+                className={`text-sm font-medium transition-colors ${location.pathname.includes('/teacher/exams') ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Đề thi Online
+              </button>
+              <button 
                 onClick={() => navigate('/teacher/shop')}
                 className={`text-sm font-medium transition-colors ${location.pathname.includes('/teacher/shop') ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
               >

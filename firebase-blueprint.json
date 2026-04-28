@@ -150,6 +150,38 @@
         "createdAt": { "type": "number", "description": "Timestamp of creation" }
       },
       "required": ["title", "url", "type", "teacherId", "createdAt"]
+    },
+    "Exam": {
+      "title": "Exam",
+      "description": "An online exam created by a teacher",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "timeLimitMinutes": { "type": "number" },
+        "questions": { "type": "array" },
+        "allowStudentInputName": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["published", "closed"] },
+        "teacherId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["title", "timeLimitMinutes", "questions", "status", "teacherId", "createdAt"]
+    },
+    "ExamAttempt": {
+      "title": "ExamAttempt",
+      "description": "A student's attempt at an exam",
+      "type": "object",
+      "properties": {
+        "examId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "startTime": { "type": "number" },
+        "endTime": { "type": "number" },
+        "submissions": { "type": "object" },
+        "score": { "type": "number" },
+        "totalCorrect": { "type": "number" },
+        "tabSwitchCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["in-progress", "submitted"] }
+      },
+      "required": ["examId", "studentName", "startTime", "submissions", "status"]
     }
   },
   "firestore": {
@@ -162,6 +194,8 @@
     "/classSessions": { "schema": "ClassSession", "description": "Collection of class sessions" },
     "/shop_items": { "schema": "ShopItem", "description": "Collection of shop items" },
     "/showcase_images": { "schema": "ShowcaseImage", "description": "Collection of showcase images" },
-    "/resources": { "schema": "Resource", "description": "Collection of teaching resources" }
+    "/resources": { "schema": "Resource", "description": "Collection of teaching resources" },
+    "/exams": { "schema": "Exam", "description": "Collection of exams" },
+    "/examAttempts": { "schema": "ExamAttempt", "description": "Collection of student exam attempts" }
   }
 }
