@@ -40,6 +40,8 @@ export default function ExamResultsPage() {
     ? Math.round((attempt.endTime - attempt.startTime) / 60000)
     : 0;
 
+  const maxScore = exam.questions.reduce((acc, q) => acc + (q.points || 0), 0) || 10;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
@@ -55,7 +57,7 @@ export default function ExamResultsPage() {
           <div className="text-center mb-8">
             <p className="text-slate-500 text-sm font-medium uppercase tracking-wider mb-2">Điểm số của bạn</p>
             <div className="text-6xl font-black text-slate-800 tracking-tighter">
-              {attempt.score.toFixed(1)}<span className="text-3xl text-slate-400">/10</span>
+              {attempt.score.toFixed(1)}<span className="text-3xl text-slate-400">/{maxScore}</span>
             </div>
           </div>
 

@@ -13,10 +13,19 @@ export interface Exam {
   title: string;
   timeLimitMinutes: number;
   questions: ExamQuestion[];
-  allowStudentInputName: boolean; // if false, they must pick from allowedStudentNames
+  allowStudentInputName: boolean;
   allowedStudentNames?: string[];
   requireClassInput?: boolean; 
   status: 'published' | 'closed';
+  teacherId: string;
+  createdAt: number;
+  folderId?: string | null;
+}
+
+export interface ExamFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
   teacherId: string;
   createdAt: number;
 }

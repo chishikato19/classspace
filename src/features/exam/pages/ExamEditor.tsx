@@ -1,14 +1,18 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { doc, setDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../../../config/firebase';
 import { Exam, ExamQuestion } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { obfuscateAnswer } from '../utils/obfuscator';
+import { obfuscateAnswer, deobfuscateAnswer } from '../utils/obfuscator';
 import { Pickaxe, Save, Upload, FileText, PlusCircle } from 'lucide-react';
 
 export default function ExamEditor() {
   const navigate = useNavigate();
+  const { examId: editExamId } = useParams();
+  const [searchParams] = useSearchParams();
+  const folderId = searchParams.get('folderId');
+
   const [title, setTitle] = useState('');
   const [timeLimit, setTimeLimit] = useState(45);
   const [allowStudentInputName, setAllowStudentInputName] = useState(true);
@@ -24,6 +28,29 @@ export default function ExamEditor() {
   }[]>([
     { text: 'Thủ đô của Việt Nam là gì?', options: ['Hồ Chí Minh', 'Đà Nẵng', 'Hà Nội', 'Huế'], correctIndex: 2, points: 10 }
   ]);
+
+  useEffect(() => {
+    if (editExamId) {
+      setLoading(true);
+      getDoc(doc(db, 'exams', editExamId)).then(snap => {
+        if (snap.exists()) {
+          const data = snap.data() as Exam;
+          setTitle(data.title);
+          setTimeLimit(data.timeLimitMinutes);
+          setAllowStudentInputName(data.allowStudentInputName);
+          setAllowedStudentNamesText(data.allowedStudentNames?.join('\n') || '');
+          setRequireClassInput(data.requireClassInput || false);
+          
+          setQuestions(data.questions.map(q => ({
+            text: q.text,
+            options: q.options,
+            correctIndex: deobfuscateAnswer(q.obfuscatedAnswer || '', q.id),
+            points: q.points || 0
+          })));
+        }
+      }).finally(() => setLoading(false));
+    }
+  }, [editExamId]);
 
   const totalScore = questions.reduce((acc, q) => acc + (q.points || 0), 0);
 
@@ -57,7 +84,7 @@ export default function ExamEditor() {
     }
 
     setLoading(true);
-    const examId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const examId = editExamId || Math.random().toString(36).substring(2, 8).toUpperCase();
     
     const formattedQuestions: ExamQuestion[] = questions.map(q => {
       const qId = uuidv4();
@@ -80,12 +107,17 @@ export default function ExamEditor() {
       requireClassInput,
       status: status,
       teacherId: auth.currentUser.uid,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      ...(folderId ? { folderId } : {})
     };
 
     try {
-      await setDoc(doc(db, 'exams', examId), newExam);
-      alert("Tạo đề thi thành công!");
+      if (editExamId) {
+        await updateDoc(doc(db, 'exams', examId), newExam as any);
+      } else {
+        await setDoc(doc(db, 'exams', examId), newExam);
+      }
+      alert(editExamId ? "Cập nhật đề thi thành công!" : "Tạo đề thi thành công!");
       navigate('/teacher/exams');
     } catch (err) {
       console.error(err);

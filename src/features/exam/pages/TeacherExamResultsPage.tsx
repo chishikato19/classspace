@@ -40,6 +40,7 @@ export default function TeacherExamResultsPage() {
     fetchData();
   }, [examId]);
 
+  const [sortConfig, setSortConfig] = useState<{ key: 'name' | 'score' | 'time', direction: 'asc' | 'desc' }>({ key: 'score', direction: 'desc' });
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
 
@@ -50,6 +51,34 @@ export default function TeacherExamResultsPage() {
     const matchesClass = selectedClass === 'all' || (a.studentClass || 'Khác') === selectedClass;
     return matchesName && matchesClass;
   });
+
+  const sortedAttempts = [...filteredAttempts].sort((a, b) => {
+    if (sortConfig.key === 'name') {
+      return sortConfig.direction === 'asc' 
+        ? a.studentName.localeCompare(b.studentName)
+        : b.studentName.localeCompare(a.studentName);
+    }
+    if (sortConfig.key === 'score') {
+      return sortConfig.direction === 'asc' 
+        ? a.score - b.score
+        : b.score - a.score;
+    }
+    if (sortConfig.key === 'time') {
+      const timeA = a.endTime || Number.MAX_SAFE_INTEGER;
+      const timeB = b.endTime || Number.MAX_SAFE_INTEGER;
+      return sortConfig.direction === 'asc' 
+        ? timeA - timeB
+        : timeB - timeA;
+    }
+    return 0;
+  });
+
+  const handleSort = (key: 'name' | 'score' | 'time') => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const formatTime = (ts: number) => {
     return new Intl.DateTimeFormat('vi-VN', {
@@ -171,17 +200,39 @@ export default function TeacherExamResultsPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-sm font-semibold uppercase tracking-wider">
-                <th className="px-6 py-4">Học sinh</th>
+                <th 
+                  className="px-6 py-4 cursor-pointer hover:bg-slate-100"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center gap-1">
+                    Học sinh {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
                 <th className="px-6 py-4">Lớp</th>
                 <th className="px-6 py-4">Số câu đúng</th>
-                <th className="px-6 py-4">Điểm</th>
-                <th className="px-6 py-4">Thời gian</th>
+                <th 
+                  className="px-6 py-4 cursor-pointer hover:bg-slate-100"
+                  onClick={() => handleSort('score')}
+                >
+                  <div className="flex items-center gap-1">
+                    Điểm {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
+                <th className="px-6 py-4">Thời gian làm</th>
+                <th 
+                  className="px-6 py-4 cursor-pointer hover:bg-slate-100"
+                  onClick={() => handleSort('time')}
+                >
+                  <div className="flex items-center gap-1">
+                    Nộp bài lúc {sortConfig.key === 'time' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
                 <th className="px-6 py-4">Chuyển tab</th>
                 <th className="px-6 py-4 text-right">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAttempts.map((attempt) => (
+              {sortedAttempts.map((attempt) => (
                 <tr key={attempt.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-800">{attempt.studentName}</span>
@@ -198,7 +249,10 @@ export default function TeacherExamResultsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-sm">
-                    {attempt.endTime ? <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.round((attempt.endTime - attempt.startTime) / 60000)} phút</span> : 'Chưa nộp'}
+                    {attempt.endTime ? <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.round((attempt.endTime - attempt.startTime) / 60000)} phút</span> : 'Đang làm'}
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 text-sm font-medium">
+                    {attempt.endTime ? formatTime(attempt.endTime) : '-'}
                   </td>
                   <td className="px-6 py-4">
                     {attempt.tabSwitchCount > 0 ? (
@@ -220,9 +274,9 @@ export default function TeacherExamResultsPage() {
                   </td>
                 </tr>
               ))}
-              {filteredAttempts.length === 0 && (
+              {sortedAttempts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
                     Không tìm thấy dữ liệu phù hợp
                   </td>
                 </tr>

@@ -139,7 +139,15 @@ service cloud.firestore {
              data.questions is list &&
              data.status in ['published', 'closed'] &&
              data.teacherId is string &&
-             data.createdAt is number;
+             data.createdAt is number &&
+             (!('folderId' in data) || data.folderId is string);
+    }
+
+    function isValidExamFolder(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.teacherId is string &&
+             data.createdAt is number &&
+             (!('parentId' in data) || data.parentId == null || data.parentId is string);
     }
 
     function isValidExamAttempt(data) {
@@ -221,6 +229,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidShowcaseImage(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
       allow update: if isAuthenticated() && isValidShowcaseImage(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+    }
+
+    match /examFolders/{folderId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+      allow create: if isAuthenticated() && isValidExamFolder(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
+      allow update: if isAuthenticated() && isValidExamFolder(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
     }
 
