@@ -5,6 +5,7 @@ import { db } from '../../../config/firebase';
 import { Exam, ExamAttempt } from '../types';
 import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search } from 'lucide-react';
 import { deobfuscateAnswer } from '../utils/obfuscator';
+import ReactMarkdown from 'react-markdown';
 
 export default function TeacherExamResultsPage() {
   const { examId } = useParams();
@@ -318,21 +319,31 @@ export default function TeacherExamResultsPage() {
                   return (
                     <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-50 border-green-200' : isUnanswered ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200'}`}>
                       <div className="flex justify-between items-start mb-2">
-                        <p className="font-medium text-slate-800">Câu {idx + 1}: {q.text}</p>
-                        <span className="text-sm font-semibold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded border ml-4">
+                        <div className="font-medium text-slate-800 prose prose-slate max-w-none prose-p:my-1 prose-img:my-2 prose-img:rounded-lg prose-img:max-h-48 prose-img:object-contain">
+                          <p className="font-bold inline-block mr-2">Câu {idx + 1}:</p>
+                          <ReactMarkdown>{q.text}</ReactMarkdown>
+                          {q.imageUrl && <img src={q.imageUrl} alt="Question" className="mt-2" />}
+                        </div>
+                        <span className="text-sm font-semibold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded border ml-4 mt-1">
                           {typeof q.points === 'number' ? q.points : (10/exam.questions.length).toFixed(2)} điểm
                         </span>
                       </div>
                       <div className="space-y-2 mt-3">
                          {q.options.map((opt, oIdx) => (
-                            <div key={oIdx} className={`p-2 rounded-lg text-sm border ${
+                            <div key={oIdx} className={`p-2 rounded-lg text-sm border flex items-start gap-2 ${
                               oIdx === correctIndex ? 'bg-green-100 border-green-300 text-green-800 font-medium' :
                               oIdx === studentAnswerIdx ? 'bg-red-100 border-red-300 text-red-800 font-medium' :
                               'bg-white border-slate-200 text-slate-600'
                             }`}>
-                               {String.fromCharCode(65 + oIdx)}. {opt}
-                               {oIdx === correctIndex && " (Đáp án đúng)"}
-                               {oIdx === studentAnswerIdx && oIdx !== correctIndex && " (Đã chọn)"}
+                               <span className="font-bold flex-shrink-0">{String.fromCharCode(65 + oIdx)}.</span>
+                               <div className="prose prose-sm max-w-none prose-p:my-0 prose-img:my-1 prose-img:rounded lg:prose-img:max-h-24">
+                                 <ReactMarkdown>{opt}</ReactMarkdown>
+                                 {q.optionImageUrls && q.optionImageUrls[oIdx] && (
+                                   <img src={q.optionImageUrls[oIdx]!} alt="Option" />
+                                 )}
+                               </div>
+                               {oIdx === correctIndex && <span className="ml-auto text-xs whitespace-nowrap">(Đáp án đúng)</span>}
+                               {oIdx === studentAnswerIdx && oIdx !== correctIndex && <span className="ml-auto text-xs whitespace-nowrap text-red-600">(Đã chọn)</span>}
                             </div>
                          ))}
                       </div>

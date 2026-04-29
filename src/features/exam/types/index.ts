@@ -1,9 +1,10 @@
 export interface ExamQuestion {
   id: string;
   text: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   points: number;
   options: string[];
+  optionImageUrls?: (string | null)[];
   // Obfuscated index of the correct option (e.g. atob/btoa or simple XOR)
   obfuscatedAnswer?: string; 
 }
@@ -21,6 +22,7 @@ export interface Exam {
   teacherId: string;
   createdAt: number;
   folderId?: string | null;
+  pin?: string;
 }
 
 export interface ExamFolder {

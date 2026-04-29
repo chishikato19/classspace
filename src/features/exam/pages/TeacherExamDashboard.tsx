@@ -244,10 +244,35 @@ export default function TeacherExamDashboard() {
                   </div>
                   
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-col items-end mr-1 text-right">
+                       <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-tight">PIN</span>
+                       {exam.pin ? (
+                         <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded leading-none">{exam.pin}</span>
+                       ) : (
+                         <button 
+                           onClick={async (e) => {
+                             e.preventDefault();
+                             e.stopPropagation();
+                             const newPin = Math.random().toString(36).substring(2, 8).toUpperCase();
+                             try {
+                               await updateDoc(doc(db, 'exams', exam.id), { pin: newPin });
+                               setExams(prev => prev.map(ex => ex.id === exam.id ? { ...ex, pin: newPin } : ex));
+                             } catch (err) {
+                               console.error(err);
+                               alert('Lỗi tạo PIN');
+                             }
+                           }}
+                           className="text-[10px] text-indigo-600 hover:underline font-bold"
+                         >
+                           Tạo PIN
+                         </button>
+                       )}
+                    </div>
                     <button 
                       onClick={() => {
-                         navigator.clipboard.writeText(`${window.location.origin}/#/e/${exam.id}`);
-                         alert("Đã copy link bài thi!");
+                         const shareUrl = exam.pin ? `${window.location.origin}/#/p/${exam.pin}` : `${window.location.origin}/#/e/${exam.id}`;
+                         navigator.clipboard.writeText(shareUrl);
+                         alert(`Đã copy link bài thi! Mã PIN: ${exam.pin || exam.id}`);
                       }}
                       className="px-3 py-1.5 hover:bg-slate-100 text-slate-600 rounded-lg flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
                     >

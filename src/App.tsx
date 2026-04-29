@@ -51,6 +51,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import TeacherExamDashboard from './features/exam/pages/TeacherExamDashboard';
 import ExamEditor from './features/exam/pages/ExamEditor';
 import ExamJoinPage from './features/exam/pages/ExamJoinPage';
+import PinRedirectPage from './features/exam/pages/PinRedirectPage';
 import ExamTakingPage from './features/exam/pages/ExamTakingPage';
 import ExamResultsPage from './features/exam/pages/ExamResultsPage';
 import TeacherExamResultsPage from './features/exam/pages/TeacherExamResultsPage';
@@ -87,6 +88,7 @@ export default function App() {
 
             {/* Exam Public Routes */}
             <Route path="/e/:examId" element={<ExamJoinPage />} />
+            <Route path="/p/:pin" element={<PinRedirectPage />} />
             <Route path="/exam/:examId/join" element={<ExamJoinPage />} />
             <Route path="/exam/:examId/take/:attemptId" element={<ExamTakingPage />} />
             <Route path="/exam/:examId/results/:attemptId" element={<ExamResultsPage />} />

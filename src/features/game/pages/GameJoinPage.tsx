@@ -119,8 +119,22 @@ export default function GameJoinPage() {
           setStep('NAME_INPUT');
         }
       } else {
-        // Fallback: check if this is an Exam ID
+        // Fallback: check if this is an Exam ID or Exam PIN
         try {
+           // 1. Check if PIN matches an Exam PIN
+           const { collection, query, where, getDocs, limit } = await import('firebase/firestore');
+           const examPinQuery = query(
+             collection(db, 'exams'),
+             where('pin', '==', pinToUse.toUpperCase()),
+             limit(1)
+           );
+           const pinSnapshot = await getDocs(examPinQuery);
+           if (!pinSnapshot.empty) {
+             navigate(`/e/${pinSnapshot.docs[0].id}`);
+             return;
+           }
+
+           // 2. Check if Code matches an Exam ID
            const examSnap = await getDoc(doc(db, 'exams', pinToUse));
            if (examSnap.exists()) {
              navigate(`/e/${pinToUse}`);
