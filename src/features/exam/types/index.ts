@@ -16,6 +16,7 @@ export interface Exam {
   allowStudentInputName: boolean;
   allowedStudentNames?: string[];
   requireClassInput?: boolean; 
+  allowedClasses?: string[];
   status: 'published' | 'closed';
   teacherId: string;
   createdAt: number;

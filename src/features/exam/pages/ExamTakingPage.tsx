@@ -72,6 +72,58 @@ export default function ExamTakingPage() {
     attemptStatusRef.current = attempt?.status;
   }, [attempt?.status]);
 
+  const calculateScore = useCallback((submissions: Record<string, number>): { score: number, correct: number } => {
+    if (!exam) return { score: 0, correct: 0 };
+    let correctCount = 0;
+    let totalScore = 0;
+    
+    const isLegacy = exam.questions.every(q => typeof q.points !== 'number');
+    const legacyPointsPerQ = isLegacy ? 10 / exam.questions.length : 0;
+    
+    exam.questions.forEach(q => {
+      const sub = submissions[q.id];
+      if (sub !== undefined && q.obfuscatedAnswer) {
+        const correctIndex = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
+        if (sub === correctIndex) {
+          correctCount++;
+          totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+        }
+      }
+    });
+
+    return { score: parseFloat(totalScore.toFixed(2)), correct: correctCount };
+  }, [exam]);
+
+  const handleSubmit = useCallback(async (auto = false) => {
+    if (!exam || !attemptId || !attempt) return;
+    
+    const finalSubmissions = attempt.submissions;
+    const { score, correct } = calculateScore(finalSubmissions);
+    
+    try {
+      await updateDoc(doc(db, 'examAttempts', attemptId), {
+        submissions: finalSubmissions,
+        status: 'submitted',
+        endTime: Date.now(),
+        score,
+        totalCorrect: correct
+      });
+      
+      localStorage.removeItem(`exam_submissions_${attemptId}`);
+      localStorage.removeItem(`exam_layout_${attemptId}`);
+      
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(e => console.warn(e));
+      }
+
+      setShowSubmitModal(false);
+      navigate(`/exam/${examId}/results/${attemptId}`);
+    } catch (error) {
+      console.error("Submission Error:", error);
+      alert("Lỗi khi nộp bài! Vui lòng kiểm tra kết nối mạng và thử lại.");
+    }
+  }, [exam, attemptId, attempt, calculateScore, navigate, examId]);
+
   // Handle Anti-Cheat
   useEffect(() => {
     let isMounted = true;
@@ -99,26 +151,42 @@ export default function ExamTakingPage() {
 
   // Handle visibility separate
   useEffect(() => {
-    // 2. Tab switch detection
-    const handleVisibilityChange = async () => {
-      if (document.hidden && attemptStatusRef.current === 'in-progress') {
+    let isDetecting = false;
+    // 2. Tab switch detection & window blur (Alt+Tab)
+    const handleVisibilityOrBlur = async () => {
+      if (isDetecting) return;
+      if (attemptStatusRef.current === 'in-progress' && (document.hidden || !document.hasFocus())) {
+        isDetecting = true;
         const newWarnings = tabWarnings + 1;
         setTabWarnings(newWarnings);
-        alert(`Cảnh báo gian lận! Bạn đã chuyển tab ${newWarnings} lần. Hệ thống đã ghi nhận.`);
+        
         try {
-          await updateDoc(doc(db, 'examAttempts', attemptId!), {
+          // Fire-and-forget update
+          updateDoc(doc(db, 'examAttempts', attemptId!), {
             tabSwitchCount: newWarnings
-          });
+          }).catch(e => console.error(e));
         } catch (error) {
           console.error("Lỗi cập nhật cảnh báo:", error);
         }
+
+        if (newWarnings >= 3) {
+          alert(`Cảnh báo gian lận! Bạn đã rời khỏi màn hình hoặc chuyển tab quá 3 lần. Bài thi sẽ tự động nộp.`);
+          handleSubmit(true);
+        } else {
+          alert(`Cảnh báo gian lận! Bạn đã rời khỏi hoặc chuyển tab. Hệ thống đã ghi nhận lần thứ ${newWarnings}. Quá 3 lần sẽ tự động nộp bài!`);
+        }
+        
+        setTimeout(() => { isDetecting = false; }, 2000); // debounce
       }
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    document.addEventListener("visibilitychange", handleVisibilityOrBlur);
+    window.addEventListener("blur", handleVisibilityOrBlur);
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityOrBlur);
+      window.removeEventListener("blur", handleVisibilityOrBlur);
     }
-  }, [attemptId, tabWarnings]);
+  }, [attemptId, tabWarnings, handleSubmit]);
 
   // Shuffle Questions and Answers for this user once
   useEffect(() => {
@@ -193,29 +261,6 @@ export default function ExamTakingPage() {
     localStorage.setItem(cacheKey, JSON.stringify(newSubmissions));
   };
 
-  const calculateScore = (submissions: Record<string, number>): { score: number, correct: number } => {
-    if (!exam) return { score: 0, correct: 0 };
-    let correctCount = 0;
-    let totalScore = 0;
-    
-    // Legacy support: if all questions have no points, fallback to 10 points evenly divided
-    const isLegacy = exam.questions.every(q => typeof q.points !== 'number');
-    const legacyPointsPerQ = isLegacy ? 10 / exam.questions.length : 0;
-    
-    exam.questions.forEach(q => {
-      const sub = submissions[q.id];
-      if (sub !== undefined && q.obfuscatedAnswer) {
-        const correctIndex = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
-        if (sub === correctIndex) {
-          correctCount++;
-          totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
-        }
-      }
-    });
-
-    return { score: parseFloat(totalScore.toFixed(2)), correct: correctCount };
-  };
-
   const handleSubmitRequest = () => {
     const answeredCount = Object.keys(attempt?.submissions || {}).length;
     const totalCount = exam?.questions.length || 0;
@@ -226,39 +271,6 @@ export default function ExamTakingPage() {
       setIsSubmitWarning(false);
     }
     setShowSubmitModal(true);
-  };
-
-  const handleSubmit = async (auto = false) => {
-    if (!exam || !attemptId || !attempt) return;
-    
-    // Get the latest submissions from local storage or state
-    const finalSubmissions = attempt.submissions;
-    const { score, correct } = calculateScore(finalSubmissions);
-    
-    try {
-      // FINAL WRITE TO FIREBASE (Crucial for cost optimization)
-      await updateDoc(doc(db, 'examAttempts', attemptId), {
-        submissions: finalSubmissions,
-        status: 'submitted',
-        endTime: Date.now(),
-        score,
-        totalCorrect: correct
-      });
-      
-      // Clear local cache
-      localStorage.removeItem(`exam_submissions_${attemptId}`);
-      localStorage.removeItem(`exam_layout_${attemptId}`);
-      
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(e => console.warn(e));
-      }
-
-      setShowSubmitModal(false);
-      navigate(`/exam/${examId}/results/${attemptId}`);
-    } catch (error) {
-      console.error("Submission Error:", error);
-      alert("Lỗi khi nộp bài! Vui lòng kiểm tra kết nối mạng và thử lại.");
-    }
   };
 
   const formatTime = (ms: number) => {

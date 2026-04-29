@@ -193,21 +193,37 @@ export default function ExamJoinPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Thông tin Lớp học</label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      list="class-list"
-                      required
-                      placeholder="Chọn lớp hoặc nhập tên lớp..."
-                      className="block w-full px-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 focus:bg-white transition-colors"
-                      value={studentClass}
-                      onChange={(e) => setStudentClass(e.target.value)}
-                      autoComplete="off"
-                    />
-                    <datalist id="class-list">
-                      {availableClasses.map(c => (
-                        <option key={c.id} value={c.name} />
-                      ))}
-                    </datalist>
+                    {exam.allowedClasses && exam.allowedClasses.length > 0 ? (
+                      <select
+                        required
+                        className="block w-full px-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 focus:bg-white transition-colors appearance-none"
+                        value={studentClass}
+                        onChange={(e) => setStudentClass(e.target.value)}
+                      >
+                        <option value="">-- Chọn lớp của bạn --</option>
+                        {exam.allowedClasses.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          list="class-list"
+                          required
+                          placeholder="Chọn lớp hoặc nhập tên lớp..."
+                          className="block w-full px-3 py-3 border border-slate-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 focus:bg-white transition-colors"
+                          value={studentClass}
+                          onChange={(e) => setStudentClass(e.target.value)}
+                          autoComplete="off"
+                        />
+                        <datalist id="class-list">
+                          {availableClasses.map(c => (
+                            <option key={c.id} value={c.name} />
+                          ))}
+                        </datalist>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

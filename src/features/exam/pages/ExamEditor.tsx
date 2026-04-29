@@ -5,7 +5,8 @@ import { db, auth } from '../../../config/firebase';
 import { Exam, ExamQuestion } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { obfuscateAnswer, deobfuscateAnswer } from '../utils/obfuscator';
-import { Pickaxe, Save, Upload, FileText, PlusCircle } from 'lucide-react';
+import { Pickaxe, Save, Upload, FileText, PlusCircle, CheckSquare } from 'lucide-react';
+import { classService, ClassData } from '../../random-selector/services/classService';
 
 export default function ExamEditor() {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ export default function ExamEditor() {
   const [allowStudentInputName, setAllowStudentInputName] = useState(true);
   const [allowedStudentNamesText, setAllowedStudentNamesText] = useState('');
   const [requireClassInput, setRequireClassInput] = useState(false);
+  const [teacherClasses, setTeacherClasses] = useState<ClassData[]>([]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [questions, setQuestions] = useState<{
@@ -30,6 +33,10 @@ export default function ExamEditor() {
   ]);
 
   useEffect(() => {
+    if (auth.currentUser) {
+      classService.getClassesByTeacher(auth.currentUser.uid).then(setTeacherClasses);
+    }
+
     if (editExamId) {
       setLoading(true);
       getDoc(doc(db, 'exams', editExamId)).then(snap => {
@@ -40,6 +47,7 @@ export default function ExamEditor() {
           setAllowStudentInputName(data.allowStudentInputName);
           setAllowedStudentNamesText(data.allowedStudentNames?.join('\n') || '');
           setRequireClassInput(data.requireClassInput || false);
+          setSelectedClasses(data.allowedClasses || []);
           
           setQuestions(data.questions.map(q => ({
             text: q.text,
@@ -105,6 +113,7 @@ export default function ExamEditor() {
       allowStudentInputName,
       allowedStudentNames: allowStudentInputName ? [] : allowedNames,
       requireClassInput,
+      allowedClasses: selectedClasses,
       status: status,
       teacherId: auth.currentUser.uid,
       createdAt: Date.now(),
@@ -200,18 +209,50 @@ export default function ExamEditor() {
             )}
           </div>
           <div>
-             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
               <input 
                 type="checkbox" 
                 checked={requireClassInput} 
                 onChange={e => setRequireClassInput(e.target.checked)}
                 className="w-4 h-4 text-indigo-600 rounded"
               />
-              Yêu cầu học sinh nhập/chọn thông tin lớp
+              Yêu cầu học sinh chọn thông tin lớp
             </label>
             <p className="text-xs text-slate-500 mt-1 ml-6">
               Giúp phân loại trong báo cáo kết quả thi.
             </p>
+            {requireClassInput && (
+              <div className="mt-4 ml-6">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Danh sách lớp cho phép:</label>
+                <div className="flex flex-wrap gap-2">
+                  {teacherClasses.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedClasses(prev => 
+                          prev.includes(c.name) 
+                            ? prev.filter(cn => cn !== c.name) 
+                            : [...prev, c.name]
+                        );
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-2 ${
+                        selectedClasses.includes(c.name)
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {selectedClasses.includes(c.name) && <CheckSquare className="w-3.5 h-3.5" />}
+                      {c.name}
+                    </button>
+                  ))}
+                  {teacherClasses.length === 0 && (
+                    <p className="text-xs text-slate-400 italic">Bạn chưa tạo danh sách lớp nào.</p>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 italic">* Nếu không chọn lớp nào, học sinh có thể tự nhập tên lớp tự do.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
