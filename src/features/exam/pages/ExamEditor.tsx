@@ -25,8 +25,10 @@ export default function ExamEditor() {
   const [teacherClasses, setTeacherClasses] = useState<ClassData[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [existingData, setExistingData] = useState<Partial<Exam>>({});
 
   const [questions, setQuestions] = useState<{
+    id?: string;
     text: string;
     imageUrl?: string | null;
     options: string[];
@@ -221,8 +223,15 @@ export default function ExamEditor() {
           setAllowedStudentNamesText(data.allowedStudentNames?.join('\n') || '');
           setRequireClassInput(data.requireClassInput || false);
           setSelectedClasses(data.allowedClasses || []);
+          setExistingData({
+            createdAt: data.createdAt,
+            pin: data.pin,
+            status: data.status,
+            folderId: data.folderId
+          });
           
           setQuestions(data.questions.map(q => ({
+            id: q.id,
             text: q.text,
             imageUrl: q.imageUrl,
             options: q.options,
@@ -268,10 +277,10 @@ export default function ExamEditor() {
 
     setLoading(true);
     const examId = editExamId || Math.random().toString(36).substring(2, 8).toUpperCase();
-    const pin = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const pin = (editExamId && existingData.pin) ? existingData.pin : Math.random().toString(36).substring(2, 8).toUpperCase();
     
     const formattedQuestions: ExamQuestion[] = questions.map(q => {
-      const qId = uuidv4();
+      const qId = q.id || uuidv4();
       return {
         id: qId,
         text: q.text,
@@ -294,15 +303,53 @@ export default function ExamEditor() {
       allowedClasses: selectedClasses,
       status: status,
       teacherId: auth.currentUser.uid,
-      createdAt: Date.now(),
+      createdAt: (editExamId && existingData.createdAt) ? existingData.createdAt : Date.now(),
       pin: pin,
-      ...(folderId ? { folderId } : {})
+      ...(folderId ? { folderId } : (existingData.folderId ? { folderId: existingData.folderId } : {}))
     };
 
     const cleanExam = JSON.parse(JSON.stringify(newExam));
     try {
       if (editExamId) {
         await updateDoc(doc(db, 'exams', examId), cleanExam);
+        
+        // Update all related examAttempts
+        try {
+          const { collection, query, where, getDocs } = await import('firebase/firestore');
+          const attemptsQ = query(collection(db, 'examAttempts'), where('examId', '==', examId));
+          const attemptSnaps = await getDocs(attemptsQ);
+          
+          if (!attemptSnaps.empty) {
+            const updates = attemptSnaps.docs.map(attemptDoc => {
+              const attemptData = attemptDoc.data();
+              let newTotalCorrect = 0;
+              let newScore = 0;
+              
+              const submissions = attemptData.submissions || {};
+              
+              // We use the new formattedQuestions to re-grade
+              // since we need points, and we can deobfuscate the answer to check
+              formattedQuestions.forEach(q => {
+                const subInd = submissions[q.id];
+                const realCorrectIndex = deobfuscateAnswer(q.obfuscatedAnswer || '', q.id);
+                if (subInd !== undefined && subInd === realCorrectIndex) {
+                   newTotalCorrect++;
+                   newScore += (q.points || 0);
+                }
+              });
+              
+              return updateDoc(doc(db, 'examAttempts', attemptDoc.id), {
+                totalCorrect: newTotalCorrect,
+                score: newScore
+              });
+            });
+            await Promise.all(updates);
+            console.log(`Updated ${attemptSnaps.docs.length} attempts for new scoring.`);
+          }
+        } catch (updateErr) {
+          console.error("Error updating exam attempts:", updateErr);
+        }
+        
       } else {
         await setDoc(doc(db, 'exams', examId), cleanExam);
       }
