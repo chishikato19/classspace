@@ -299,11 +299,12 @@ export default function ExamEditor() {
       ...(folderId ? { folderId } : {})
     };
 
+    const cleanExam = JSON.parse(JSON.stringify(newExam));
     try {
       if (editExamId) {
-        await updateDoc(doc(db, 'exams', examId), newExam as any);
+        await updateDoc(doc(db, 'exams', examId), cleanExam);
       } else {
-        await setDoc(doc(db, 'exams', examId), newExam);
+        await setDoc(doc(db, 'exams', examId), cleanExam);
       }
       alert(editExamId ? "Cập nhật đề thi thành công!" : "Tạo đề thi thành công!");
       navigate('/teacher/exams');
@@ -316,13 +317,20 @@ export default function ExamEditor() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Tạo đề thi mới</h1>
           <p className="text-slate-500">Soạn thảo hoặc nhập từ file Word</p>
         </div>
         <div className="flex gap-3">
+          <button 
+            type="button"
+            onClick={() => navigate('/teacher/exams')}
+            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-medium transition-colors"
+          >
+            Hủy
+          </button>
           <button 
             disabled={loading}
             onClick={() => handleSave('published')}

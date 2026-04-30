@@ -120,29 +120,41 @@ export default function GameJoinPage() {
         }
       } else {
         // Fallback: check if this is an Exam ID or Exam PIN
+        let foundExamId: string | null = null;
+        
         try {
-           // 1. Check if PIN matches an Exam PIN
-           const { collection, query, where, getDocs, limit } = await import('firebase/firestore');
-           const examPinQuery = query(
-             collection(db, 'exams'),
-             where('pin', '==', pinToUse.toUpperCase()),
-             limit(1)
-           );
-           const pinSnapshot = await getDocs(examPinQuery);
-           if (!pinSnapshot.empty) {
-             navigate(`/e/${pinSnapshot.docs[0].id}`);
-             return;
-           }
-
-           // 2. Check if Code matches an Exam ID
+           // 1. Check if Code matches an Exam ID first (fastest and most reliable)
            const examSnap = await getDoc(doc(db, 'exams', pinToUse));
            if (examSnap.exists()) {
-             navigate(`/e/${pinToUse}`);
-             return;
+             foundExamId = examSnap.id;
            }
         } catch (e) {
-           console.error("Exam check error:", e);
+           console.error("Exam ID check error:", e);
         }
+
+        if (!foundExamId) {
+           try {
+             // 2. Check if PIN matches an Exam PIN (for backward compatibility if missing ID)
+             const { collection, query, where, getDocs, limit } = await import('firebase/firestore');
+             const examPinQuery = query(
+               collection(db, 'exams'),
+               where('pin', '==', pinToUse.toUpperCase()),
+               limit(1)
+             );
+             const pinSnapshot = await getDocs(examPinQuery);
+             if (!pinSnapshot.empty) {
+               foundExamId = pinSnapshot.docs[0].id;
+             }
+           } catch (e) {
+             console.log("Exam PIN query intentionally restricted or failed, ignored as fallback.");
+           }
+        }
+
+        if (foundExamId) {
+          navigate(`/e/${foundExamId}`);
+          return;
+        }
+
         setError('Không tìm thấy phòng chơi hoặc bài thi với mã PIN này.');
       }
     } catch (err) {
