@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { Exam, ExamAttempt } from '../types';
-import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search } from 'lucide-react';
+import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search, RefreshCw } from 'lucide-react';
 import { deobfuscateAnswer } from '../utils/obfuscator';
 import ReactMarkdown from 'react-markdown';
 
@@ -14,30 +14,30 @@ export default function TeacherExamResultsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
+  const fetchData = async (isRefresh = false) => {
     if (!examId) return;
-
-    const fetchData = async () => {
-      try {
-        const examSnap = await getDoc(doc(db, 'exams', examId));
-        if (examSnap.exists()) {
-          setExam(examSnap.data() as Exam);
-        }
-
-        const q = query(
-          collection(db, 'examAttempts'),
-          where('examId', '==', examId)
-        );
-        const attemptSnap = await getDocs(q);
-        const attemptData = attemptSnap.docs.map(d => d.data() as ExamAttempt);
-        setAttempts(attemptData.sort((a, b) => b.score - a.score));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+    if (!isRefresh) setLoading(true);
+    try {
+      const examSnap = await getDoc(doc(db, 'exams', examId));
+      if (examSnap.exists()) {
+        setExam(examSnap.data() as Exam);
       }
-    };
 
+      const q = query(
+        collection(db, 'examAttempts'),
+        where('examId', '==', examId)
+      );
+      const attemptSnap = await getDocs(q);
+      const attemptData = attemptSnap.docs.map(d => d.data() as ExamAttempt);
+      setAttempts(attemptData.sort((a, b) => b.score - a.score));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [examId]);
 
@@ -91,17 +91,29 @@ export default function TeacherExamResultsPage() {
   const exportToCSV = () => {
     if (!exam || attempts.length === 0) return;
     
-    const headers = ["Họ tên", "Lớp", "Số câu đúng", "Điểm", "Bắt đầu", "Kết thúc", "Thời gian làm (phút)", "Số lần chuyển tab"];
-    const rows = filteredAttempts.map(a => [
-      `"${a.studentName}"`,
-      `"${a.studentClass || 'Khác'}"`,
-      a.totalCorrect,
-      a.score,
-      `"${formatTime(a.startTime)}"`,
-      `"${a.endTime ? formatTime(a.endTime) : 'Chưa nộp'}"`,
-      a.endTime ? Math.round((a.endTime - a.startTime) / 60000) : 0,
-      a.tabSwitchCount
-    ]);
+    const questionHeaders = exam.questions.map((_, idx) => `"Câu ${idx + 1}"`);
+    const headers = ["Họ tên", "Lớp", "Số câu đúng", "Điểm", "Bắt đầu", "Kết thúc", "Thời gian làm (phút)", "Số lần chuyển tab", ...questionHeaders];
+    
+    const rows = filteredAttempts.map(a => {
+      const questionAnswers = exam.questions.map(q => {
+        const selectedIndex = a.submissions[q.id];
+        if (selectedIndex === undefined) return `""`;
+        const label = String.fromCharCode(65 + selectedIndex); 
+        return `"${label}"`;
+      });
+
+      return [
+        `"${a.studentName}"`,
+        `"${a.studentClass || 'Khác'}"`,
+        a.totalCorrect,
+        a.score,
+        `"${formatTime(a.startTime)}"`,
+        `"${a.endTime ? formatTime(a.endTime) : 'Chưa nộp'}"`,
+        a.endTime ? Math.round((a.endTime - a.startTime) / 60000) : 0,
+        a.tabSwitchCount,
+        ...questionAnswers
+      ];
+    });
 
     const csvContent = "data:text/csv;charset=utf-8," 
       + "\uFEFF" // BOM for Excel UTF-8
@@ -132,13 +144,22 @@ export default function TeacherExamResultsPage() {
           <h1 className="text-2xl font-bold text-slate-800">{exam.title}</h1>
           <p className="text-slate-500">Báo cáo kết quả chi tiết của {attempts.length} thí sinh</p>
         </div>
-        <button 
-          onClick={exportToCSV}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
-        >
-          <FileDown className="w-5 h-5" />
-          Xuất file CSV (Excel)
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => fetchData(true)}
+            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+          >
+            <RefreshCw className="w-5 h-5" />
+            Cập nhật
+          </button>
+          <button 
+            onClick={exportToCSV}
+            className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+          >
+            <FileDown className="w-5 h-5" />
+            Xuất file CSV (Excel)
+          </button>
+        </div>
       </div>
 
       {/* Stats Summary */}
