@@ -6,9 +6,10 @@ import { db, auth, storage } from '../../../config/firebase';
 import { Exam, ExamQuestion } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { obfuscateAnswer, deobfuscateAnswer } from '../utils/obfuscator';
-import { Pickaxe, Save, Upload, FileText, PlusCircle, CheckSquare, ImagePlus, X, Loader2, Info } from 'lucide-react';
+import { Pickaxe, Save, Upload, FileText, PlusCircle, CheckSquare, ImagePlus, X, Loader2, Info, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { classService, ClassData } from '../../random-selector/services/classService';
 import * as mammoth from 'mammoth';
+import ReactMarkdown from 'react-markdown';
 
 export default function ExamEditor() {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ export default function ExamEditor() {
                 const response = await fetch(src);
                 const blob = await response.blob();
                 const ext = blob.type.split('/')[1] || 'png';
-                const fileName = `exams/word_imports/${auth.currentUser.uid}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+                const fileName = `users/${auth.currentUser.uid}/exams/word_imports/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
                 const fileRef = ref(storage, fileName);
                 await uploadBytes(fileRef, blob);
                 const url = await getDownloadURL(fileRef);
@@ -180,7 +181,7 @@ export default function ExamEditor() {
     setUploadingImage(true);
     try {
       const ext = file.name.split('.').pop() || 'png';
-      const fileName = `exams/${auth.currentUser.uid}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const fileName = `users/${auth.currentUser.uid}/exams/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
       const fileRef = ref(storage, fileName);
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
@@ -479,132 +480,208 @@ export default function ExamEditor() {
 
       <div className="space-y-6">
         {questions.map((q, qIndex) => (
-          <div key={qIndex} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative">
-            <div className="absolute top-4 right-4 flex items-center gap-3">
-              <div className="text-slate-400 font-bold text-sm bg-slate-100 px-2 py-1 rounded">
-                Câu {qIndex + 1}
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-600">Điểm:</label>
-                <input 
-                  type="number"
-                  step="0.01"
-                  value={q.points || 0}
-                  onChange={e => {
-                    const newQ = [...questions];
-                    newQ[qIndex].points = parseFloat(e.target.value) || 0;
-                    setQuestions(newQ);
-                  }}
-                  className="w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-            <div className="mb-4 mt-2">
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-slate-700">Nội dung câu hỏi</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadTarget({ qIndex });
-                    fileInputRef.current?.click();
-                  }}
-                  className="text-xs text-indigo-600 hover:bg-slate-100 px-2 py-1 flex items-center gap-1 rounded bg-slate-50 transition-colors"
-                >
-                  <ImagePlus className="w-3.5 h-3.5" />
-                  Chèn ảnh
-                </button>
-              </div>
-              <textarea 
-                value={q.text}
-                onChange={e => {
-                  const newQ = [...questions];
-                  newQ[qIndex].text = e.target.value;
-                  setQuestions(newQ);
-                }}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px]"
-                placeholder="Nhập câu hỏi..."
-              />
-              {q.imageUrl && (
-                <div className="mt-3 relative inline-block">
-                  <img src={q.imageUrl} alt="Question" className="max-h-48 rounded border border-slate-200" />
-                  <button 
+          <div key={qIndex} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col lg:flex-row relative">
+            
+            {/* Editor Side */}
+            <div className="flex-1 p-6 border-b lg:border-b-0 lg:border-r border-slate-200 relative">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="text-slate-600 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                    Câu {qIndex + 1}
+                  </div>
+                  <button
+                    type="button"
                     onClick={() => {
-                      const newQ = [...questions];
-                      newQ[qIndex].imageUrl = null;
+                      if (qIndex > 0) {
+                        const newQ = [...questions];
+                        [newQ[qIndex - 1], newQ[qIndex]] = [newQ[qIndex], newQ[qIndex - 1]];
+                        setQuestions(newQ);
+                      }
+                    }}
+                    disabled={qIndex === 0}
+                    className="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-500 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+                    title="Di chuyển lên"
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (qIndex < questions.length - 1) {
+                        const newQ = [...questions];
+                        [newQ[qIndex], newQ[qIndex + 1]] = [newQ[qIndex + 1], newQ[qIndex]];
+                        setQuestions(newQ);
+                      }
+                    }}
+                    disabled={qIndex === questions.length - 1}
+                    className="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-500 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+                    title="Di chuyển xuống"
+                  >
+                    <ArrowDown className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newQ = questions.filter((_, i) => i !== qIndex);
                       setQuestions(newQ);
                     }}
-                    className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                    className="p-1.5 bg-red-50 border border-red-200 rounded text-red-500 hover:text-red-700 hover:bg-red-100 transition-colors ml-2"
+                    title="Xóa câu hỏi"
                   >
-                    <X className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-              )}
-            </div>
-            
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-slate-700">Các đáp án</label>
-              {q.options.map((opt, optIndex) => (
-                <div key={optIndex} className="flex items-start gap-3">
-                   <input 
-                      type="radio" 
-                      name={`correct-${qIndex}`}
-                      checked={q.correctIndex === optIndex}
-                      onChange={() => {
-                        const newQ = [...questions];
-                        newQ[qIndex].correctIndex = optIndex;
-                        setQuestions(newQ);
-                      }}
-                      className="w-5 h-5 mt-2 text-green-600 focus:ring-green-500 cursor-pointer"
-                      title="Đánh dấu đáp án đúng"
-                   />
-                   <div className="flex-1 flex flex-col gap-2">
-                      <div className="flex gap-2 items-center">
-                        <span className="font-bold text-slate-500">{String.fromCharCode(65 + optIndex)}.</span>
-                        <input 
-                          type="text"
-                          value={opt}
-                          onChange={e => {
-                            const newQ = [...questions];
-                            newQ[qIndex].options[optIndex] = e.target.value;
-                            setQuestions(newQ);
-                          }}
-                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
-                          placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUploadTarget({ qIndex, optIndex });
-                            fileInputRef.current?.click();
-                          }}
-                          className="text-slate-400 hover:text-indigo-600 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                          title="Chèn ảnh cho đáp án"
-                        >
-                          <ImagePlus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {q.optionImageUrls?.[optIndex] && (
-                        <div className="ml-6 relative inline-block w-fit">
-                          <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200" />
-                          <button 
-                            type="button"
-                            onClick={() => {
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-600">Điểm:</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    value={q.points || 0}
+                    onChange={e => {
+                      const newQ = [...questions];
+                      newQ[qIndex].points = parseFloat(e.target.value) || 0;
+                      setQuestions(newQ);
+                    }}
+                    className="w-20 px-2 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-slate-700">Nội dung câu hỏi</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadTarget({ qIndex });
+                      fileInputRef.current?.click();
+                    }}
+                    className="text-xs font-medium text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-100 transition-colors"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    Chèn ảnh
+                  </button>
+                </div>
+                <textarea 
+                  value={q.text}
+                  onChange={e => {
+                    const newQ = [...questions];
+                    newQ[qIndex].text = e.target.value;
+                    setQuestions(newQ);
+                  }}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px]"
+                  placeholder="Nhập nội dung câu hỏi (hỗ trợ Markdown)..."
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-700">Các đáp án</label>
+                {q.options.map((opt, optIndex) => (
+                  <div key={optIndex} className="flex items-start gap-3">
+                     <input 
+                        type="radio" 
+                        name={`correct-${qIndex}`}
+                        checked={q.correctIndex === optIndex}
+                        onChange={() => {
+                          const newQ = [...questions];
+                          newQ[qIndex].correctIndex = optIndex;
+                          setQuestions(newQ);
+                        }}
+                        className="w-5 h-5 mt-2 text-green-600 focus:ring-green-500 cursor-pointer"
+                        title="Đánh dấu đáp án đúng"
+                     />
+                     <div className="flex-1 flex flex-col gap-2">
+                        <div className="flex gap-2 items-center">
+                          <span className="font-bold text-slate-500">{String.fromCharCode(65 + optIndex)}.</span>
+                          <textarea 
+                            value={opt}
+                            onChange={e => {
                               const newQ = [...questions];
-                              if (newQ[qIndex].optionImageUrls) {
-                                newQ[qIndex].optionImageUrls![optIndex] = null;
-                              }
+                              newQ[qIndex].options[optIndex] = e.target.value;
                               setQuestions(newQ);
                             }}
-                            className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                            className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
+                            placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUploadTarget({ qIndex, optIndex });
+                              fileInputRef.current?.click();
+                            }}
+                            className="text-slate-400 hover:text-indigo-600 p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                            title="Chèn ảnh cho đáp án"
                           >
-                            <X className="w-4 h-4" />
+                            <ImagePlus className="w-4 h-4" />
                           </button>
                         </div>
-                      )}
-                   </div>
-                </div>
-              ))}
+                     </div>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Preview Side */}
+            <div className="flex-1 p-6 bg-slate-50 flex flex-col border-t lg:border-t-0">
+               <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Xem trước</div>
+               <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm min-h-[200px]">
+                  <div className="prose prose-slate max-w-none prose-sm prose-p:my-1 prose-img:my-4 prose-img:rounded-md prose-img:border prose-img:border-slate-200 prose-img:max-h-64 prose-img:object-contain mb-4">
+                     {q.text ? <ReactMarkdown>{q.text}</ReactMarkdown> : <span className="text-slate-300 italic">Nội dung câu hỏi rỗng...</span>}
+                  </div>
+                  
+                  {q.imageUrl && (
+                    <div className="relative inline-block mb-6">
+                      <img src={q.imageUrl} alt="Question" className="max-h-56 rounded border border-slate-200 shadow-sm" />
+                      <button 
+                        onClick={() => {
+                          const newQ = [...questions];
+                          newQ[qIndex].imageUrl = null;
+                          setQuestions(newQ);
+                        }}
+                        className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                        title="Xóa ảnh câu hỏi"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 mt-4">
+                     {q.options.map((opt, optIndex) => (
+                        <div key={optIndex} className={`p-3 rounded-lg border ${q.correctIndex === optIndex ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-100'} flex items-start gap-3`}>
+                           <span className={`font-bold flex-shrink-0 ${q.correctIndex === optIndex ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
+                           <div className="flex-1 w-full overflow-hidden">
+                              <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
+                                <ReactMarkdown>{opt}</ReactMarkdown>
+                              </div>
+                              {q.optionImageUrls?.[optIndex] && (
+                                <div className="mt-2 relative inline-block">
+                                  <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200 bg-white" />
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      const newQ = [...questions];
+                                      if (newQ[qIndex].optionImageUrls) {
+                                        newQ[qIndex].optionImageUrls![optIndex] = null;
+                                      }
+                                      setQuestions(newQ);
+                                    }}
+                                    className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                                    title="Xóa ảnh đáp án"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                           </div>
+                           {q.correctIndex === optIndex && <span className="text-xs text-green-700 font-semibold uppercase shrink-0 pt-0.5 whitespace-nowrap">Đúng</span>}
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+
           </div>
         ))}
       </div>
