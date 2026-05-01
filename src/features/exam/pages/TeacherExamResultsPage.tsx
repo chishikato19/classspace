@@ -111,6 +111,10 @@ export default function TeacherExamResultsPage() {
         if (selectedAnswer === undefined) return `""`;
         if (q.type === 'short_answer') {
            return `"${String(selectedAnswer).replace(/"/g, '""')}"`;
+        } else if (q.type === 'true_false') {
+           const arr = String(selectedAnswer).split(',');
+           const res = arr.map((val, idx) => `${String.fromCharCode(97 + idx)}. ${val === 'T' ? 'Đúng' : val === 'F' ? 'Sai' : '-'}`).join('; ');
+           return `"${res}"`;
         }
         const label = String.fromCharCode(65 + Number(selectedAnswer)); 
         return `"${label}"`;
@@ -357,6 +361,14 @@ export default function TeacherExamResultsPage() {
                   if (q.type === 'short_answer') {
                      const validAnswers = correctString.split('||').map(s => s.trim().toLowerCase());
                      isCorrect = studentAnswerIdx !== undefined && validAnswers.includes(String(studentAnswerIdx).trim().toLowerCase());
+                  } else if (q.type === 'true_false') {
+                     const realAns = (deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id) || '').split(',');
+                     const subAns = (studentAnswerIdx !== undefined ? String(studentAnswerIdx) : '').split(',');
+                     let c = 0;
+                     for (let i = 0; i < realAns.length; i++) {
+                        if (subAns[i] === realAns[i]) c++;
+                     }
+                     isCorrect = c === realAns.length && c > 0;
                   } else {
                      isCorrect = studentAnswerIdx === correctIndex;
                   }
@@ -383,6 +395,31 @@ export default function TeacherExamResultsPage() {
                                   <span className="font-semibold text-xs opacity-70">Học sinh trả lời:</span>
                                   <span>{isUnanswered ? '(Không trả lời)' : String(studentAnswerIdx)}</span>
                                </div>
+                            </div>
+                         ) : q.type === 'true_false' ? (
+                            <div className="grid grid-cols-1 gap-2">
+                               {q.options.map((opt, oIdx) => {
+                                  const realAnsArr = (deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id) || '').split(',');
+                                  const subAnsArr = (studentAnswerIdx !== undefined ? String(studentAnswerIdx) : '').split(',');
+                                  const isCorrectSub = subAnsArr[oIdx] === realAnsArr[oIdx];
+                                  const hasAnsSub = subAnsArr[oIdx] === 'T' || subAnsArr[oIdx] === 'F';
+                                  return (
+                                    <div key={oIdx} className={`p-3 rounded-lg text-sm border flex items-start gap-3 ${hasAnsSub ? (isCorrectSub ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 'bg-white border-slate-200'}`}>
+                                      <span className="font-bold flex-shrink-0">{String.fromCharCode(97 + oIdx)}.</span>
+                                      <div className="flex-1 prose prose-sm max-w-none prose-p:my-0 prose-img:my-1 prose-img:rounded lg:prose-img:max-h-24">
+                                        <ReactMarkdown>{opt}</ReactMarkdown>
+                                      </div>
+                                      <div className="flex flex-col items-end shrink-0 gap-1 text-xs">
+                                         <span className="text-slate-500">
+                                            Chuẩn: <span className="font-bold">{realAnsArr[oIdx] === 'T' ? 'Đúng' : 'Sai'}</span>
+                                         </span>
+                                         <span className={`${hasAnsSub ? (isCorrectSub ? 'text-green-700' : 'text-red-600') : 'text-slate-400'}`}>
+                                            Trò chọn: <span className="font-bold">{hasAnsSub ? (subAnsArr[oIdx] === 'T' ? 'Đúng' : 'Sai') : '(Trống)'}</span>
+                                         </span>
+                                      </div>
+                                    </div>
+                                  )
+                               })}
                             </div>
                          ) : (
                            q.options.map((opt, oIdx) => (

@@ -214,7 +214,14 @@ export default function ExamTakingPage() {
         const shuffled = [...exam.questions].map((q, idx) => ({ q, originalIndex: idx }))
           .sort(() => Math.random() - 0.5)
           .map(item => {
-            const optionsMap = item.q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+            let optionsMap: number[] = [];
+            
+            if (item.q.type === 'true_false' || item.q.type === 'short_answer') {
+               optionsMap = item.q.options.map((_, i) => i);
+            } else {
+               optionsMap = item.q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+            }
+            
             const shuffledOptions = optionsMap.map(origIdx => item.q.options[origIdx]);
             
             return {
@@ -268,6 +275,30 @@ export default function ExamTakingPage() {
     
     // SAVE LOCALLY ONLY (Avoid expensive Firebase writes per click)
     // We only write to Firebase on "Nộp bài" or when "Hết giờ"
+    const cacheKey = `exam_submissions_${attemptId}`;
+    localStorage.setItem(cacheKey, JSON.stringify(newSubmissions));
+  };
+
+  const handleSelectTrueFalse = (questionId: string, optionIndex: number, isTrue: boolean) => {
+    if (!attempt || attempt.status === 'submitted') return;
+    
+    // get current submission arrangement for this question
+    // "T,F,T,T"
+    const currentSub = attempt.submissions[questionId];
+    const q = exam?.questions.find(q => q.id === questionId);
+    if (!q) return;
+    
+    let arr = currentSub ? String(currentSub).split(',') : Array(q.options.length).fill('');
+    
+    arr[optionIndex] = isTrue ? 'T' : 'F';
+    
+    const newSubmissions = {
+      ...attempt.submissions,
+      [questionId]: arr.join(',')
+    };
+    
+    setAttempt({ ...attempt, submissions: newSubmissions });
+    
     const cacheKey = `exam_submissions_${attemptId}`;
     localStorage.setItem(cacheKey, JSON.stringify(newSubmissions));
   };
@@ -384,6 +415,43 @@ export default function ExamTakingPage() {
                              placeholder="Nhập câu trả lời của bạn..."
                              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
                            />
+                        </div>
+                      ) : q.type === 'true_false' ? (
+                        <div className="grid grid-cols-1 gap-3">
+                          {q.options.map((opt, optIndex) => {
+                            const currentSubArr = attempt.submissions[q.id] ? String(attempt.submissions[q.id]).split(',') : [];
+                            const isT = currentSubArr[optIndex] === 'T';
+                            const isF = currentSubArr[optIndex] === 'F';
+                            const label = String.fromCharCode(97 + optIndex); // a, b, c, d
+                            
+                            return (
+                              <div key={optIndex} className="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-white">
+                                <div className="flex-1 flex gap-3">
+                                  <span className="font-semibold w-5 mt-0.5">{label}.</span>
+                                  <div className="flex-1 prose prose-slate max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded prose-img:max-h-32">
+                                    <ReactMarkdown>{opt}</ReactMarkdown>
+                                    {q.optionImageUrls && q.optionImageUrls[optIndex] && (
+                                      <img src={q.optionImageUrls[optIndex]!} alt="Option" className="mt-2 max-h-32 rounded object-contain border border-slate-200" />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex bg-slate-100 rounded-lg p-1 shrink-0">
+                                  <button
+                                    onClick={() => handleSelectTrueFalse(q.id, optIndex, true)}
+                                    className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${isT ? 'bg-green-500 text-white shadow' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
+                                  >
+                                    Đúng
+                                  </button>
+                                  <button
+                                    onClick={() => handleSelectTrueFalse(q.id, optIndex, false)}
+                                    className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${isF ? 'bg-red-500 text-white shadow' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
+                                  >
+                                    Sai
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       ) : (
                         q.options.map((opt, optIndex) => {
