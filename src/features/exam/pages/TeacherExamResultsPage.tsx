@@ -53,11 +53,22 @@ export default function TeacherExamResultsPage() {
     return matchesName && matchesClass;
   });
 
+  const getVietnameseSortName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0];
+    const firstName = parts[parts.length - 1]; // Tên
+    const lastNameAndMiddleName = parts.slice(0, parts.length - 1).join(' '); // Họ và đệm
+    return `${firstName} ${lastNameAndMiddleName}`;
+  };
+
   const sortedAttempts = [...filteredAttempts].sort((a, b) => {
     if (sortConfig.key === 'name') {
+      const sortNameA = getVietnameseSortName(a.studentName);
+      const sortNameB = getVietnameseSortName(b.studentName);
       return sortConfig.direction === 'asc' 
-        ? a.studentName.localeCompare(b.studentName)
-        : b.studentName.localeCompare(a.studentName);
+        ? sortNameA.localeCompare(sortNameB, 'vi')
+        : sortNameB.localeCompare(sortNameA, 'vi');
     }
     if (sortConfig.key === 'score') {
       return sortConfig.direction === 'asc' 
