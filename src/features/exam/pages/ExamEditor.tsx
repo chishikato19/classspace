@@ -5,7 +5,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../../../config/firebase';
 import { Exam, ExamQuestion } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { obfuscateAnswer, deobfuscateAnswer } from '../utils/obfuscator';
+import { obfuscateAnswer, deobfuscateAnswer, obfuscateStringAnswer, deobfuscateStringAnswer } from '../utils/obfuscator';
 import { Pickaxe, Save, Upload, FileText, PlusCircle, CheckSquare, ImagePlus, X, Loader2, Info, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { classService, ClassData } from '../../random-selector/services/classService';
 import ReactMarkdown from 'react-markdown';
@@ -137,11 +137,13 @@ export default function ExamEditor() {
           
           setQuestions(data.questions.map(q => ({
             id: q.id,
+            type: q.type || 'multiple_choice',
             text: q.text,
             imageUrl: q.imageUrl,
             options: q.options,
             optionImageUrls: q.optionImageUrls,
             correctIndex: deobfuscateAnswer(q.obfuscatedAnswer || '', q.id),
+            shortAnswerText: q.type === 'short_answer' ? deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id) : '',
             points: q.points || 0
           })));
         }
@@ -198,14 +200,23 @@ export default function ExamEditor() {
     
     const formattedQuestions: ExamQuestion[] = questions.map(q => {
       const qId = q.id || uuidv4();
+      const type = q.type || 'multiple_choice';
+      let obfAns = '';
+      if (type === 'short_answer') {
+        obfAns = obfuscateStringAnswer(q.shortAnswerText || '', qId);
+      } else {
+        obfAns = obfuscateAnswer(q.correctIndex, qId);
+      }
+
       return {
         id: qId,
+        type: type,
         text: q.text,
         imageUrl: q.imageUrl,
         points: q.points || 0,
         options: q.options,
         optionImageUrls: q.optionImageUrls,
-        obfuscatedAnswer: obfuscateAnswer(q.correctIndex, qId)
+        obfuscatedAnswer: obfAns
       };
     });
 
@@ -247,11 +258,24 @@ export default function ExamEditor() {
               // We use the new formattedQuestions to re-grade
               // since we need points, and we can deobfuscate the answer to check
               formattedQuestions.forEach(q => {
-                const subInd = submissions[q.id];
-                const realCorrectIndex = deobfuscateAnswer(q.obfuscatedAnswer || '', q.id);
-                if (subInd !== undefined && subInd === realCorrectIndex) {
-                   newTotalCorrect++;
-                   newScore += (q.points || 0);
+                const subAns = submissions[q.id];
+                if (subAns !== undefined) {
+                   if (q.type === 'short_answer') {
+                      const realAns = deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id);
+                      // split by || and check
+                      const validAnswers = realAns.split('||').map(s => s.trim().toLowerCase());
+                      const studentAns = String(subAns).trim().toLowerCase();
+                      if (validAnswers.includes(studentAns)) {
+                         newTotalCorrect++;
+                         newScore += (q.points || 0);
+                      }
+                   } else {
+                      const realCorrectIndex = deobfuscateAnswer(q.obfuscatedAnswer || '', q.id);
+                      if (subAns === realCorrectIndex) {
+                         newTotalCorrect++;
+                         newScore += (q.points || 0);
+                      }
+                   }
                 }
               });
               
@@ -432,7 +456,16 @@ export default function ExamEditor() {
                    C. Lựa chọn C<br />
                    D. Lựa chọn D<br />
                    <br />
-                   <em>Hoặc đánh dấu sao trước đáp án đúng: *B. Lựa chọn B</em>
+                   <em>Hoặc đánh dấu sao trước đáp án đúng: *B. Lựa chọn B</em><br /><br />
+                   <strong>Đối với câu hỏi Đúng/Sai:</strong><br />
+                   Dùng từ khóa (Đúng/Sai) sau Câu X. Ghi A. Đúng, B. Sai.<br />
+                   Ví dụ: Câu 2 (Đúng/Sai): Mặt trời mọc ở hướng Đông.<br />
+                   <u>A. Đúng</u><br />
+                   B. Sai<br /><br />
+                   <strong>Đối với câu hỏi Trả lời ngắn:</strong><br />
+                   Dùng từ khóa (Trả lời ngắn). Sau đó ghi đáp án.<br />
+                   Ví dụ: Câu 3 (Trả lời ngắn): Thủ đô của Việt Nam là gì?<br />
+                   Đáp án: Hà Nội || Thu do Ha Noi
                  </div>
                </details>
             </div>

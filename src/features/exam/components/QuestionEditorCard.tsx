@@ -2,13 +2,17 @@ import React, { useState, useRef } from 'react';
 import { ArrowUp, ArrowDown, Trash2, ImagePlus, X, Type } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
+import { QuestionType } from '../types';
+
 export interface EditorQuestionData {
   id?: string;
+  type?: QuestionType; // undefined corresponds to multiple_choice
   text: string;
   imageUrl?: string | null;
   options: string[];
   optionImageUrls?: (string | null)[];
   correctIndex: number;
+  shortAnswerText?: string;
   points: number;
 }
 
@@ -180,7 +184,28 @@ export function QuestionEditorCard({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2 border-r border-slate-200 pr-3">
+               <label className="text-sm font-medium text-slate-600">Loại:</label>
+               <select 
+                 value={q.type || 'multiple_choice'}
+                 onChange={e => {
+                     const t = e.target.value as QuestionType;
+                     if (t === 'true_false') {
+                       updateQuestion({ type: t, options: ['Đúng', 'Sai'], optionImageUrls: [null, null], correctIndex: Math.min(q.correctIndex, 1) });
+                     } else if (t === 'short_answer') {
+                       updateQuestion({ type: t, options: [], optionImageUrls: [] });
+                     } else {
+                       updateQuestion({ type: t, options: q.options.length >= 2 ? q.options.concat(['', '']).slice(0, 4) : ['', '', '', ''], correctIndex: Math.min(q.correctIndex, 3) });
+                     }
+                 }}
+                 className="text-sm px-2 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 font-medium bg-white"
+               >
+                 <option value="multiple_choice">Nhiều lựa chọn</option>
+                 <option value="true_false">Đúng / Sai</option>
+                 <option value="short_answer">Trả lời ngắn</option>
+               </select>
+             </div>
             <label className="text-sm font-medium text-slate-600">Điểm:</label>
             <input 
               type="number"
@@ -218,7 +243,19 @@ export function QuestionEditorCard({
         
         <div className="space-y-3">
           <label className="block text-sm font-medium text-slate-700">Các đáp án</label>
-          {q.options.map((opt, optIndex) => (
+          {q.type === 'short_answer' ? (
+             <div className="flex flex-col gap-2">
+               <input 
+                 type="text" 
+                 value={q.shortAnswerText || ''}
+                 onChange={e => updateQuestion({ shortAnswerText: e.target.value })}
+                 placeholder="Nhập đáp án đúng (có thể nhập nhiều đáp án cách nhau bởi dấu ||)"
+                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+               />
+               <p className="text-xs text-slate-500">Học sinh cần nhập chính xác (không phân biệt hoa/thường). Có thể cung cấp nhiều cách viết đúng bằng cách tách nhau với kí hiệu || (ví dụ: Hà Nội || Thu do Ha Noi)</p>
+             </div>
+          ) : (
+            q.options.map((opt, optIndex) => (
             <div key={optIndex} className="flex items-start gap-3">
                <input 
                   type="radio" 
@@ -239,25 +276,36 @@ export function QuestionEditorCard({
                         }} />
                       </div>
                     </div>
-                    <textarea 
-                      ref={el => optionRefs.current[optIndex] = el}
-                      value={opt}
-                      onChange={e => updateOption(optIndex, e.target.value)}
-                      className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
-                      placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => onRequestImageUpload(qIndex, optIndex)}
-                      className="text-slate-400 hover:text-indigo-600 p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                      title="Chèn ảnh cho đáp án"
-                    >
-                      <ImagePlus className="w-4 h-4" />
-                    </button>
+                    {q.type === 'true_false' ? (
+                       <input 
+                         value={opt}
+                         readOnly
+                         className={`flex-1 px-3 py-2 border rounded-lg min-h-[44px] bg-slate-50 font-medium ${q.correctIndex === optIndex ? 'border-green-300 text-green-700' : 'border-slate-300 text-slate-700'}`}
+                       />
+                    ) : (
+                      <>
+                        <textarea 
+                          ref={el => { optionRefs.current[optIndex] = el; }}
+                          value={opt}
+                          onChange={e => updateOption(optIndex, e.target.value)}
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
+                          placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => onRequestImageUpload(qIndex, optIndex)}
+                          className="text-slate-400 hover:text-indigo-600 p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                          title="Chèn ảnh cho đáp án"
+                        >
+                          <ImagePlus className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -283,30 +331,39 @@ export function QuestionEditorCard({
             )}
 
             <div className="space-y-2 mt-4">
-               {q.options.map((opt, optIndex) => (
-                  <div key={optIndex} className={`p-3 rounded-lg border ${q.correctIndex === optIndex ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-100'} flex items-start gap-3`}>
-                     <span className={`font-bold flex-shrink-0 ${q.correctIndex === optIndex ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
-                     <div className="flex-1 w-full overflow-hidden">
-                        <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
-                          <ReactMarkdown>{opt}</ReactMarkdown>
-                        </div>
-                        {q.optionImageUrls?.[optIndex] && (
-                          <div className="mt-2 relative inline-block">
-                            <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200 bg-white" />
-                            <button 
-                              type="button"
-                              onClick={() => removeOptionImage(optIndex)}
-                              className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
-                              title="Xóa ảnh đáp án"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                     </div>
-                     {q.correctIndex === optIndex && <span className="text-xs text-green-700 font-semibold uppercase shrink-0 pt-0.5 whitespace-nowrap">Đúng</span>}
+               {q.type === 'short_answer' ? (
+                  <div className="p-3 rounded-lg border bg-slate-50 border-slate-200">
+                    <span className="font-semibold text-slate-700 block mb-2">Đáp án (Trả lời ngắn):</span>
+                    <div className="text-sm font-medium text-green-700 bg-green-50 p-2 rounded">
+                      {q.shortAnswerText || <span className="text-slate-400 italic">Chưa nhập đáp án</span>}
+                    </div>
                   </div>
-               ))}
+               ) : (
+                 q.options.map((opt, optIndex) => (
+                    <div key={optIndex} className={`p-3 rounded-lg border ${q.correctIndex === optIndex ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-100'} flex items-start gap-3`}>
+                       <span className={`font-bold flex-shrink-0 ${q.correctIndex === optIndex ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
+                       <div className="flex-1 w-full overflow-hidden">
+                          <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
+                            <ReactMarkdown>{opt}</ReactMarkdown>
+                          </div>
+                          {q.optionImageUrls?.[optIndex] && (
+                            <div className="mt-2 relative inline-block">
+                              <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200 bg-white" />
+                              <button 
+                                type="button"
+                                onClick={() => removeOptionImage(optIndex)}
+                                className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                                title="Xóa ảnh đáp án"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                       </div>
+                       {q.correctIndex === optIndex && <span className="text-xs text-green-700 font-semibold uppercase shrink-0 pt-0.5 whitespace-nowrap">Đúng</span>}
+                    </div>
+                 ))
+               )}
             </div>
          </div>
       </div>

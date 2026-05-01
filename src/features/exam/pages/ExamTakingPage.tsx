@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { Exam, ExamAttempt, ExamQuestion } from '../types';
-import { deobfuscateAnswer } from '../utils/obfuscator';
+import { deobfuscateAnswer, deobfuscateStringAnswer } from '../utils/obfuscator';
 import { Timer, AlertTriangle, Send, CheckCircle2, LayoutGrid } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -73,7 +73,7 @@ export default function ExamTakingPage() {
     attemptStatusRef.current = attempt?.status;
   }, [attempt?.status]);
 
-  const calculateScore = useCallback((submissions: Record<string, number>): { score: number, correct: number } => {
+  const calculateScore = useCallback((submissions: Record<string, number | string>): { score: number, correct: number } => {
     if (!exam) return { score: 0, correct: 0 };
     let correctCount = 0;
     let totalScore = 0;
@@ -84,10 +84,20 @@ export default function ExamTakingPage() {
     exam.questions.forEach(q => {
       const sub = submissions[q.id];
       if (sub !== undefined && q.obfuscatedAnswer) {
-        const correctIndex = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
-        if (sub === correctIndex) {
-          correctCount++;
-          totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+        if (q.type === 'short_answer') {
+          const correctAns = deobfuscateStringAnswer(q.obfuscatedAnswer, q.id);
+          const validAnswers = correctAns.split('||').map((s: string) => s.trim().toLowerCase());
+          const studentAns = String(sub).trim().toLowerCase();
+          if (validAnswers.includes(studentAns)) {
+            correctCount++;
+            totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+          }
+        } else {
+          const correctIndex = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
+          if (sub === correctIndex) {
+            correctCount++;
+            totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+          }
         }
       }
     });
@@ -262,6 +272,24 @@ export default function ExamTakingPage() {
     localStorage.setItem(cacheKey, JSON.stringify(newSubmissions));
   };
 
+  const handleSelectStringAnswer = (questionId: string, answer: string) => {
+    if (!attempt || attempt.status === 'submitted') return;
+    
+    const newSubmissions = {
+      ...attempt.submissions,
+    };
+    if (answer.trim() === '') {
+       delete newSubmissions[questionId];
+    } else {
+       newSubmissions[questionId] = answer;
+    }
+    
+    setAttempt({ ...attempt, submissions: newSubmissions });
+    
+    const cacheKey = `exam_submissions_${attemptId}`;
+    localStorage.setItem(cacheKey, JSON.stringify(newSubmissions));
+  };
+
   const handleSubmitRequest = () => {
     const answeredCount = Object.keys(attempt?.submissions || {}).length;
     const totalCount = exam?.questions.length || 0;
@@ -347,40 +375,52 @@ export default function ExamTakingPage() {
                     )}
                     
                     <div className="space-y-3">
-                      {q.options.map((opt, optIndex) => {
-                        const originalOptIndex = q.optionMapping[optIndex];
-                        const isSelected = attempt.submissions[q.id] === originalOptIndex;
-                        const label = String.fromCharCode(65 + optIndex); // A, B, C, D
-                        
-                        return (
-                          <label 
-                            key={optIndex} 
-                            className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                              isSelected 
-                                ? 'border-indigo-600 bg-indigo-50 text-indigo-900' 
-                                : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            <input 
-                              type="radio" 
-                              name={`question-${q.id}`} 
-                              value={originalOptIndex}
-                              checked={isSelected}
-                              onChange={() => handleSelectAnswer(q.id, optIndex)}
-                              className="mt-1 w-5 h-5 text-indigo-600 border-gray-300 focus:ring-indigo-600"
-                            />
-                            <div className="flex-1 flex gap-3">
-                              <span className="font-semibold w-6">{label}.</span>
-                              <div className="flex-1 prose prose-slate max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded prose-img:max-h-32">
-                                <ReactMarkdown>{opt}</ReactMarkdown>
-                                {q.optionImageUrls && q.optionImageUrls[originalOptIndex] && (
-                                  <img src={q.optionImageUrls[originalOptIndex]!} alt="Option" className="mt-2 max-h-32 rounded object-contain border border-slate-200" />
-                                )}
+                      {q.type === 'short_answer' ? (
+                        <div className="mt-4">
+                           <input 
+                             type="text"
+                             value={attempt.submissions[q.id] || ''}
+                             onChange={(e) => handleSelectStringAnswer(q.id, e.target.value)}
+                             placeholder="Nhập câu trả lời của bạn..."
+                             className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
+                           />
+                        </div>
+                      ) : (
+                        q.options.map((opt, optIndex) => {
+                          const originalOptIndex = q.optionMapping[optIndex];
+                          const isSelected = attempt.submissions[q.id] === originalOptIndex;
+                          const label = String.fromCharCode(65 + optIndex); // A, B, C, D
+                          
+                          return (
+                            <label 
+                              key={optIndex} 
+                              className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                                isSelected 
+                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-900' 
+                                  : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <input 
+                                type="radio" 
+                                name={`question-${q.id}`} 
+                                value={originalOptIndex}
+                                checked={isSelected}
+                                onChange={() => handleSelectAnswer(q.id, optIndex)}
+                                className="mt-1 w-5 h-5 text-indigo-600 border-gray-300 focus:ring-indigo-600"
+                              />
+                              <div className="flex-1 flex gap-3">
+                                <span className="font-semibold w-6">{label}.</span>
+                                <div className="flex-1 prose prose-slate max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded prose-img:max-h-32">
+                                  <ReactMarkdown>{opt}</ReactMarkdown>
+                                  {q.optionImageUrls && q.optionImageUrls[originalOptIndex] && (
+                                    <img src={q.optionImageUrls[originalOptIndex]!} alt="Option" className="mt-2 max-h-32 rounded object-contain border border-slate-200" />
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </label>
-                        )
-                      })}
+                            </label>
+                          )
+                        })
+                      )}
                     </div>
                   </div>
                 </div>

@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db } from '../../../config/firebase';
 import { Exam, ExamAttempt } from '../types';
 import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search, RefreshCw } from 'lucide-react';
-import { deobfuscateAnswer } from '../utils/obfuscator';
+import { deobfuscateAnswer, deobfuscateStringAnswer } from '../utils/obfuscator';
 import ReactMarkdown from 'react-markdown';
 
 export default function TeacherExamResultsPage() {
@@ -107,9 +107,12 @@ export default function TeacherExamResultsPage() {
     
     const rows = filteredAttempts.map(a => {
       const questionAnswers = exam.questions.map(q => {
-        const selectedIndex = a.submissions[q.id];
-        if (selectedIndex === undefined) return `""`;
-        const label = String.fromCharCode(65 + selectedIndex); 
+        const selectedAnswer = a.submissions[q.id];
+        if (selectedAnswer === undefined) return `""`;
+        if (q.type === 'short_answer') {
+           return `"${String(selectedAnswer).replace(/"/g, '""')}"`;
+        }
+        const label = String.fromCharCode(65 + Number(selectedAnswer)); 
         return `"${label}"`;
       });
 
@@ -339,13 +342,25 @@ export default function TeacherExamResultsPage() {
                   const studentAnswerIdx = selectedAttempt.submissions[q.id];
                   // decode correct answer
                   let correctIndex = -1;
+                  let correctString = '';
                   try {
-                    correctIndex = deobfuscateAnswer(q.obfuscatedAnswer || '', q.id);
+                    if (q.type === 'short_answer') {
+                       correctString = deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id);
+                    } else {
+                       correctIndex = deobfuscateAnswer(q.obfuscatedAnswer || '', q.id);
+                    }
                   } catch (e) {
                      console.error("Decode error:", e);
                   }
                   
-                  const isCorrect = studentAnswerIdx === correctIndex;
+                  let isCorrect = false;
+                  if (q.type === 'short_answer') {
+                     const validAnswers = correctString.split('||').map(s => s.trim().toLowerCase());
+                     isCorrect = studentAnswerIdx !== undefined && validAnswers.includes(String(studentAnswerIdx).trim().toLowerCase());
+                  } else {
+                     isCorrect = studentAnswerIdx === correctIndex;
+                  }
+                  
                   const isUnanswered = studentAnswerIdx === undefined;
 
                   return (
@@ -361,23 +376,33 @@ export default function TeacherExamResultsPage() {
                         </span>
                       </div>
                       <div className="space-y-2 mt-3">
-                         {q.options.map((opt, oIdx) => (
-                            <div key={oIdx} className={`p-2 rounded-lg text-sm border flex items-start gap-2 ${
-                              oIdx === correctIndex ? 'bg-green-100 border-green-300 text-green-800 font-medium' :
-                              oIdx === studentAnswerIdx ? 'bg-red-100 border-red-300 text-red-800 font-medium' :
-                              'bg-white border-slate-200 text-slate-600'
-                            }`}>
-                               <span className="font-bold flex-shrink-0">{String.fromCharCode(65 + oIdx)}.</span>
-                               <div className="prose prose-sm max-w-none prose-p:my-0 prose-img:my-1 prose-img:rounded lg:prose-img:max-h-24">
-                                 <ReactMarkdown>{opt}</ReactMarkdown>
-                                 {q.optionImageUrls && q.optionImageUrls[oIdx] && (
-                                   <img src={q.optionImageUrls[oIdx]!} alt="Option" />
-                                 )}
+                         {q.type === 'short_answer' ? (
+                            <div className="text-sm">
+                               <p className="mb-2"><span className="font-semibold text-green-700">Đáp án chuẩn:</span> {correctString}</p>
+                               <div className={`p-2 rounded-lg border flex flex-col gap-1 ${isCorrect ? 'bg-green-100 border-green-300 text-green-800 font-medium' : isUnanswered ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-red-100 border-red-300 text-red-800 font-medium'}`}>
+                                  <span className="font-semibold text-xs opacity-70">Học sinh trả lời:</span>
+                                  <span>{isUnanswered ? '(Không trả lời)' : String(studentAnswerIdx)}</span>
                                </div>
-                               {oIdx === correctIndex && <span className="ml-auto text-xs whitespace-nowrap">(Đáp án đúng)</span>}
-                               {oIdx === studentAnswerIdx && oIdx !== correctIndex && <span className="ml-auto text-xs whitespace-nowrap text-red-600">(Đã chọn)</span>}
                             </div>
-                         ))}
+                         ) : (
+                           q.options.map((opt, oIdx) => (
+                              <div key={oIdx} className={`p-2 rounded-lg text-sm border flex items-start gap-2 ${
+                                oIdx === correctIndex ? 'bg-green-100 border-green-300 text-green-800 font-medium' :
+                                oIdx === studentAnswerIdx ? 'bg-red-100 border-red-300 text-red-800 font-medium' :
+                                'bg-white border-slate-200 text-slate-600'
+                              }`}>
+                                 <span className="font-bold flex-shrink-0">{String.fromCharCode(65 + oIdx)}.</span>
+                                 <div className="prose prose-sm max-w-none prose-p:my-0 prose-img:my-1 prose-img:rounded lg:prose-img:max-h-24">
+                                   <ReactMarkdown>{opt}</ReactMarkdown>
+                                   {q.optionImageUrls && q.optionImageUrls[oIdx] && (
+                                     <img src={q.optionImageUrls[oIdx]!} alt="Option" />
+                                   )}
+                                 </div>
+                                 {oIdx === correctIndex && <span className="ml-auto text-xs whitespace-nowrap">(Đáp án đúng)</span>}
+                                 {oIdx === studentAnswerIdx && oIdx !== correctIndex && <span className="ml-auto text-xs whitespace-nowrap text-red-600">(Đã chọn)</span>}
+                              </div>
+                           ))
+                         )}
                       </div>
                     </div>
                   );

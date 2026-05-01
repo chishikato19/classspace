@@ -1,11 +1,14 @@
+export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
+
 export interface ExamQuestion {
   id: string;
+  type?: QuestionType; // undefined corresponds to multiple_choice
   text: string;
   imageUrl?: string | null;
   points: number;
   options: string[];
   optionImageUrls?: (string | null)[];
-  // Obfuscated index of the correct option (e.g. atob/btoa or simple XOR)
+  // Obfuscated index of the correct option (e.g. atob/btoa or simple XOR) or string answer.
   obfuscatedAnswer?: string; 
 }
 
@@ -40,7 +43,7 @@ export interface ExamAttempt {
   studentClass?: string;
   startTime: number;
   endTime?: number;
-  submissions: Record<string, number>; // questionId -> selected option index
+  submissions: Record<string, number | string>; // questionId -> selected option index or text
   score: number;
   totalCorrect: number;
   tabSwitchCount: number;

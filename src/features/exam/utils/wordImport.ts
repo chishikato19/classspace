@@ -69,38 +69,60 @@ export async function importQuestionsFromWord(file: File, uid: string): Promise<
      mdText = mdText.trim();
      if (!mdText) continue;
 
-     // Check if it's a question: "Câu 1:", "Câu 1.", "Câu 1: "
-     const isQuestion = /^Câu\s*\d+\s*[:\.]/i.test(mdText);
+     // Check if it's a question: "Câu 1:", "Câu 1.", "Câu 1: " or "Câu 1 (Đúng/Sai):"
+     const isQuestion = /^Câu\s*\d+\s*(\([^\)]*\))?\s*[:\.]/i.test(mdText);
      
      if (isQuestion) {
         if (currentQuestion) importedQuestions.push(currentQuestion);
+        
+        let type: "multiple_choice" | "true_false" | "short_answer" = "multiple_choice";
+        if (/\((đúng\s*\/?\s*sai)\)/i.test(mdText)) {
+          type = "true_false";
+        } else if (/\((trả lời ngắn)\)/i.test(mdText)) {
+          type = "short_answer";
+        }
+
         // Remove "Câu 1: " prefix
-        const cleanText = mdText.replace(/^Câu\s*\d+\s*[:\.]\s*/i, '');
+        const cleanText = mdText.replace(/^Câu\s*\d+\s*(\([^\)]*\))?\s*[:\.]\s*/i, '');
         currentQuestion = {
+          type,
           text: cleanText,
           options: [],
           correctIndex: 0,
+          shortAnswerText: '',
           points: 0
         };
      } else if (currentQuestion) {
-        // Check if it's an option: "A.", "B.", "A:", "*A."
-        const isOption = /^(\*|[uU]\s*)?[A-D]\s*[\.\:]/i.test(mdText) || hasUnderline;
-        const startsWithStar = mdText.startsWith('*');
-        if (isOption || /^[A-D]\s*[\.\:]/.test(mdText)) {
-           const cleanOpt = mdText.replace(/^(\*|[uU]\s*)?[A-D]\s*[\.\:]\s*/i, '').trim();
-           currentQuestion.options.push(cleanOpt);
-           const optIdx = currentQuestion.options.length - 1;
-           if (startsWithStar || hasUnderline) {
-              currentQuestion.correctIndex = optIdx;
+        if (currentQuestion.type === 'short_answer') {
+           if (/^Đáp\s*án\s*[:\.]/i.test(mdText)) {
+              currentQuestion.shortAnswerText = mdText.replace(/^Đáp\s*án\s*[:\.]\s*/i, '').trim();
+           } else {
+             if (!currentQuestion.shortAnswerText) {
+               currentQuestion.text += '\n' + mdText;
+             } else {
+               currentQuestion.shortAnswerText += '\n' + mdText;
+             }
            }
         } else {
-           // Append to question text if it doesn't look like an option
-           if (currentQuestion.options.length === 0) {
-             currentQuestion.text += '\n' + mdText;
-           } else {
-             // Or append to the last option
-             currentQuestion.options[currentQuestion.options.length - 1] += '\n' + mdText;
-           }
+          // Check if it's an option: "A.", "B.", "A:", "*A."
+          const isOption = /^(\*|[uU]\s*)?[A-D]\s*[\.\:]/i.test(mdText) || hasUnderline;
+          const startsWithStar = mdText.startsWith('*');
+          if (isOption || /^[A-D]\s*[\.\:]/.test(mdText)) {
+             const cleanOpt = mdText.replace(/^(\*|[uU]\s*)?[A-D]\s*[\.\:]\s*/i, '').trim();
+             currentQuestion.options.push(cleanOpt);
+             const optIdx = currentQuestion.options.length - 1;
+             if (startsWithStar || hasUnderline) {
+                currentQuestion.correctIndex = optIdx;
+             }
+          } else {
+             // Append to question text if it doesn't look like an option
+             if (currentQuestion.options.length === 0) {
+               currentQuestion.text += '\n' + mdText;
+             } else {
+               // Or append to the last option
+               currentQuestion.options[currentQuestion.options.length - 1] += '\n' + mdText;
+             }
+          }
         }
      }
   }
