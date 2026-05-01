@@ -13,9 +13,10 @@ export default function PinRedirectPage() {
     const resolvePin = async () => {
       if (!pin) return;
       try {
+        const cleanPin = pin.trim().toUpperCase();
         const q = query(
           collection(db, 'exams'),
-          where('pin', '==', pin.toUpperCase()),
+          where('pin', '==', cleanPin),
           limit(1)
         );
         const snapshot = await getDocs(q);

@@ -241,7 +241,7 @@ service cloud.firestore {
 
     match /exams/{examId} {
       allow get: if true;
-      allow list: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());
+      allow list: if true;
       allow create: if isAuthenticated() && isValidExam(request.resource.data) && (isOwner(request.resource.data.teacherId) || isAdmin());
       allow update: if isAuthenticated() && isValidExam(request.resource.data) && (isOwner(resource.data.teacherId) || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.teacherId) || isAdmin());

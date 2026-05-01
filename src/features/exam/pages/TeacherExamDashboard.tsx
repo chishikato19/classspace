@@ -97,9 +97,32 @@ export default function TeacherExamDashboard() {
     if (!window.confirm("Bạn có chắc chắn muốn xóa? Dữ liệu không thể khôi phục.")) return;
     try {
       if (type === 'folder') {
+        // TODO: Could also bulk delete exam images if deleting folder deletes exams inside it,
+        // but current logic only deletes the folder itself (exams inside are orphaned or we handle cascading?).
+        // If exams shouldn't be orphaned, then ideally we query all exams with folderId === id, delete their images and documents, then delete the folder.
+        // Assuming current logic just leaves exams or they don't break, let's keep it simple or implement recursive if needed.
         await deleteDoc(doc(db, 'examFolders', id));
         setFolders(folders.filter(f => f.id !== id));
       } else {
+        const examToDelete = exams.find(e => e.id === id);
+        if (examToDelete) {
+          const { deleteFilesFromUrls } = await import('../utils/storage');
+          const imageUrlsToDelete: string[] = [];
+          
+          examToDelete.questions?.forEach(q => {
+            if (q.imageUrl) imageUrlsToDelete.push(q.imageUrl);
+            if (q.optionImageUrls) {
+               q.optionImageUrls.forEach(url => {
+                 if (url) imageUrlsToDelete.push(url);
+               });
+            }
+          });
+          
+          if (imageUrlsToDelete.length > 0) {
+            await deleteFilesFromUrls(imageUrlsToDelete);
+          }
+        }
+        
         await deleteDoc(doc(db, 'exams', id));
         setExams(exams.filter(e => e.id !== id));
       }

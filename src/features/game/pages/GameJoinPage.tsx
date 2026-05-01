@@ -60,7 +60,9 @@ export default function GameJoinPage() {
     setError('');
     
     try {
-      const foundSession = await gameService.findSessionByPin(pinToUse);
+      if (!pinToUse) return;
+      const cleanPinToUse = pinToUse.trim();
+      const foundSession = await gameService.findSessionByPin(cleanPinToUse);
       if (foundSession) {
         setSession(foundSession);
 
@@ -124,7 +126,7 @@ export default function GameJoinPage() {
         
         try {
            // 1. Check if Code matches an Exam ID first (fastest and most reliable)
-           const examSnap = await getDoc(doc(db, 'exams', pinToUse));
+           const examSnap = await getDoc(doc(db, 'exams', cleanPinToUse));
            if (examSnap.exists()) {
              foundExamId = examSnap.id;
            }
@@ -138,7 +140,7 @@ export default function GameJoinPage() {
              const { collection, query, where, getDocs, limit } = await import('firebase/firestore');
              const examPinQuery = query(
                collection(db, 'exams'),
-               where('pin', '==', pinToUse.toUpperCase()),
+               where('pin', '==', cleanPinToUse.toUpperCase()),
                limit(1)
              );
              const pinSnapshot = await getDocs(examPinQuery);

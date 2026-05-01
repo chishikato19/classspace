@@ -1,0 +1,215 @@
+import React from 'react';
+import { ArrowUp, ArrowDown, Trash2, ImagePlus, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+
+export interface EditorQuestionData {
+  id?: string;
+  text: string;
+  imageUrl?: string | null;
+  options: string[];
+  optionImageUrls?: (string | null)[];
+  correctIndex: number;
+  points: number;
+}
+
+interface QuestionEditorCardProps {
+  q: EditorQuestionData;
+  qIndex: number;
+  totalQuestions: number;
+  onChange: (qIndex: number, newQ: EditorQuestionData) => void;
+  onMoveUp: (qIndex: number) => void;
+  onMoveDown: (qIndex: number) => void;
+  onDelete: (qIndex: number) => void;
+  onRequestImageUpload: (qIndex: number, optIndex?: number) => void;
+  onImageRemoved?: (url: string) => void;
+}
+
+export function QuestionEditorCard({
+  q, qIndex, totalQuestions, onChange, onMoveUp, onMoveDown, onDelete, onRequestImageUpload, onImageRemoved
+}: QuestionEditorCardProps) {
+  
+  const updateQuestion = (updates: Partial<EditorQuestionData>) => {
+    onChange(qIndex, { ...q, ...updates });
+  };
+
+  const updateOption = (optIndex: number, newValue: string) => {
+    const newOptions = [...q.options];
+    newOptions[optIndex] = newValue;
+    updateQuestion({ options: newOptions });
+  };
+
+  const removeImage = () => {
+    if (q.imageUrl && onImageRemoved) {
+      onImageRemoved(q.imageUrl);
+    }
+    updateQuestion({ imageUrl: null });
+  };
+
+  const removeOptionImage = (optIndex: number) => {
+    if (!q.optionImageUrls) return;
+    const url = q.optionImageUrls[optIndex];
+    if (url && onImageRemoved) {
+      onImageRemoved(url);
+    }
+    const newUrls = [...q.optionImageUrls];
+    newUrls[optIndex] = null;
+    updateQuestion({ optionImageUrls: newUrls });
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col lg:flex-row relative">
+      {/* Editor Side */}
+      <div className="flex-1 p-6 border-b lg:border-b-0 lg:border-r border-slate-200 relative">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <div className="text-slate-600 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+              Câu {qIndex + 1}
+            </div>
+            <button
+              type="button"
+              onClick={() => onMoveUp(qIndex)}
+              disabled={qIndex === 0}
+              className="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-500 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+              title="Di chuyển lên"
+            >
+              <ArrowUp className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onMoveDown(qIndex)}
+              disabled={qIndex === totalQuestions - 1}
+              className="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-500 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+              title="Di chuyển xuống"
+            >
+              <ArrowDown className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(qIndex)}
+              className="p-1.5 bg-red-50 border border-red-200 rounded text-red-500 hover:text-red-700 hover:bg-red-100 transition-colors ml-2"
+              title="Xóa câu hỏi"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-slate-600">Điểm:</label>
+            <input 
+              type="number"
+              step="0.01"
+              value={q.points || 0}
+              onChange={e => updateQuestion({ points: parseFloat(e.target.value) || 0 })}
+              className="w-20 px-2 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 font-medium"
+            />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-slate-700">Nội dung câu hỏi</label>
+            <button
+              type="button"
+              onClick={() => onRequestImageUpload(qIndex)}
+              className="text-xs font-medium text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-100 transition-colors"
+            >
+              <ImagePlus className="w-4 h-4" />
+              Chèn ảnh
+            </button>
+          </div>
+          <textarea 
+            value={q.text}
+            onChange={e => updateQuestion({ text: e.target.value })}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px]"
+            placeholder="Nhập nội dung câu hỏi (hỗ trợ Markdown)..."
+          />
+        </div>
+        
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-slate-700">Các đáp án</label>
+          {q.options.map((opt, optIndex) => (
+            <div key={optIndex} className="flex items-start gap-3">
+               <input 
+                  type="radio" 
+                  name={`correct-${qIndex}`}
+                  checked={q.correctIndex === optIndex}
+                  onChange={() => updateQuestion({ correctIndex: optIndex })}
+                  className="w-5 h-5 mt-2 text-green-600 focus:ring-green-500 cursor-pointer"
+                  title="Đánh dấu đáp án đúng"
+               />
+               <div className="flex-1 flex flex-col gap-2">
+                  <div className="flex gap-2 items-center">
+                    <span className="font-bold text-slate-500">{String.fromCharCode(65 + optIndex)}.</span>
+                    <textarea 
+                      value={opt}
+                      onChange={e => updateOption(optIndex, e.target.value)}
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
+                      placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onRequestImageUpload(qIndex, optIndex)}
+                      className="text-slate-400 hover:text-indigo-600 p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                      title="Chèn ảnh cho đáp án"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                    </button>
+                  </div>
+               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Preview Side */}
+      <div className="flex-1 p-6 bg-slate-50 flex flex-col border-t lg:border-t-0">
+         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Xem trước</div>
+         <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm min-h-[200px]">
+            <div className="prose prose-slate max-w-none prose-sm prose-p:my-1 prose-img:my-4 prose-img:rounded-md prose-img:border prose-img:border-slate-200 prose-img:max-h-64 prose-img:object-contain mb-4">
+               {q.text ? <ReactMarkdown>{q.text}</ReactMarkdown> : <span className="text-slate-300 italic">Nội dung câu hỏi rỗng...</span>}
+            </div>
+            
+            {q.imageUrl && (
+              <div className="relative inline-block mb-6">
+                <img src={q.imageUrl} alt="Question" className="max-h-56 rounded border border-slate-200 shadow-sm" />
+                <button 
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                  title="Xóa ảnh câu hỏi"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-2 mt-4">
+               {q.options.map((opt, optIndex) => (
+                  <div key={optIndex} className={`p-3 rounded-lg border ${q.correctIndex === optIndex ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-100'} flex items-start gap-3`}>
+                     <span className={`font-bold flex-shrink-0 ${q.correctIndex === optIndex ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
+                     <div className="flex-1 w-full overflow-hidden">
+                        <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
+                          <ReactMarkdown>{opt}</ReactMarkdown>
+                        </div>
+                        {q.optionImageUrls?.[optIndex] && (
+                          <div className="mt-2 relative inline-block">
+                            <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200 bg-white" />
+                            <button 
+                              type="button"
+                              onClick={() => removeOptionImage(optIndex)}
+                              className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                              title="Xóa ảnh đáp án"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                     </div>
+                     {q.correctIndex === optIndex && <span className="text-xs text-green-700 font-semibold uppercase shrink-0 pt-0.5 whitespace-nowrap">Đúng</span>}
+                  </div>
+               ))}
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+}

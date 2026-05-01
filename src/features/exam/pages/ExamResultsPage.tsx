@@ -57,7 +57,7 @@ export default function ExamResultsPage() {
           <div className="text-center mb-8">
             <p className="text-slate-500 text-sm font-medium uppercase tracking-wider mb-2">Điểm số của bạn</p>
             <div className="text-6xl font-black text-slate-800 tracking-tighter">
-              {attempt.score.toFixed(1)}<span className="text-3xl text-slate-400">/{maxScore}</span>
+              {Number(attempt.score.toFixed(2))}<span className="text-3xl text-slate-400">/{Number(maxScore.toFixed(2))}</span>
             </div>
           </div>
 
