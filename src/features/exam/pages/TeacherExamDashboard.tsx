@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, doc, del
 import { auth, db } from '../../../config/firebase';
 import { Exam, ExamFolder } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, FileText,  Users, Clock, PlayCircle, Settings, ChevronRight, Folder, FolderPlus, Edit, Trash2, Home, MoreVertical } from 'lucide-react';
+import { PlusCircle, FileText,  Users, Clock, PlayCircle, Settings, ChevronRight, Folder, FolderPlus, Edit, Trash2, Home, MoreVertical, Copy } from 'lucide-react';
 
 export default function TeacherExamDashboard() {
   const [exams, setExams] = useState<Exam[]>([]);
@@ -129,6 +129,32 @@ export default function TeacherExamDashboard() {
     } catch (err) {
       console.error(err);
       alert('Lỗi khi xóa');
+    }
+  };
+
+  const handleCopyExam = async (examToCopy: Exam) => {
+    try {
+      const newExamData: Omit<Exam, 'id'> = {
+        title: `Bản sao của ${examToCopy.title}`,
+        questions: examToCopy.questions, // Keep same question array including IDs, obfuscated answers, everything.
+        timeLimitMinutes: examToCopy.timeLimitMinutes,
+        teacherId: examToCopy.teacherId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        allowStudentInputName: examToCopy.allowStudentInputName,
+        allowedStudentNames: examToCopy.allowedStudentNames || [],
+        status: 'closed', // default to closed for safety
+        pin: '', // Clear the pin
+        folderId: examToCopy.folderId || null,
+      };
+
+      const docRef = await addDoc(collection(db, 'exams'), newExamData);
+      const newExam = { id: docRef.id, ...newExamData } as Exam;
+      setExams(prev => [newExam, ...prev]);
+      alert('Đã copy bài thi thành công!');
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi copy bài thi');
     }
   };
 
@@ -321,6 +347,13 @@ export default function TeacherExamDashboard() {
                       title="Đổi tên"
                     >
                       <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleCopyExam(exam)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
+                      title="Tạo bản sao"
+                    >
+                      <Copy className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => handleDelete(exam.id, 'exam')}
