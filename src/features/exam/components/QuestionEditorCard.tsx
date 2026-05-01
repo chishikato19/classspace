@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowUp, ArrowDown, Trash2, ImagePlus, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowUp, ArrowDown, Trash2, ImagePlus, X, Type } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 export interface EditorQuestionData {
@@ -10,6 +10,67 @@ export interface EditorQuestionData {
   optionImageUrls?: (string | null)[];
   correctIndex: number;
   points: number;
+}
+
+const COMMON_SYMBOLS = [
+  'α', 'β', 'γ', 'δ', 'ε', 'λ', 'μ', 'π', 'σ', 'τ', 'φ', 'ω', 
+  'Δ', 'Ω', 'θ', 'η', '±', '×', '÷', '√', '∞', '≈', '≠', '≤', 
+  '≥', '°', '²', '³', '⁰', '¹', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹',
+  '₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉',
+  '→', '←', '↑', '↓', '⊥', '∥', '∠', '△'
+];
+
+interface SymbolPickerProps {
+  onSelect: (symbol: string) => void;
+}
+
+function SymbolPicker({ onSelect }: SymbolPickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative inline-block text-left">
+      <button
+        type="button"
+        onPointerDown={(e) => e.preventDefault()}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.preventDefault();
+          setIsOpen(!isOpen);
+        }}
+        className="text-xs font-medium text-slate-600 hover:bg-slate-200 px-2 py-1 flex items-center gap-1 rounded bg-slate-100 border border-slate-200 transition-colors"
+        title="Chèn kí tự đặc biệt (Ω, λ, Δ...)"
+      >
+        <Type className="w-3.5 h-3.5" />
+        Kí tự
+      </button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setIsOpen(false)} 
+          />
+          <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-8 gap-1">
+            {COMMON_SYMBOLS.map(symbol => (
+              <button
+                key={symbol}
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onSelect(symbol);
+                }}
+                className="w-7 h-7 flex items-center justify-center text-sm border border-slate-100 rounded hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all"
+              >
+                {symbol}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 interface QuestionEditorCardProps {
@@ -28,6 +89,9 @@ export function QuestionEditorCard({
   q, qIndex, totalQuestions, onChange, onMoveUp, onMoveDown, onDelete, onRequestImageUpload, onImageRemoved
 }: QuestionEditorCardProps) {
   
+  const questionTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const optionRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+
   const updateQuestion = (updates: Partial<EditorQuestionData>) => {
     onChange(qIndex, { ...q, ...updates });
   };
@@ -36,6 +100,29 @@ export function QuestionEditorCard({
     const newOptions = [...q.options];
     newOptions[optIndex] = newValue;
     updateQuestion({ options: newOptions });
+  };
+
+  const insertAtCursor = (ref: React.RefObject<HTMLTextAreaElement | null>, currentText: string, symbol: string, onUpdate: (newVal: string) => void) => {
+    if (!ref.current) {
+      onUpdate(currentText + symbol);
+      return;
+    }
+
+    const { selectionStart, selectionEnd } = ref.current;
+    const newText = 
+      currentText.substring(0, selectionStart) + 
+      symbol + 
+      currentText.substring(selectionEnd);
+    
+    onUpdate(newText);
+
+    // Set cursor position after the symbol
+    setTimeout(() => {
+      if (ref.current) {
+        ref.current.focus();
+        ref.current.setSelectionRange(selectionStart + symbol.length, selectionStart + symbol.length);
+      }
+    }, 0);
   };
 
   const removeImage = () => {
@@ -107,7 +194,10 @@ export function QuestionEditorCard({
 
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-slate-700">Nội dung câu hỏi</label>
+            <div className="flex items-center gap-4">
+              <label className="block text-sm font-medium text-slate-700">Nội dung câu hỏi</label>
+              <SymbolPicker onSelect={(s) => insertAtCursor(questionTextareaRef as any, q.text, s, (val) => updateQuestion({ text: val }))} />
+            </div>
             <button
               type="button"
               onClick={() => onRequestImageUpload(qIndex)}
@@ -118,6 +208,7 @@ export function QuestionEditorCard({
             </button>
           </div>
           <textarea 
+            ref={questionTextareaRef}
             value={q.text}
             onChange={e => updateQuestion({ text: e.target.value })}
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px]"
@@ -139,8 +230,17 @@ export function QuestionEditorCard({
                />
                <div className="flex-1 flex flex-col gap-2">
                   <div className="flex gap-2 items-center">
-                    <span className="font-bold text-slate-500">{String.fromCharCode(65 + optIndex)}.</span>
+                    <div className="flex flex-col items-center">
+                      <span className="font-bold text-slate-500">{String.fromCharCode(65 + optIndex)}.</span>
+                      <div className="mt-1">
+                        <SymbolPicker onSelect={(s) => {
+                          const refWrapper = { current: optionRefs.current[optIndex] };
+                          insertAtCursor(refWrapper as any, opt, s, (val) => updateOption(optIndex, val));
+                        }} />
+                      </div>
+                    </div>
                     <textarea 
+                      ref={el => optionRefs.current[optIndex] = el}
                       value={opt}
                       onChange={e => updateOption(optIndex, e.target.value)}
                       className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}

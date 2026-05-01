@@ -222,7 +222,7 @@ export default function TeacherExamDashboard() {
                     <Folder className="w-6 h-6 text-indigo-500 fill-indigo-100" />
                     <span className="font-medium text-slate-800">{folder.name}</span>
                   </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 opacity-100 xl:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => setEditItem({id: folder.id, name: folder.name, type: 'folder'})}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 rounded bg-white hover:bg-indigo-50 transition-colors"
@@ -243,13 +243,13 @@ export default function TeacherExamDashboard() {
 
               {/* Exams */}
               {currentExams.map(exam => (
-                <div key={exam.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 hover:border-indigo-300 rounded-xl transition-all group shadow-sm">
+                <div key={exam.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border border-slate-200 hover:border-indigo-300 rounded-xl transition-all group shadow-sm">
                   <div className="flex items-start gap-4">
                     <div className={`p-2.5 rounded-xl ${exam.status === 'published' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <h3 className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
                         {exam.title}
                         {exam.status === 'published' && (
                           <span className="text-[10px] uppercase font-bold tracking-wider bg-green-100 text-green-700 px-2 py-0.5 rounded">Đang mở</span>
@@ -266,8 +266,8 @@ export default function TeacherExamDashboard() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="flex flex-col items-end mr-1 text-right">
+                  <div className="flex flex-wrap items-center gap-1.5 opacity-100 xl:opacity-0 group-hover:opacity-100 transition-opacity w-full sm:w-auto sm:justify-end">
+                    <div className="flex flex-col items-center sm:items-end mr-1 text-center sm:text-right">
                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-tight">PIN</span>
                        {exam.pin ? (
                          <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded leading-none">{exam.pin}</span>

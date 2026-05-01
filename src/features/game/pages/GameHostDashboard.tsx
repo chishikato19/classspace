@@ -501,7 +501,7 @@ export default function GameHostDashboard() {
                         await gameService.removePlayer(session.id, player.id);
                       }
                     }}
-                    className="text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-red-500 hover:text-red-400 opacity-100 xl:opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Xóa người chơi"
                   >
                     ✕
