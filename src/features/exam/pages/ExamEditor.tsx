@@ -144,6 +144,7 @@ export default function ExamEditor() {
             optionImageUrls: q.optionImageUrls,
             correctIndex: deobfuscateAnswer(q.obfuscatedAnswer || '', q.id),
             shortAnswerText: q.type === 'short_answer' ? deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id) : '',
+            clusterAnswers: q.type === 'true_false_cluster' ? deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id).split(',').map((s) => s === 'true') : [false, false, false, false],
             points: q.points || 0
           })));
         }
@@ -202,7 +203,9 @@ export default function ExamEditor() {
       const qId = q.id || uuidv4();
       const type = q.type || 'multiple_choice';
       let obfAns = '';
-      if (type === 'short_answer') {
+      if (type === 'true_false_cluster') {
+        obfAns = obfuscateStringAnswer((q.clusterAnswers || []).join(','), qId);
+      } else if (type === 'short_answer') {
         obfAns = obfuscateStringAnswer(q.shortAnswerText || '', qId);
       } else {
         obfAns = obfuscateAnswer(q.correctIndex, qId);
@@ -260,7 +263,25 @@ export default function ExamEditor() {
               formattedQuestions.forEach(q => {
                 const subAns = submissions[q.id];
                 if (subAns !== undefined) {
-                   if (q.type === 'short_answer') {
+                   if (q.type === 'true_false_cluster') {
+                      const realAnsStr = deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id);
+                      const realAnswers = realAnsStr.split(','); // e.g. "true,false,true,true"
+                      const studentAnswers = (String(subAns) || '').split(',');
+                      let correctCount = 0;
+                      realAnswers.forEach((ans, idx) => {
+                         if (studentAnswers[idx] === ans) correctCount++;
+                      });
+                      if (correctCount > 0) {
+                         // Default Vietnamese 2025 grading
+                         let multiplier = 0;
+                         if (correctCount === 1) multiplier = 0.1;
+                         if (correctCount === 2) multiplier = 0.25;
+                         if (correctCount === 3) multiplier = 0.5;
+                         if (correctCount === 4) multiplier = 1.0;
+                         newScore += (q.points || 0) * multiplier;
+                         if (correctCount === 4) newTotalCorrect++;
+                      }
+                   } else if (q.type === 'short_answer') {
                       const realAns = deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id);
                       // split by || and check
                       const validAnswers = realAns.split('||').map(s => s.trim().toLowerCase());

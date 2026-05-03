@@ -1,26 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../services/adminService';
 import { ClassGroup, Student } from '../../../types';
-import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Users, ShieldAlert } from 'lucide-react';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { auth } from '../../../config/firebase';
 import { sortVietnameseNames } from '../../../utils/stringUtils';
+import AdminUserManagement from './AdminUserManagement';
+
+type AdminTab = 'classes' | 'users';
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<AdminTab>('classes');
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [newClassName, setNewClassName] = useState('');
-  const [newStudentNames, setNewStudentNames] = useState(''); // Nhập nhiều tên, cách nhau bởi xuống dòng
+  const [newStudentNames, setNewStudentNames] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-  // Load danh sách lớp khi vào trang
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
+        setIsSuperAdmin(user.email === 'chishikato19@gmail.com');
         loadClasses(user.uid);
       } else {
         setClasses([]);
+        setIsSuperAdmin(false);
       }
     });
     return () => unsubscribe();
@@ -166,10 +172,34 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div className="border-b border-gray-200 pb-5">
         <h1 className="text-3xl font-bold leading-6 text-gray-900">Quản trị Hệ thống</h1>
-        <p className="mt-2 text-sm text-gray-500">Quản lý danh sách lớp học và học sinh.</p>
+        <p className="mt-2 text-sm text-gray-500">Quản lý hệ thống ứng dụng</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      {isSuperAdmin && (
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('classes')}
+              className={`${activeTab === 'classes' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
+            >
+              <Users className={`${activeTab === 'classes' ? 'text-indigo-500' : 'text-gray-400'} mr-2 h-5 w-5`} />
+              Quản lý Lớp & Học sinh
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`${activeTab === 'users' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
+            >
+              <ShieldAlert className={`${activeTab === 'users' ? 'text-indigo-500' : 'text-gray-400'} mr-2 h-5 w-5`} />
+              Quản lý Giáo viên
+            </button>
+          </nav>
+        </div>
+      )}
+
+      {activeTab === 'users' ? (
+        <AdminUserManagement />
+      ) : (
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Cột trái: Danh sách lớp */}
         <div className="space-y-6">
           <div className="bg-white shadow sm:rounded-lg">
@@ -329,6 +359,7 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

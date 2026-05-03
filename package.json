@@ -60,5 +60,8 @@
     "terser": "^5.46.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
+  },
+  "overrides": {
+    "node-domexception": "npm:domexception@^4.0.0"
   }
 }

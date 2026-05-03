@@ -193,6 +193,9 @@ export function QuestionEditorCard({
                      const t = e.target.value as QuestionType;
                      if (t === 'true_false') {
                        updateQuestion({ type: t, options: ['Đúng', 'Sai'], optionImageUrls: [null, null], correctIndex: Math.min(q.correctIndex, 1) });
+                     } else if (t === 'true_false_cluster') {
+                       const baseOpts = q.options.length >= 4 ? q.options.slice(0, 4) : ['', '', '', ''];
+                       updateQuestion({ type: t, options: baseOpts, clusterAnswers: [false, false, false, false] });
                      } else if (t === 'short_answer') {
                        updateQuestion({ type: t, options: [], optionImageUrls: [] });
                      } else {
@@ -203,6 +206,7 @@ export function QuestionEditorCard({
                >
                  <option value="multiple_choice">Nhiều lựa chọn</option>
                  <option value="true_false">Đúng / Sai</option>
+                 <option value="true_false_cluster">Câu chùm Đúng / Sai</option>
                  <option value="short_answer">Trả lời ngắn</option>
                </select>
              </div>
@@ -257,14 +261,31 @@ export function QuestionEditorCard({
           ) : (
             q.options.map((opt, optIndex) => (
             <div key={optIndex} className="flex items-start gap-3">
-               <input 
-                  type="radio" 
-                  name={`correct-${qIndex}`}
-                  checked={q.correctIndex === optIndex}
-                  onChange={() => updateQuestion({ correctIndex: optIndex })}
-                  className="w-5 h-5 mt-2 text-green-600 focus:ring-green-500 cursor-pointer"
-                  title="Đánh dấu đáp án đúng"
-               />
+               {q.type === 'true_false_cluster' ? (
+                 <div className="flex flex-col items-center mt-1 gap-1">
+                   <select 
+                     value={q.clusterAnswers?.[optIndex] ? 'true' : 'false'}
+                     onChange={(e) => {
+                       const newAnswers = [...(q.clusterAnswers || [false, false, false, false])];
+                       newAnswers[optIndex] = e.target.value === 'true';
+                       updateQuestion({ clusterAnswers: newAnswers });
+                     }}
+                     className={`text-xs px-1 py-1 border rounded font-semibold cursor-pointer ${q.clusterAnswers?.[optIndex] ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300'}`}
+                   >
+                     <option value="true">Đ</option>
+                     <option value="false">S</option>
+                   </select>
+                 </div>
+               ) : (
+                 <input 
+                    type="radio" 
+                    name={`correct-${qIndex}`}
+                    checked={q.correctIndex === optIndex}
+                    onChange={() => updateQuestion({ correctIndex: optIndex })}
+                    className="w-5 h-5 mt-2 text-green-600 focus:ring-green-500 cursor-pointer"
+                    title="Đánh dấu đáp án đúng"
+                 />
+               )}
                <div className="flex-1 flex flex-col gap-2">
                   <div className="flex gap-2 items-center">
                     <div className="flex flex-col items-center">
@@ -288,7 +309,7 @@ export function QuestionEditorCard({
                           ref={el => { optionRefs.current[optIndex] = el; }}
                           value={opt}
                           onChange={e => updateOption(optIndex, e.target.value)}
-                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${q.correctIndex === optIndex ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${(q.type === 'true_false_cluster' ? false : q.correctIndex === optIndex) ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
                           placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
                         />
                         <button
@@ -339,30 +360,45 @@ export function QuestionEditorCard({
                     </div>
                   </div>
                ) : (
-                 q.options.map((opt, optIndex) => (
-                    <div key={optIndex} className={`p-3 rounded-lg border ${q.correctIndex === optIndex ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-100'} flex items-start gap-3`}>
-                       <span className={`font-bold flex-shrink-0 ${q.correctIndex === optIndex ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
-                       <div className="flex-1 w-full overflow-hidden">
-                          <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
-                            <ReactMarkdown>{opt}</ReactMarkdown>
-                          </div>
-                          {q.optionImageUrls?.[optIndex] && (
-                            <div className="mt-2 relative inline-block">
-                              <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200 bg-white" />
-                              <button 
-                                type="button"
-                                onClick={() => removeOptionImage(optIndex)}
-                                className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
-                                title="Xóa ảnh đáp án"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-                       </div>
-                       {q.correctIndex === optIndex && <span className="text-xs text-green-700 font-semibold uppercase shrink-0 pt-0.5 whitespace-nowrap">Đúng</span>}
-                    </div>
-                 ))
+                 q.options.map((opt, optIndex) => {
+                    let isCorrect = q.correctIndex === optIndex;
+                    let extraLabel = null;
+                    if (q.type === 'true_false_cluster') {
+                       isCorrect = q.clusterAnswers?.[optIndex] === true;
+                       extraLabel = (
+                         <span className={`text-xs font-semibold px-2 py-0.5 rounded uppercase shrink-0 whitespace-nowrap mt-0.5 ${q.clusterAnswers?.[optIndex] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                           {q.clusterAnswers?.[optIndex] ? 'Đúng' : 'Sai'}
+                         </span>
+                       );
+                    } else if (isCorrect) {
+                       extraLabel = <span className="text-xs text-green-700 font-semibold uppercase shrink-0 pt-0.5 whitespace-nowrap">Đúng</span>;
+                    }
+
+                    return (
+                        <div key={optIndex} className={`p-3 rounded-lg border ${isCorrect && q.type !== 'true_false_cluster' ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-100'} flex items-start gap-3`}>
+                           <span className={`font-bold flex-shrink-0 ${isCorrect && q.type !== 'true_false_cluster' ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
+                           <div className="flex-1 w-full overflow-hidden">
+                              <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
+                                <ReactMarkdown>{opt}</ReactMarkdown>
+                              </div>
+                              {q.optionImageUrls?.[optIndex] && (
+                                <div className="mt-2 relative inline-block">
+                                  <img src={q.optionImageUrls[optIndex]!} alt="Option" className="max-h-32 rounded border border-slate-200 bg-white" />
+                                  <button 
+                                    type="button"
+                                    onClick={() => removeOptionImage(optIndex)}
+                                    className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow p-0.5 hover:bg-red-50"
+                                    title="Xóa ảnh đáp án"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                           </div>
+                           {extraLabel}
+                        </div>
+                    );
+                 })
                )}
             </div>
          </div>

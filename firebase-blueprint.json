@@ -182,9 +182,23 @@
         "status": { "type": "string", "enum": ["in-progress", "submitted"] }
       },
       "required": ["examId", "studentName", "startTime", "submissions", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User account information (teachers/admins)",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher"] },
+        "permissions": { "type": "string", "enum": ["all", "exams_only"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["email", "role", "permissions", "status", "createdAt"]
     }
   },
   "firestore": {
+    "/users": { "schema": "User", "description": "Collection of user accounts" },
     "/classes": { "schema": "Class", "description": "Collection of classes" },
     "/students": { "schema": "Student", "description": "Collection of students" },
     "/folders": { "schema": "Folder", "description": "Collection of folders" },

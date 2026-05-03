@@ -1,9 +1,13 @@
 export type Role = 'admin' | 'teacher' | 'student';
 
 export interface User {
-  uid: string;
+  uid?: string; // Firebase Auth UID
+  id?: string; // Firestore document ID
   email: string;
   role: Role;
+  permissions?: 'all' | 'exams_only';
+  status?: 'active' | 'suspended';
+  createdAt?: number;
   displayName?: string;
 }
 

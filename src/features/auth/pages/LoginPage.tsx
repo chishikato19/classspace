@@ -3,19 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
+import { userManagementService } from '../../admin/services/userManagementService';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!auth) return;
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        if (user.email && user.email.includes('admin')) {
+        setLoading(true);
+        const profile = await userManagementService.getProfile(user.uid, user.email);
+        if (profile?.status === 'suspended') {
+          authService.logout();
+          setError('Tài khoản của bạn đã bị khóa!');
+          setLoading(false);
+          return;
+        }
+
+        if (profile?.role === 'admin' || user.email?.includes('chishikato19')) {
           navigate('/admin');
+        } else if (profile?.permissions === 'exams_only') {
+          navigate('/teacher/exams');
         } else {
           navigate('/teacher/dashboard');
         }
@@ -25,33 +39,36 @@ export default function LoginPage() {
     return () => unsubscribe();
   }, [navigate]);
 
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setLoading(true);
+    setError('');
+    
+    try {
+      await authService.loginWithEmail(email, password);
+      // navigation handled by onAuthStateChanged
+    } catch (err: any) {
+      console.error('Email Auth error:', err);
+      setError('Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.');
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
     
     try {
-      const user = await authService.loginWithGoogle();
-      
-      // Phân quyền đơn giản: Nếu email có chữ admin thì vào trang Admin
-      if (user.email && user.email.includes('admin')) {
-        navigate('/admin');
-      } else {
-        navigate('/teacher/dashboard');
-      }
+      await authService.loginWithGoogle();
+      // navigation handled by onAuthStateChanged
     } catch (err: any) {
       console.error('Auth error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
-        setError('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất. Vui lòng thử lại và giữ cửa sổ mở cho đến khi đăng nhập xong.');
-      } else if (err.code === 'auth/popup-blocked') {
-        setError('Trình duyệt của bạn đã chặn cửa sổ đăng nhập. Vui lòng cho phép hiển thị popup (cửa sổ bật lên) cho trang web này.');
-      } else if (err.code === 'auth/unauthorized-domain') {
-        setError('Tên miền này chưa được cấp quyền đăng nhập Firebase. Vui lòng kiểm tra lại cấu hình Firebase.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setError('Lỗi kết nối mạng hoặc yêu cầu bị chặn. Vui lòng kiểm tra lại kết nối internet, tắt các trình chặn quảng cáo (Ad-blocker) hoặc thử trình duyệt khác.');
+        setError('Cửa sổ đăng nhập đã bị đóng trước khi hoàn tất.');
       } else {
         setError(err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -72,7 +89,37 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div className="mt-8 space-y-4">
+        <form onSubmit={handleEmailLogin} className="mt-8 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <input 
+              type="email" 
+              required 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Mật khẩu</label>
+            <input 
+              type="password" 
+              required 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+          </button>
+        </form>
+
+        <div className="mt-6 space-y-4">
           <button
             onClick={handleGoogleLogin}
             disabled={loading}

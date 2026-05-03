@@ -1,4 +1,4 @@
-export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
+export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer' | 'true_false_cluster';
 
 export interface ExamQuestion {
   id: string;

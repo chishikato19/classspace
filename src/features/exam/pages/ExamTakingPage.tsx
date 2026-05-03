@@ -216,7 +216,7 @@ export default function ExamTakingPage() {
           .map(item => {
             let optionsMap: number[] = [];
             
-            if (item.q.type === 'true_false' || item.q.type === 'short_answer') {
+            if (item.q.type === 'true_false' || item.q.type === 'short_answer' || item.q.type === 'true_false_cluster') {
                optionsMap = item.q.options.map((_, i) => i);
             } else {
                optionsMap = item.q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
@@ -416,7 +416,7 @@ export default function ExamTakingPage() {
                              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
                            />
                         </div>
-                      ) : q.type === 'true_false' ? (
+                      ) : q.type === 'true_false' || q.type === 'true_false_cluster' ? (
                         <div className="grid grid-cols-1 gap-3">
                           {q.options.map((opt, optIndex) => {
                             const currentSubArr = attempt.submissions[q.id] ? String(attempt.submissions[q.id]).split(',') : [];

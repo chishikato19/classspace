@@ -75,8 +75,10 @@ export async function importQuestionsFromWord(file: File, uid: string): Promise<
      if (isQuestion) {
         if (currentQuestion) importedQuestions.push(currentQuestion);
         
-        let type: "multiple_choice" | "true_false" | "short_answer" = "multiple_choice";
-        if (/\((đúng\s*\/?\s*sai)\)/i.test(mdText)) {
+        let type: "multiple_choice" | "true_false" | "short_answer" | "true_false_cluster" = "multiple_choice";
+        if (/\((chùm đúng\s*\/?\s*sai)\)/i.test(mdText)) {
+          type = "true_false_cluster";
+        } else if (/\((đúng\s*\/?\s*sai)\)/i.test(mdText)) {
           type = "true_false";
         } else if (/\((trả lời ngắn)\)/i.test(mdText)) {
           type = "short_answer";
@@ -90,6 +92,7 @@ export async function importQuestionsFromWord(file: File, uid: string): Promise<
           options: [],
           correctIndex: 0,
           shortAnswerText: '',
+          clusterAnswers: [],
           points: 0
         };
      } else if (currentQuestion) {
@@ -111,6 +114,12 @@ export async function importQuestionsFromWord(file: File, uid: string): Promise<
              const cleanOpt = mdText.replace(/^(\*|[uU]\s*)?[A-D]\s*[\.\:]\s*/i, '').trim();
              currentQuestion.options.push(cleanOpt);
              const optIdx = currentQuestion.options.length - 1;
+             
+             if (currentQuestion.type === 'true_false_cluster') {
+                if (!currentQuestion.clusterAnswers) currentQuestion.clusterAnswers = [];
+                currentQuestion.clusterAnswers[optIdx] = startsWithStar || hasUnderline;
+             }
+             
              if (startsWithStar || hasUnderline) {
                 currentQuestion.correctIndex = optIdx;
              }

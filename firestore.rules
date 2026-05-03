@@ -254,6 +254,11 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isAdmin();
     }
 
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() || (request.auth != null && request.auth.token.email == "chishikato19@gmail.com");
+      allow create, update, delete: if isAdmin() || (request.auth != null && request.auth.token.email == "chishikato19@gmail.com");
+    }
+
     match /time_sync/{docId} {
       allow create: if request.resource.data.keys().hasOnly(['timestamp']);
       allow read: if true;

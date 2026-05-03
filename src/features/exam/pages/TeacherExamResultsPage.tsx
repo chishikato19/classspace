@@ -111,7 +111,7 @@ export default function TeacherExamResultsPage() {
         if (selectedAnswer === undefined) return `""`;
         if (q.type === 'short_answer') {
            return `"${String(selectedAnswer).replace(/"/g, '""')}"`;
-        } else if (q.type === 'true_false') {
+        } else if (q.type === 'true_false' || q.type === 'true_false_cluster') {
            const arr = String(selectedAnswer).split(',');
            const res = arr.map((val, idx) => `${String.fromCharCode(97 + idx)}. ${val === 'T' ? 'Đúng' : val === 'F' ? 'Sai' : '-'}`).join('; ');
            return `"${res}"`;
@@ -396,7 +396,7 @@ export default function TeacherExamResultsPage() {
                                   <span>{isUnanswered ? '(Không trả lời)' : String(studentAnswerIdx)}</span>
                                </div>
                             </div>
-                         ) : q.type === 'true_false' ? (
+                         ) : q.type === 'true_false' || q.type === 'true_false_cluster' ? (
                             <div className="grid grid-cols-1 gap-2">
                                {q.options.map((opt, oIdx) => {
                                   const realAnsArr = (deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id) || '').split(',');
