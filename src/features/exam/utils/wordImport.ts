@@ -123,6 +123,23 @@ export async function importQuestionsFromWord(file: File, uid: string): Promise<
              if (startsWithStar || hasUnderline) {
                 currentQuestion.correctIndex = optIdx;
              }
+          } else if (/^Đáp\s*án\s*[:\.]/i.test(mdText)) {
+             if (currentQuestion.type === 'true_false_cluster') {
+               const ansStr = mdText.replace(/^Đáp\s*án\s*[:\.]\s*/i, '').trim();
+               const ansArray = ansStr.split(/[,;]/).map(s => s.trim().toLowerCase());
+               currentQuestion.clusterAnswers = currentQuestion.options.map((_: any, i: number) => {
+                 const a = ansArray[i] || '';
+                 return a === 'đúng' || a === 'đ' || a === 't' || a === 'true';
+               });
+             } else {
+                 const ansM = mdText.match(/^Đáp\s*án\s*[:\.]\s*([A-D])/i);
+                 if (ansM) {
+                   const cIdx = ansM[1].toUpperCase().charCodeAt(0) - 65;
+                   if (cIdx >= 0 && cIdx < currentQuestion.options.length) {
+                     currentQuestion.correctIndex = cIdx;
+                   }
+                 }
+             }
           } else {
              // Append to question text if it doesn't look like an option
              if (currentQuestion.options.length === 0) {
