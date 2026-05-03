@@ -24,6 +24,7 @@ export default function ExamEditor() {
   const [requireClassInput, setRequireClassInput] = useState(false);
   const [teacherClasses, setTeacherClasses] = useState<ClassData[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [clusterScoringType, setClusterScoringType] = useState<'vietnamese_2025' | 'proportional'>('vietnamese_2025');
   const [loading, setLoading] = useState(false);
   const [existingData, setExistingData] = useState<Partial<Exam>>({});
 
@@ -128,6 +129,7 @@ export default function ExamEditor() {
           setAllowedStudentNamesText(data.allowedStudentNames?.join('\n') || '');
           setRequireClassInput(data.requireClassInput || false);
           setSelectedClasses(data.allowedClasses || []);
+          setClusterScoringType(data.clusterScoringType || 'vietnamese_2025');
           setExistingData({
             createdAt: data.createdAt,
             pin: data.pin,
@@ -236,6 +238,7 @@ export default function ExamEditor() {
       teacherId: auth.currentUser.uid,
       createdAt: (editExamId && existingData.createdAt) ? existingData.createdAt : Date.now(),
       pin: pin,
+      clusterScoringType,
       ...(folderId ? { folderId } : (existingData.folderId ? { folderId: existingData.folderId } : {}))
     };
 
@@ -272,12 +275,15 @@ export default function ExamEditor() {
                          if (studentAnswers[idx] === ans) correctCount++;
                       });
                       if (correctCount > 0) {
-                         // Default Vietnamese 2025 grading
                          let multiplier = 0;
-                         if (correctCount === 1) multiplier = 0.1;
-                         if (correctCount === 2) multiplier = 0.25;
-                         if (correctCount === 3) multiplier = 0.5;
-                         if (correctCount === 4) multiplier = 1.0;
+                         if (clusterScoringType === 'proportional') {
+                           multiplier = correctCount / 4;
+                         } else {
+                           if (correctCount === 1) multiplier = 0.1;
+                           if (correctCount === 2) multiplier = 0.25;
+                           if (correctCount === 3) multiplier = 0.5;
+                           if (correctCount === 4) multiplier = 1.0;
+                         }
                          newScore += (q.points || 0) * multiplier;
                          if (correctCount === 4) newTotalCorrect++;
                       }
@@ -390,6 +396,21 @@ export default function ExamEditor() {
           </div>
         </div>
         
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Cách tính điểm câu chùm đúng/sai</label>
+            <select
+              value={clusterScoringType}
+              onChange={e => setClusterScoringType(e.target.value as 'vietnamese_2025' | 'proportional')}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="vietnamese_2025">Hệ số riêng (1 ý: 0.1đ, 2 ý: 0.25đ, 3 ý: 0.5đ, 4 ý tối đa)</option>
+              <option value="proportional">Chia đều (VD: 4 ý thì 25% điểm mỗi ý)</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1">Hệ số riêng sử dụng tỷ lệ chuẩn của Bộ GD&ĐT năm 2025.</p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

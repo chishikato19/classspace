@@ -84,7 +84,28 @@ export default function ExamTakingPage() {
     exam.questions.forEach(q => {
       const sub = submissions[q.id];
       if (sub !== undefined && q.obfuscatedAnswer) {
-        if (q.type === 'short_answer') {
+        if (q.type === 'true_false_cluster') {
+          const realAnsStr = deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id);
+          const realAnswers = realAnsStr.split(',');
+          const studentAnswers = (String(sub) || '').split(',');
+          let cCount = 0;
+          realAnswers.forEach((ans, idx) => {
+            if (studentAnswers[idx] === ans) cCount++;
+          });
+          if (cCount > 0) {
+            let multiplier = 0;
+            if (exam.clusterScoringType === 'proportional') {
+              multiplier = cCount / 4;
+            } else {
+              if (cCount === 1) multiplier = 0.1;
+              if (cCount === 2) multiplier = 0.25;
+              if (cCount === 3) multiplier = 0.5;
+              if (cCount === 4) multiplier = 1.0;
+            }
+            totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ) * multiplier;
+            if (cCount === 4) correctCount++;
+          }
+        } else if (q.type === 'short_answer') {
           const correctAns = deobfuscateStringAnswer(q.obfuscatedAnswer, q.id);
           const validAnswers = correctAns.split('||').map((s: string) => s.trim().toLowerCase());
           const studentAns = String(sub).trim().toLowerCase();

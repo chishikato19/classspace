@@ -26,6 +26,7 @@ export interface Exam {
   createdAt: number;
   folderId?: string | null;
   pin?: string;
+  clusterScoringType?: 'vietnamese_2025' | 'proportional';
 }
 
 export interface ExamFolder {
