@@ -438,7 +438,7 @@ export default function ExamTakingPage() {
                              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
                            />
                         </div>
-                      ) : q.type === 'true_false' || q.type === 'true_false_cluster' ? (
+                      ) : q.type === 'true_false_cluster' ? (
                         <div className="grid grid-cols-1 gap-3">
                           {q.options.map((opt, optIndex) => {
                             const currentSubArr = attempt.submissions[q.id] ? String(attempt.submissions[q.id]).split(',') : [];
