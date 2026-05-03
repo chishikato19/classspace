@@ -396,12 +396,13 @@ export default function TeacherExamResultsPage() {
                                   <span>{isUnanswered ? '(Không trả lời)' : String(studentAnswerIdx)}</span>
                                </div>
                             </div>
-                         ) : q.type === 'true_false' || q.type === 'true_false_cluster' ? (
+                         ) : q.type === 'true_false_cluster' ? (
                             <div className="grid grid-cols-1 gap-2">
                                {q.options.map((opt, oIdx) => {
                                   const realAnsArr = (deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id) || '').split(',');
                                   const subAnsArr = (studentAnswerIdx !== undefined ? String(studentAnswerIdx) : '').split(',');
-                                  const isCorrectSub = subAnsArr[oIdx] === realAnsArr[oIdx];
+                                  const expectedVal = realAnsArr[oIdx] === 'true' ? 'T' : 'F';
+                                  const isCorrectSub = subAnsArr[oIdx] === expectedVal;
                                   const hasAnsSub = subAnsArr[oIdx] === 'T' || subAnsArr[oIdx] === 'F';
                                   return (
                                     <div key={oIdx} className={`p-3 rounded-lg text-sm border flex items-start gap-3 ${hasAnsSub ? (isCorrectSub ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 'bg-white border-slate-200'}`}>
@@ -411,7 +412,7 @@ export default function TeacherExamResultsPage() {
                                       </div>
                                       <div className="flex flex-col items-end shrink-0 gap-1 text-xs">
                                          <span className="text-slate-500">
-                                            Chuẩn: <span className="font-bold">{realAnsArr[oIdx] === 'T' ? 'Đúng' : 'Sai'}</span>
+                                            Chuẩn: <span className="font-bold">{realAnsArr[oIdx] === 'true' ? 'Đúng' : 'Sai'}</span>
                                          </span>
                                          <span className={`${hasAnsSub ? (isCorrectSub ? 'text-green-700' : 'text-red-600') : 'text-slate-400'}`}>
                                             Trò chọn: <span className="font-bold">{hasAnsSub ? (subAnsArr[oIdx] === 'T' ? 'Đúng' : 'Sai') : '(Trống)'}</span>

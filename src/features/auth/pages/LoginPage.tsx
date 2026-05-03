@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
 import { userManagementService } from '../../admin/services/userManagementService';
+import { Home } from 'lucide-react';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -74,7 +75,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center">
+    <div className="flex flex-col min-h-[80vh] items-center justify-center space-y-6">
+      <button 
+        onClick={() => navigate('/')}
+        className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100 mb-2"
+      >
+        <Home className="w-4 h-4" />
+        <span className="font-medium text-sm">Trở về trang chủ</span>
+      </button>
+
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">

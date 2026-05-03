@@ -90,7 +90,8 @@ export default function ExamTakingPage() {
           const studentAnswers = (String(sub) || '').split(',');
           let cCount = 0;
           realAnswers.forEach((ans, idx) => {
-            if (studentAnswers[idx] === ans) cCount++;
+            const normalizedAns = ans === 'true' ? 'T' : 'F';
+            if (studentAnswers[idx] === normalizedAns) cCount++;
           });
           if (cCount > 0) {
             let multiplier = 0;
