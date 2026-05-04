@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { ArrowUp, ArrowDown, Trash2, ImagePlus, X, Type } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 import { QuestionType } from '../types';
 
@@ -335,7 +338,7 @@ export function QuestionEditorCard({
          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Xem trước</div>
          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm min-h-[200px]">
             <div className="prose prose-slate max-w-none prose-sm prose-p:my-1 prose-img:my-4 prose-img:rounded-md prose-img:border prose-img:border-slate-200 prose-img:max-h-64 prose-img:object-contain mb-4">
-               {q.text ? <ReactMarkdown>{q.text}</ReactMarkdown> : <span className="text-slate-300 italic">Nội dung câu hỏi rỗng...</span>}
+               {q.text ? <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.text}</ReactMarkdown> : <span className="text-slate-300 italic">Nội dung câu hỏi rỗng...</span>}
             </div>
             
             {q.imageUrl && (
@@ -379,7 +382,7 @@ export function QuestionEditorCard({
                            <span className={`font-bold flex-shrink-0 ${isCorrect && q.type !== 'true_false_cluster' ? 'text-green-700' : 'text-slate-500'}`}>{String.fromCharCode(65 + optIndex)}.</span>
                            <div className="flex-1 w-full overflow-hidden">
                               <div className="prose prose-slate prose-sm max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded lg:prose-img:max-h-32 w-full">
-                                <ReactMarkdown>{opt}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
                               </div>
                               {q.optionImageUrls?.[optIndex] && (
                                 <div className="mt-2 relative inline-block">

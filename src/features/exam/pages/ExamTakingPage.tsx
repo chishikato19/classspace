@@ -6,6 +6,10 @@ import { Exam, ExamAttempt, ExamQuestion } from '../types';
 import { deobfuscateAnswer, deobfuscateStringAnswer } from '../utils/obfuscator';
 import { Timer, AlertTriangle, Send, CheckCircle2, LayoutGrid } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+
 
 export default function ExamTakingPage() {
   const { examId, attemptId } = useParams();
@@ -421,7 +425,7 @@ export default function ExamTakingPage() {
                   </div>
                   <div className="flex-1">
                     <div className="text-slate-800 text-lg font-medium mb-6 prose prose-slate max-w-none prose-p:my-1 prose-img:my-4 prose-img:rounded-lg prose-img:border prose-img:border-slate-200 prose-img:max-h-96 prose-img:object-contain">
-                      <ReactMarkdown>{q.text}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.text}</ReactMarkdown>
                     </div>
                     {q.imageUrl && (
                       <img src={q.imageUrl} alt="Question ref" className="max-w-full h-auto rounded-lg mb-6 max-h-96 object-contain" />
@@ -451,7 +455,7 @@ export default function ExamTakingPage() {
                                 <div className="flex-1 flex gap-3">
                                   <span className="font-semibold w-5 mt-0.5">{label}.</span>
                                   <div className="flex-1 prose prose-slate max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded prose-img:max-h-32">
-                                    <ReactMarkdown>{opt}</ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
                                     {q.optionImageUrls && q.optionImageUrls[optIndex] && (
                                       <img src={q.optionImageUrls[optIndex]!} alt="Option" className="mt-2 max-h-32 rounded object-contain border border-slate-200" />
                                     )}
@@ -501,7 +505,7 @@ export default function ExamTakingPage() {
                               <div className="flex-1 flex gap-3">
                                 <span className="font-semibold w-6">{label}.</span>
                                 <div className="flex-1 prose prose-slate max-w-none prose-p:my-0 prose-img:my-2 prose-img:rounded prose-img:max-h-32">
-                                  <ReactMarkdown>{opt}</ReactMarkdown>
+                                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
                                   {q.optionImageUrls && q.optionImageUrls[originalOptIndex] && (
                                     <img src={q.optionImageUrls[originalOptIndex]!} alt="Option" className="mt-2 max-h-32 rounded object-contain border border-slate-200" />
                                   )}

@@ -6,6 +6,9 @@ import { Exam, ExamAttempt } from '../types';
 import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search, RefreshCw } from 'lucide-react';
 import { deobfuscateAnswer, deobfuscateStringAnswer } from '../utils/obfuscator';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 export default function TeacherExamResultsPage() {
   const { examId } = useParams();
@@ -380,7 +383,7 @@ export default function TeacherExamResultsPage() {
                       <div className="flex justify-between items-start mb-2">
                         <div className="font-medium text-slate-800 prose prose-slate max-w-none prose-p:my-1 prose-img:my-2 prose-img:rounded-lg prose-img:max-h-48 prose-img:object-contain">
                           <p className="font-bold inline-block mr-2">Câu {idx + 1}:</p>
-                          <ReactMarkdown>{q.text}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.text}</ReactMarkdown>
                           {q.imageUrl && <img src={q.imageUrl} alt="Question" className="mt-2" />}
                         </div>
                         <span className="text-sm font-semibold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded border ml-4 mt-1">
@@ -408,7 +411,7 @@ export default function TeacherExamResultsPage() {
                                     <div key={oIdx} className={`p-3 rounded-lg text-sm border flex items-start gap-3 ${hasAnsSub ? (isCorrectSub ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 'bg-white border-slate-200'}`}>
                                       <span className="font-bold flex-shrink-0">{String.fromCharCode(97 + oIdx)}.</span>
                                       <div className="flex-1 prose prose-sm max-w-none prose-p:my-0 prose-img:my-1 prose-img:rounded lg:prose-img:max-h-24">
-                                        <ReactMarkdown>{opt}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
                                       </div>
                                       <div className="flex flex-col items-end shrink-0 gap-1 text-xs">
                                          <span className="text-slate-500">
@@ -431,7 +434,7 @@ export default function TeacherExamResultsPage() {
                               }`}>
                                  <span className="font-bold flex-shrink-0">{String.fromCharCode(65 + oIdx)}.</span>
                                  <div className="prose prose-sm max-w-none prose-p:my-0 prose-img:my-1 prose-img:rounded lg:prose-img:max-h-24">
-                                   <ReactMarkdown>{opt}</ReactMarkdown>
+                                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{opt}</ReactMarkdown>
                                    {q.optionImageUrls && q.optionImageUrls[oIdx] && (
                                      <img src={q.optionImageUrls[oIdx]!} alt="Option" />
                                    )}
