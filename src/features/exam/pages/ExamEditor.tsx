@@ -25,6 +25,8 @@ export default function ExamEditor() {
   const [teacherClasses, setTeacherClasses] = useState<ClassData[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [clusterScoringType, setClusterScoringType] = useState<'vietnamese_2025' | 'proportional'>('vietnamese_2025');
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [passingPercentage, setPassingPercentage] = useState<number>(50);
   const [loading, setLoading] = useState(false);
   const [existingData, setExistingData] = useState<Partial<Exam>>({});
 
@@ -130,6 +132,8 @@ export default function ExamEditor() {
           setRequireClassInput(data.requireClassInput || false);
           setSelectedClasses(data.allowedClasses || []);
           setClusterScoringType(data.clusterScoringType || 'vietnamese_2025');
+          setIsPracticeMode(data.isPracticeMode || false);
+          setPassingPercentage(data.passingPercentage || 50);
           setExistingData({
             createdAt: data.createdAt,
             pin: data.pin,
@@ -239,6 +243,8 @@ export default function ExamEditor() {
       createdAt: (editExamId && existingData.createdAt) ? existingData.createdAt : Date.now(),
       pin: pin,
       clusterScoringType,
+      isPracticeMode,
+      passingPercentage,
       ...(folderId ? { folderId } : (existingData.folderId ? { folderId: existingData.folderId } : {}))
     };
 
@@ -409,6 +415,31 @@ export default function ExamEditor() {
             </select>
             <p className="text-xs text-slate-500 mt-1">Hệ số riêng sử dụng tỷ lệ chuẩn của Bộ GD&ĐT năm 2025.</p>
           </div>
+          <div className="flex flex-col space-y-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input 
+                type="checkbox" 
+                checked={isPracticeMode} 
+                onChange={e => setIsPracticeMode(e.target.checked)}
+                className="w-4 h-4 text-indigo-600 rounded"
+              />
+              Chế độ luyện tập
+            </label>
+            {isPracticeMode && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tỷ lệ đỗ tối thiểu (%)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  max="100"
+                  value={passingPercentage}
+                  onChange={e => setPassingPercentage(parseFloat(e.target.value) || 0)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            )}
+            <p className="text-xs text-slate-500">Chế độ luyện tập sẽ cho phép học sinh xem đáp án sau khi làm xong thay vì chỉ hiển thị kết quả cơ bản.</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
@@ -521,8 +552,8 @@ export default function ExamEditor() {
 
                    <div>
                      <strong className="block mb-1 text-red-700">4. Công thức Toán học (LaTeX):</strong>
-                     Nhập mã LaTeX giữa cặp ký hiệu <code className="bg-indigo-200 px-1 rounded">$</code> cho công thức trên dòng hoặc <code className="bg-indigo-200 px-1 rounded">$$</code> cho khối công thức.<br />
-                     Ví dụ: <code className="bg-indigo-200 px-1 rounded">$\sqrt{x^2 + 1}$</code> sẽ hiển thị là công thức toán.
+                     Nhập mã LaTeX giữa cặp ký hiệu <code className="bg-indigo-200 px-1 rounded">{'$'}</code> cho công thức trên dòng hoặc <code className="bg-indigo-200 px-1 rounded">{'$$'}</code> cho khối công thức.<br />
+                     Ví dụ: <code className="bg-indigo-200 px-1 rounded">{'$\\sqrt{x^2 + 1}$'}</code> sẽ hiển thị là công thức toán.
                    </div>
                  </div>
                </details>
