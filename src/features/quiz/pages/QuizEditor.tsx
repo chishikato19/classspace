@@ -104,6 +104,13 @@ export default function QuizEditor() {
         { id: uuidv4(), text: 'Đúng', isCorrect: true },
         { id: uuidv4(), text: 'Sai', isCorrect: false },
       ];
+    } else if (newType === 'TRUE_FALSE_CLUSTER') {
+      newOptions = [
+        { id: uuidv4(), text: '', isCorrect: true },
+        { id: uuidv4(), text: '', isCorrect: true },
+        { id: uuidv4(), text: '', isCorrect: true },
+        { id: uuidv4(), text: '', isCorrect: true },
+      ];
     } else if (newType === 'SHORT_ANSWER') {
       newOptions = [
         { id: uuidv4(), text: '', isCorrect: true },
@@ -142,7 +149,9 @@ export default function QuizEditor() {
     const newQuestions = [...questions];
     const type = newQuestions[qIndex].type;
 
-    if (type === 'MULTIPLE_CHOICE' || type === 'TRUE_FALSE') {
+    if (type === 'TRUE_FALSE_CLUSTER') {
+      newQuestions[qIndex].options[oIndex].isCorrect = !newQuestions[qIndex].options[oIndex].isCorrect;
+    } else if (type === 'MULTIPLE_CHOICE' || type === 'TRUE_FALSE') {
       // Single correct answer logic for these types
       newQuestions[qIndex].options.forEach((opt, idx) => {
         opt.isCorrect = idx === oIndex;
@@ -383,7 +392,8 @@ export default function QuizEditor() {
                   className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-1"
                 >
                   <option value="MULTIPLE_CHOICE">Trắc nghiệm</option>
-                  <option value="TRUE_FALSE">Đúng / Sai</option>
+                  <option value="TRUE_FALSE">Đúng / Sai (Lẻ)</option>
+                  <option value="TRUE_FALSE_CLUSTER">Đúng / Sai (Chùm)</option>
                   <option value="SHORT_ANSWER">Trả lời ngắn</option>
                   <option value="SURVEY">Khảo sát</option>
                 </select>
@@ -567,6 +577,46 @@ export default function QuizEditor() {
                       <Plus size={16} /> Thêm lựa chọn
                     </button>
                   </div>
+                ) : q.type === 'TRUE_FALSE_CLUSTER' ? (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">Các ý Đúng/Sai (Nhập nội dung và chọn trạng thái Đúng/Sai):</label>
+                    {q.options.map((opt, oIndex) => (
+                      <div key={opt.id} className="flex flex-col gap-2 p-3 border rounded-md bg-gray-50 border-gray-200">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-gray-500 w-6">{(oIndex + 1)}.</span>
+                          <RichTextarea
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 sm:text-sm border p-2"
+                            value={opt.text}
+                            onChangeValue={(value) => handleOptionChange(qIndex, oIndex, 'text', value)}
+                            placeholder={`Nội dung ý ${oIndex + 1}`}
+                            rows={1}
+                          />
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                const nq = [...questions];
+                                nq[qIndex].options[oIndex].isCorrect = true;
+                                setQuestions(nq);
+                              }}
+                              className={`px-3 py-1 text-xs font-bold rounded ${opt.isCorrect ? 'bg-green-500 text-white shadow' : 'bg-gray-200 text-gray-600'}`}
+                            >
+                              Đúng
+                            </button>
+                            <button
+                              onClick={() => {
+                                const nq = [...questions];
+                                nq[qIndex].options[oIndex].isCorrect = false;
+                                setQuestions(nq);
+                              }}
+                              className={`px-3 py-1 text-xs font-bold rounded ${!opt.isCorrect ? 'bg-red-500 text-white shadow' : 'bg-gray-200 text-gray-600'}`}
+                            >
+                              Sai
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
                     {q.options.map((opt, oIndex) => (
@@ -671,7 +721,23 @@ export default function QuizEditor() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
-                        {q.options.map((opt, oIndex) => (
+                        {q.type === 'TRUE_FALSE_CLUSTER' ? (
+                           <div className="col-span-2 space-y-2">
+                             {q.options.map((opt, oIndex) => (
+                               <div key={opt.id} className="bg-white border rounded-lg p-3 flex items-center justify-between gap-4 shadow-sm">
+                                 <div className="flex-1 text-left text-sm font-medium text-gray-700">
+                                   <span className="font-bold mr-2">{String.fromCharCode(97 + oIndex)}.</span>
+                                   {opt.text ? <MathText text={opt.text} /> : <span className="text-gray-300 italic">Nội dung ý {oIndex + 1}</span>}
+                                 </div>
+                                 <div className="flex gap-2 shrink-0">
+                                   <div className={`px-2 py-0.5 text-[10px] font-black rounded ${opt.isCorrect ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                      {opt.isCorrect ? 'ĐÚNG' : 'SAI'}
+                                   </div>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                        ) : q.options.map((opt, oIndex) => (
                           <div 
                             key={opt.id} 
                             className={`p-3 rounded-lg border-2 flex flex-col items-center justify-center gap-2 min-h-[80px] transition-all ${

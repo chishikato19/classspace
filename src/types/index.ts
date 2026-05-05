@@ -65,7 +65,7 @@ export interface Folder {
   createdAt: number;
 }
 
-export type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'SURVEY';
+export type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'TRUE_FALSE_CLUSTER' | 'SURVEY';
 
 export interface Question {
   id: string;

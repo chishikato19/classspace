@@ -28,8 +28,8 @@ export const parseQuestionsFromText = (text: string): Question[] => {
   const answerMap = new Map<number, string>();
   if (answerContent) {
     // Matches "1. A", "1 A", "1: A", "1) A", "1. Đúng", "1. True"
-    // Also handles multi-line or comma separated: "1. A, 2. B"
-    const answerRegex = /(\d+)[\.\s:\)]+([^\d\n,]+)/g;
+    // Also handles cluster answers: "1. a:Đ, b:S, c:Đ, d:S"
+    const answerRegex = /(\d+)[\.\s:\)]+([^\d\n]+)/g;
     let match;
     while ((match = answerRegex.exec(answerContent)) !== null) {
       const qIndex = parseInt(match[1]);
@@ -69,7 +69,24 @@ export const parseQuestionsFromText = (text: string): Question[] => {
     const optionMatches = Array.from(rawQ.matchAll(optionSplitRegex));
     
     if (optionMatches.length >= 2) {
-      type = 'MULTIPLE_CHOICE';
+      // Check if it's a cluster question (has A, B, C, D AND answer map shows cluster format)
+      const correctAnswer = answerMap.get(qNum);
+      const isClusterAns = correctAnswer && (
+        correctAnswer.toLowerCase().includes('a:') || 
+        correctAnswer.toLowerCase().includes('a)') ||
+        correctAnswer.toLowerCase().includes('a.')
+      ) && (
+        correctAnswer.toLowerCase().includes('đ') || 
+        correctAnswer.toLowerCase().includes('s') ||
+        correctAnswer.toLowerCase().includes('t') || 
+        correctAnswer.toLowerCase().includes('f')
+      );
+
+      if (isClusterAns && optionMatches.length === 4) {
+        type = 'TRUE_FALSE_CLUSTER';
+      } else {
+        type = 'MULTIPLE_CHOICE';
+      }
       
       // We need to split the text by these indices
       const parts = rawQ.split(optionSplitRegex);
@@ -85,12 +102,21 @@ export const parseQuestionsFromText = (text: string): Question[] => {
         const { text: optText, imageUrl: optImageUrl } = extractImage(optTextRaw);
 
         // Check correctness from answer map
-        const correctAnswer = answerMap.get(qNum);
         let isCorrect = false;
         if (correctAnswer) {
-           // If answer is "A", "A.", "A)"
-           const cleanAns = correctAnswer.replace(/[\.\)]/g, '').trim().toUpperCase();
-           if (cleanAns === optLabel) isCorrect = true;
+           if (type === 'TRUE_FALSE_CLUSTER') {
+             // For cluster, look for "a:Đ" or "a:S" etc.
+             const clusterRegex = new RegExp(`${optLabel.toLowerCase()}[\\:\\.\\)]\\s*([ĐSđsTFtf])`, 'i');
+             const clusterMatch = correctAnswer.match(clusterRegex);
+             if (clusterMatch) {
+               const val = clusterMatch[1].toUpperCase();
+               isCorrect = (val === 'Đ' || val === 'T');
+             }
+           } else {
+             // If answer is "A", "A.", "A)"
+             const cleanAns = correctAnswer.replace(/[\.\)]/g, '').trim().toUpperCase();
+             if (cleanAns === optLabel) isCorrect = true;
+           }
         }
 
         options.push({

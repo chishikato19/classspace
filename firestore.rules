@@ -104,7 +104,6 @@ service cloud.firestore {
              data.quizId is string &&
              data.hostId is string &&
              data.status is string &&
-             data.players is list &&
              data.createdAt is number;
     }
 
@@ -202,6 +201,12 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidSession(request.resource.data);
       allow update: if true; // Players update their progress/answers
       allow delete: if isAuthenticated() && (isOwner(resource.data.hostId) || isAdmin());
+
+      match /players/{playerId} {
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if isAuthenticated();
+      }
     }
 
     match /groups/{groupId} {

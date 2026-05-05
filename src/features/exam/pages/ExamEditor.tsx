@@ -551,7 +551,9 @@ export default function ExamEditor() {
                    </div>
 
                    <div>
-                     <strong className="block mb-1 text-red-700">4. Công thức Toán học (LaTeX):</strong>
+                     <strong className="block mb-1 text-red-700">4. Câu hỏi chùm (Đúng / Sai):</strong>
+                     Định dạng đáp án chùm: <code className="bg-indigo-200 px-1 rounded">Câu 1: a.Đ, b.S, c.Đ, d.S</code>. Ý bắt đầu bằng a, b, c, d.<br/>
+                     <strong className="block mb-1 text-red-700 mt-2">5. Công thức Toán học (LaTeX):</strong>
                      Nhập mã LaTeX giữa cặp ký hiệu <code className="bg-indigo-200 px-1 rounded">{'$'}</code> cho công thức trên dòng hoặc <code className="bg-indigo-200 px-1 rounded">{'$$'}</code> cho khối công thức.<br />
                      Ví dụ: <code className="bg-indigo-200 px-1 rounded">{'$\\sqrt{x^2 + 1}$'}</code> sẽ hiển thị là công thức toán.
                    </div>

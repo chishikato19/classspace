@@ -116,8 +116,9 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
                 <ul className="list-disc pl-5 space-y-1 opacity-90">
                   <li>Câu hỏi bắt đầu bằng: <strong>Câu 1:, Bài 1:, 1.</strong></li>
                   <li>Đáp án trắc nghiệm: <strong>A. B. C. D.</strong> hoặc <strong>a) b) c) d)</strong></li>
+                  <li>Hỗ trợ mã Latex: Ví dụ <strong>$x^2 + y^2 = r^2$</strong></li>
+                  <li>Câu hỏi chùm: Gồm 4 ý a, b, c, d. Đáp án ghi dạng: <strong>1. a:Đ, b:S, c:Đ, d:S</strong></li>
                   <li>Phần đáp án đúng nằm ở cuối, sau từ khóa: <strong>Trả lời:</strong> hoặc <strong>Đáp án:</strong></li>
-                  <li>Ví dụ: <em>1. A, 2. Đúng, 3. Hà Nội</em></li>
                 </ul>
               </div>
 

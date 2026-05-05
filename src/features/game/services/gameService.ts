@@ -142,41 +142,46 @@ export const gameService = {
 
     // Sanitize sessionData to remove undefined values for Firestore
     const sanitizedData = JSON.parse(JSON.stringify(sessionData));
-    const docRef = await addDoc(getSessionsRef(), sanitizedData);
-    
-    // Batch write players to subcollection
-    if (initialPlayers.length > 0) {
-      const batch = writeBatch(db);
-      initialPlayers.forEach(player => {
-        const playerRef = doc(db, "sessions", docRef.id, "players", player.id);
-        batch.set(playerRef, player);
-      });
-      await batch.commit();
-    }
-    
-    // Nếu bật chế độ JSON (Quizizz Mode), tạo file JSON và lưu URL
-    if (settings?.jsonDeliveryMode && storage) {
-      try {
-        const quizData = await quizService.getQuizById(quizId);
-        if (quizData) {
-          const jsonString = JSON.stringify(quizData);
-          const storageRef = ref(storage, `quizzes/${quizId}_${docRef.id}.json`);
-          await uploadString(storageRef, jsonString, 'raw', { contentType: 'application/json' });
-          const downloadUrl = await getDownloadURL(storageRef);
-          
-          await updateDoc(docRef, { quizJsonUrl: downloadUrl });
-          sanitizedData.quizJsonUrl = downloadUrl;
-        }
-      } catch (error) {
-        console.error("Lỗi khi tạo file JSON cho đề thi:", error);
-        // Không throw error để game vẫn tiếp tục bằng cách đọc từ Firestore
+    try {
+      const docRef = await addDoc(getSessionsRef(), sanitizedData);
+      
+      // Batch write players to subcollection
+      if (initialPlayers.length > 0) {
+        const batch = writeBatch(db);
+        initialPlayers.forEach(player => {
+          const playerRef = doc(db, "sessions", docRef.id, "players", player.id);
+          batch.set(playerRef, player);
+        });
+        await batch.commit();
       }
-    }
+      
+      // Nếu bật chế độ JSON (Quizizz Mode), tạo file JSON và lưu URL
+      if (settings?.jsonDeliveryMode && storage) {
+        try {
+          const quizData = await quizService.getQuizById(quizId);
+          if (quizData) {
+            const jsonString = JSON.stringify(quizData);
+            const storageRef = ref(storage, `quizzes/${quizId}_${docRef.id}.json`);
+            await uploadString(storageRef, jsonString, 'raw', { contentType: 'application/json' });
+            const downloadUrl = await getDownloadURL(storageRef);
+            
+            await updateDoc(docRef, { quizJsonUrl: downloadUrl });
+            sanitizedData.quizJsonUrl = downloadUrl;
+          }
+        } catch (error) {
+          console.error("Lỗi khi tạo file JSON cho đề thi:", error);
+          // Không throw error để game vẫn tiếp tục bằng cách đọc từ Firestore
+        }
+      }
 
-    // Invalidate teacher sessions cache
-    teacherSessionsCache.delete(hostId);
-    
-    return { id: docRef.id, pin };
+      // Invalidate teacher sessions cache
+      teacherSessionsCache.delete(hostId);
+      
+      return { id: docRef.id, pin };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "sessions");
+      throw error;
+    }
   },
 
   // Tìm phòng bằng PIN
@@ -798,110 +803,115 @@ export const gameService = {
     const sessionRef = doc(db, "sessions", sessionId);
     const playerRef = doc(db, "sessions", sessionId, "players", playerId);
 
-    await runTransaction(db, async (transaction) => {
-      const sessionDoc = await transaction.get(sessionRef);
-      if (!sessionDoc.exists()) throw "Session not found";
-      const data = sessionDoc.data();
+    try {
+      await runTransaction(db, async (transaction) => {
+        const sessionDoc = await transaction.get(sessionRef);
+        if (!sessionDoc.exists()) throw "Session not found";
+        const data = sessionDoc.data();
 
-      const playerDoc = await transaction.get(playerRef);
-      if (!playerDoc.exists()) throw "Player not found";
-      const player = playerDoc.data() as Player;
+        const playerDoc = await transaction.get(playerRef);
+        if (!playerDoc.exists()) throw "Player not found";
+        const player = playerDoc.data() as Player;
 
-      // BATTLE MODE: Check for status effects
-      if (data.mode === "BATTLE" && player.statusEffects) {
-        const now = timeService.now();
-        // Cleanup expired effects
-        player.statusEffects = player.statusEffects.filter(
-          (e) => e.expiresAt > now,
-        );
-        const activeEffects = player.statusEffects;
+        // BATTLE MODE: Check for status effects
+        if (data.mode === "BATTLE" && player.statusEffects) {
+          const now = timeService.now();
+          // Cleanup expired effects
+          player.statusEffects = player.statusEffects.filter(
+            (e) => e.expiresAt > now,
+          );
+          const activeEffects = player.statusEffects;
 
-        const isFrozen = activeEffects.some((e) => e.type === "FROZEN");
+          const isFrozen = activeEffects.some((e) => e.type === "FROZEN");
 
-        if (isFrozen) {
-          throw new Error("Bạn đang bị đóng băng, không thể trả lời!");
-        }
-
-        const isPoisoned = activeEffects.some((e) => e.type === "POISONED");
-        if (isPoisoned) {
-          player.hp = Math.max(0, (player.hp || 100) - 10); // Take 10 damage if poisoned when submitting
-        }
-      }
-
-      // Logic tính điểm
-      let points = 0;
-      const settings = data.settings || {
-        equalPoints: false,
-        timeBasedPoints: true,
-        streakBonus: true,
-      };
-
-      if (answerData.isCorrect === true) {
-        // Tính điểm cơ bản
-        let basePoints = settings.equalPoints ? 1000 : answerData.points || 0;
-
-        // Tính điểm theo thời gian (nếu được bật và không phải chế độ điểm bằng nhau)
-        if (settings.timeBasedPoints && !settings.equalPoints) {
-          const timeLimit = answerData.timeLimit || 30;
-          const timeTaken = answerData.timeTaken || 0;
-          const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
-          basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
-        }
-
-        // Tính điểm thưởng chuỗi đúng
-        const streakBonus = settings.streakBonus ? player.streak * 100 : 0;
-
-        points = basePoints + streakBonus;
-        player.streak += 1;
-
-        // BATTLE MODE: Grant Item (Only on correct answer)
-        if (data.mode === "BATTLE") {
-          const itemPool = [
-            "ATTACK",
-            "HEAL",
-            "LIGHTNING",
-            "POISON",
-            "BLIND",
-            "FREEZE",
-          ];
-          if (answerData.isFirstHalf) {
-            itemPool.push("SWAP");
-          }
-          const randomItem =
-            itemPool[Math.floor(Math.random() * itemPool.length)];
-
-          // Ensure items array exists and is unique to this player
-          if (!player.items) {
-            player.items = [];
-          } else {
-            // Create a copy to avoid any potential reference sharing
-            player.items = [...player.items];
+          if (isFrozen) {
+            throw new Error("Bạn đang bị đóng băng, không thể trả lời!");
           }
 
-          if (player.items.length < 3) {
-            // Max 3 items
-            player.items.push(randomItem);
+          const isPoisoned = activeEffects.some((e) => e.type === "POISONED");
+          if (isPoisoned) {
+            player.hp = Math.max(0, (player.hp || 100) - 10); // Take 10 damage if poisoned when submitting
           }
         }
-      } else {
-        player.streak = 0;
-      }
 
-      player.score += points;
-      player.progress += 1;
-      
-      const sanitizedAnswerData = removeUndefined(answerData);
+        // Logic tính điểm
+        let points = 0;
+        const settings = data.settings || {
+          equalPoints: false,
+          timeBasedPoints: true,
+          streakBonus: true,
+        };
 
-      player.answers = {
-        ...player.answers,
-        [questionId]: {
-          ...sanitizedAnswerData,
-          pointsAwarded: points,
-        },
-      };
+        if (answerData.isCorrect === true) {
+          // Tính điểm cơ bản
+          let basePoints = settings.equalPoints ? 1000 : answerData.points || 0;
 
-      transaction.set(playerRef, player, { merge: true });
-    });
+          // Tính điểm theo thời gian (nếu được bật và không phải chế độ điểm bằng nhau)
+          if (settings.timeBasedPoints && !settings.equalPoints) {
+            const timeLimit = answerData.timeLimit || 30;
+            const timeTaken = answerData.timeTaken || 0;
+            const timeRatio = Math.max(0, (timeLimit - timeTaken) / timeLimit);
+            basePoints = Math.round(basePoints * (0.5 + 0.5 * timeRatio));
+          }
+
+          // Tính điểm thưởng chuỗi đúng
+          const streakBonus = settings.streakBonus ? player.streak * 100 : 0;
+
+          points = basePoints + streakBonus;
+          player.streak += 1;
+
+          // BATTLE MODE: Grant Item (Only on correct answer)
+          if (data.mode === "BATTLE") {
+            const itemPool = [
+              "ATTACK",
+              "HEAL",
+              "LIGHTNING",
+              "POISON",
+              "BLIND",
+              "FREEZE",
+            ];
+            if (answerData.isFirstHalf) {
+              itemPool.push("SWAP");
+            }
+            const randomItem =
+              itemPool[Math.floor(Math.random() * itemPool.length)];
+
+            // Ensure items array exists and is unique to this player
+            if (!player.items) {
+              player.items = [];
+            } else {
+              // Create a copy to avoid any potential reference sharing
+              player.items = [...player.items];
+            }
+
+            if (player.items.length < 3) {
+              // Max 3 items
+              player.items.push(randomItem);
+            }
+          }
+        } else {
+          player.streak = 0;
+        }
+
+        player.score += points;
+        player.progress += 1;
+        
+        const sanitizedAnswerData = removeUndefined(answerData);
+
+        player.answers = {
+          ...player.answers,
+          [questionId]: {
+            ...sanitizedAnswerData,
+            pointsAwarded: points,
+          },
+        };
+
+        transaction.set(playerRef, player, { merge: true });
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `sessions/${sessionId}/players/${playerId}`);
+      throw error;
+    }
   },
 
   // Đánh dấu người chơi đã hoàn thành bài thi

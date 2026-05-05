@@ -15,6 +15,7 @@ export interface EditorQuestionData {
   options: string[];
   optionImageUrls?: (string | null)[];
   correctIndex: number;
+  clusterAnswers?: boolean[];
   shortAnswerText?: string;
   points: number;
 }

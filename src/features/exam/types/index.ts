@@ -10,6 +10,7 @@ export interface ExamQuestion {
   optionImageUrls?: (string | null)[];
   // Obfuscated index of the correct option (e.g. atob/btoa or simple XOR) or string answer.
   obfuscatedAnswer?: string; 
+  clusterAnswers?: boolean[]; // For true_false_cluster
 }
 
 export interface Exam {
@@ -24,9 +25,12 @@ export interface Exam {
   status: 'published' | 'closed';
   teacherId: string;
   createdAt: number;
+  updatedAt?: number;
   folderId?: string | null;
   pin?: string;
   clusterScoringType?: 'vietnamese_2025' | 'proportional';
+  isPracticeMode?: boolean;
+  passingPercentage?: number;
 }
 
 export interface ExamFolder {

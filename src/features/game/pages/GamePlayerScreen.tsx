@@ -27,6 +27,7 @@ export default function GamePlayerScreen() {
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(undefined);
   const [playerName, setPlayerName] = useState('');
   const [shortAnswerText, setShortAnswerText] = useState('');
+  const [clusterAnswers, setClusterAnswers] = useState<Record<number, boolean>>({});
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [localAnswers, setLocalAnswers] = useState<Record<string, any>>({});
   const [showReview, setShowReview] = useState(false);
@@ -384,7 +385,7 @@ export default function GamePlayerScreen() {
   }
 
   // Handle answer submission
-  const handleAnswer = async (optionId: string | null, textAnswer?: string) => {
+  const handleAnswer = async (optionId: string | null, textAnswer?: string, clusterAns?: Record<number, boolean>) => {
     if (isSubmitted || !quiz || !session || shuffledQuestions.length === 0) return;
     
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
@@ -396,6 +397,27 @@ export default function GamePlayerScreen() {
       isAnswerCorrect = (currentQuestion.options || []).some(
         opt => opt.text.trim().toLowerCase() === textAnswer.trim().toLowerCase()
       );
+    } else if (currentQuestion.type === 'TRUE_FALSE_CLUSTER') {
+      if (!clusterAns || Object.keys(clusterAns).length < (currentQuestion.options.length)) return;
+      
+      // Calculate correctness for each sub-question
+      let correctCount = 0;
+      currentQuestion.options.forEach((opt, idx) => {
+        const studentChoice = clusterAns[idx];
+        if (studentChoice === opt.isCorrect) {
+          correctCount++;
+        }
+      });
+      
+      // In Vietnamese exam format 2025:
+      // 1 ý đúng: 0.1đ (?) - No, it's weighted.
+      // But for simplicity in "Quizizz" mode, we might want "completely correct" or proportional.
+      // Let's go with proportional points if possible, or just completely correct.
+      // Since this is a Quizizz clone, "completely correct" is more common for full points.
+      isAnswerCorrect = correctCount === currentQuestion.options.length;
+      
+      // We'll store the combined answer in optionId for tracking
+      optionId = currentQuestion.options.map((_, idx) => clusterAns[idx] ? 'T' : 'F').join(',');
     } else if (currentQuestion.type === 'SURVEY') {
       if (!optionId) return;
       setSelectedOptionId(optionId);
@@ -526,6 +548,7 @@ export default function GamePlayerScreen() {
             setIsSubmitted(false);
             setSelectedOptionId(null);
             setShortAnswerText('');
+            setClusterAnswers({});
             setIsCorrect(false);
             setHasFailedCurrentQuestion(false); // Reset for next question
             setQuestionStartTime(Date.now());
@@ -691,6 +714,27 @@ export default function GamePlayerScreen() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    ) : q.type === 'TRUE_FALSE_CLUSTER' ? (
+                      <div className="space-y-3">
+                        <div className="mb-2 text-sm text-gray-500 font-medium">Chi tiết trả lời:</div>
+                        {q.options.map((opt, oIdx) => {
+                          const subAnswers = (answer?.optionId || '').split(',');
+                          const studentChoice = subAnswers[oIdx]; // 'T' or 'F'
+                          const isSubCorrect = (studentChoice === 'T' && opt.isCorrect) || (studentChoice === 'F' && !opt.isCorrect);
+                          
+                          return (
+                            <div key={opt.id} className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                               <div className="flex-1 text-sm"><span className="font-bold opacity-50 mr-2">{String.fromCharCode(97 + oIdx)}.</span><MathText text={opt.text} /></div>
+                               <div className="flex gap-2 shrink-0 text-xs">
+                                  <div className="flex flex-col items-end">
+                                    <span className="text-gray-400">Bạn chọn: <span className={`font-bold ${isSubCorrect ? 'text-green-600' : 'text-red-600'}`}>{studentChoice === 'T' ? 'Đúng' : studentChoice === 'F' ? 'Sai' : '(Trống)'}</span></span>
+                                    <span className="text-green-600 font-bold">Chuẩn: {opt.isCorrect ? 'Đúng' : 'Sai'}</span>
+                                  </div>
+                               </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -898,6 +942,42 @@ export default function GamePlayerScreen() {
                   </div>
                </div>
             )}
+          </div>
+        ) : currentQuestion.type === 'TRUE_FALSE_CLUSTER' ? (
+          <div className="w-full max-w-2xl mx-auto space-y-3">
+             {currentQuestion.options.map((opt, idx) => (
+                <div key={opt.id} className="bg-white rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 border border-gray-100 shadow-sm">
+                   <div className="flex-1 text-left font-bold text-lg leading-tight">
+                      <span className="opacity-50 mr-2">{String.fromCharCode(97 + idx)}.</span>
+                      <MathText text={opt.text} />
+                   </div>
+                   <div className="flex gap-2 shrink-0">
+                      <button 
+                        onClick={() => !isSubmitted && setClusterAnswers({...clusterAnswers, [idx]: true})}
+                        className={`px-4 py-2 text-sm rounded-lg font-black transition-all ${clusterAnswers[idx] === true ? 'bg-green-500 text-white shadow-lg' : 'bg-gray-100 text-gray-500'} ${isSubmitted && clusterAnswers[idx] === true && !opt.isCorrect && 'bg-red-500'} ${isSubmitted && opt.isCorrect && 'ring-4 ring-green-400 opacity-100'}`}
+                        disabled={isSubmitted}
+                      >
+                        ĐÚNG
+                      </button>
+                      <button 
+                        onClick={() => !isSubmitted && setClusterAnswers({...clusterAnswers, [idx]: false})}
+                        className={`px-4 py-2 text-sm rounded-lg font-black transition-all ${clusterAnswers[idx] === false ? 'bg-red-500 text-white shadow-lg' : 'bg-gray-100 text-gray-500'} ${isSubmitted && clusterAnswers[idx] === false && opt.isCorrect && 'bg-red-500'} ${isSubmitted && !opt.isCorrect && 'ring-4 ring-green-400 opacity-100'}`}
+                        disabled={isSubmitted}
+                      >
+                        SAI
+                      </button>
+                   </div>
+                </div>
+             ))}
+             {!isSubmitted && (
+                <button
+                  onClick={() => handleAnswer(null, undefined, clusterAnswers)}
+                  disabled={Object.keys(clusterAnswers).length < currentQuestion.options.length}
+                  className="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold text-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md mt-4"
+                >
+                  XÁC NHẬN CÂU TRẢ LỜI
+                </button>
+             )}
           </div>
         ) : (
           <div className={`grid ${currentQuestion.type === 'TRUE_FALSE' ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} gap-4`}>
