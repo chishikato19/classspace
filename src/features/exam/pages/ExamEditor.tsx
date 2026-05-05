@@ -490,24 +490,40 @@ export default function ExamEditor() {
                <p className="text-sm text-indigo-700">Hỗ trợ định dạng .docx. Hình ảnh trong dòng (inline) sẽ được tự động trích xuất.</p>
                <details className="mt-2 text-xs text-indigo-800">
                  <summary className="cursor-pointer font-medium hover:text-indigo-900">Xem mẫu nhận diện file Word</summary>
-                 <div className="mt-2 bg-indigo-100/50 p-3 rounded border border-indigo-100">
-                   <strong>Cấu trúc chuẩn:</strong><br />
-                   Câu 1: Nội dung câu hỏi...<br />
-                   A. Lựa chọn A<br />
-                   <u>B. Lựa chọn B (Gạch chân đáp án đúng)</u><br />
-                   C. Lựa chọn C<br />
-                   D. Lựa chọn D<br />
-                   <br />
-                   <em>Hoặc đánh dấu sao trước đáp án đúng: *B. Lựa chọn B</em><br /><br />
-                   <strong>Đối với câu hỏi Đúng/Sai:</strong><br />
-                   Dùng từ khóa (Đúng/Sai) sau Câu X. Ghi A. Đúng, B. Sai.<br />
-                   Ví dụ: Câu 2 (Đúng/Sai): Mặt trời mọc ở hướng Đông.<br />
-                   <u>A. Đúng</u><br />
-                   B. Sai<br /><br />
-                   <strong>Đối với câu hỏi Trả lời ngắn:</strong><br />
-                   Dùng từ khóa (Trả lời ngắn). Sau đó ghi đáp án.<br />
-                   Ví dụ: Câu 3 (Trả lời ngắn): Thủ đô của Việt Nam là gì?<br />
-                   Đáp án: Hà Nội || Thu do Ha Noi
+                 <div className="mt-2 bg-indigo-100/50 p-3 rounded border border-indigo-100 space-y-3">
+                   <div>
+                     <strong className="block mb-1">1. Cấu trúc Trắc nghiệm (MCQ):</strong>
+                     Câu 1: Nội dung câu hỏi...<br />
+                     A. Lựa chọn A<br />
+                     <u>B. Lựa chọn B (Gạch chân đáp án đúng)</u><br />
+                     C. Lựa chọn C<br />
+                     D. Lựa chọn D<br />
+                     <em className="text-indigo-600">Hoặc đánh dấu sao trước đáp án đúng: *B. Lựa chọn B</em>
+                   </div>
+
+                   <div>
+                     <strong className="block mb-1">2. Cấu trúc Đúng/Sai (Câu chùm - Chuẩn 2025):</strong>
+                     Dùng từ khóa <code className="bg-indigo-200 px-1 rounded">(Chùm đúng/sai)</code> sau số câu. Ghi 4 ý lựa chọn.<br />
+                     Ví dụ: Câu 2 (Chùm đúng/sai): Cho hàm số y = f(x)...<br />
+                     A. Ý thứ nhất đúng<br />
+                     B. Ý thứ hai sai<br />
+                     C. Ý thứ ba đúng<br />
+                     D. Ý thứ tư sai<br />
+                     Đáp án: Đúng, Sai, Đúng, Sai
+                   </div>
+
+                   <div>
+                     <strong className="block mb-1">3. Cấu trúc Trả lời ngắn:</strong>
+                     Dùng từ khóa <code className="bg-indigo-200 px-1 rounded">(Trả lời ngắn)</code>.<br />
+                     Ví dụ: Câu 3 (Trả lời ngắn): Thủ đô của Việt Nam là gì?<br />
+                     Đáp án: Hà Nội || Thu do Ha Noi <em className="text-indigo-600">(Dùng || để ngăn cách các đáp án đúng)</em>
+                   </div>
+
+                   <div>
+                     <strong className="block mb-1 text-red-700">4. Công thức Toán học (LaTeX):</strong>
+                     Nhập mã LaTeX giữa cặp ký hiệu <code className="bg-indigo-200 px-1 rounded">$</code> cho công thức trên dòng hoặc <code className="bg-indigo-200 px-1 rounded">$$</code> cho khối công thức.<br />
+                     Ví dụ: <code className="bg-indigo-200 px-1 rounded">$\sqrt{x^2 + 1}$</code> sẽ hiển thị là công thức toán.
+                   </div>
                  </div>
                </details>
             </div>
