@@ -12,22 +12,25 @@ const teacherFoldersCache = new Map<string, { data: Folder[], timestamp: number 
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
-// Helper function to remove undefined values from an object
-const sanitizeData = (data: any) => {
-  const sanitized = { ...data };
-  Object.keys(sanitized).forEach(key => {
-    if (sanitized[key] === undefined) {
-      delete sanitized[key];
-    }
-  });
-  return sanitized;
+// Helper function to remove undefined values recursively
+const removeUndefined = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(v => (v === undefined ? null : removeUndefined(v)));
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, removeUndefined(v)])
+    );
+  }
+  return obj;
 };
 
 export const quizService = {
   // Tạo bộ câu hỏi mới
   createQuiz: async (quiz: Omit<Quiz, 'id'>): Promise<string> => {
     try {
-      const docRef = await addDoc(getQuizzesRef(), sanitizeData(quiz));
+      const docRef = await addDoc(getQuizzesRef(), removeUndefined(quiz));
       const newQuiz = { id: docRef.id, ...quiz } as Quiz;
       quizCache.set(docRef.id, newQuiz);
       teacherQuizzesCache.delete(quiz.teacherId); // Invalidate list cache
@@ -42,7 +45,7 @@ export const quizService = {
   updateQuiz: async (quizId: string, quizData: Partial<Quiz>): Promise<void> => {
     try {
       const docRef = doc(db, 'quizzes', quizId);
-      await updateDoc(docRef, sanitizeData(quizData));
+      await updateDoc(docRef, removeUndefined(quizData));
       
       // Update cache if it exists
       if (quizCache.has(quizId)) {
@@ -142,7 +145,7 @@ export const quizService = {
   // --- Folder Management ---
   createFolder: async (folder: Omit<Folder, 'id'>): Promise<string> => {
     try {
-      const docRef = await addDoc(getFoldersRef(), sanitizeData(folder));
+      const docRef = await addDoc(getFoldersRef(), removeUndefined(folder));
       teacherFoldersCache.delete(folder.teacherId);
       return docRef.id;
     } catch (error) {
@@ -154,7 +157,7 @@ export const quizService = {
   updateFolder: async (folderId: string, folderData: Partial<Folder>): Promise<void> => {
     try {
       const docRef = doc(db, 'folders', folderId);
-      await updateDoc(docRef, sanitizeData(folderData));
+      await updateDoc(docRef, removeUndefined(folderData));
       teacherFoldersCache.clear(); // Simple invalidation
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `folders/${folderId}`);

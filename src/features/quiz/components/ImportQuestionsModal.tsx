@@ -44,7 +44,7 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
           } else {
             isCorrect = (i === eq.correctIndex);
           }
-          let optImageUrl = undefined;
+          let optImageUrl = '';
           
           return {
             id: crypto.randomUUID(),
@@ -58,7 +58,7 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
           options.push({
             id: crypto.randomUUID(),
             text: eq.shortAnswerText,
-            imageUrl: undefined,
+            imageUrl: '',
             isCorrect: true
           });
         }
@@ -66,7 +66,7 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
         // If there are images in the parsed text `![Image](url)`, we can pull out one if we want, or leave it in the text.
         // `wordImport` keeps images in the markdown `text` field. We will let standard ReactMarkdown handle it, or we can extract the first image.
         let finalText = eq.text;
-        let imageUrl: undefined | string = undefined;
+        let imageUrl = '';
 
         const imgMatch = finalText.match(/!\[.*?\]\((.*?)\)/);
         if (imgMatch) {
@@ -78,7 +78,7 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
           id: crypto.randomUUID(),
           type: qType as any,
           text: finalText,
-          imageUrl,
+          imageUrl: imageUrl || '',
           options,
           timeLimit: 30,
           points: 100

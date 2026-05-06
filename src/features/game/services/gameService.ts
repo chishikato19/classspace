@@ -150,7 +150,7 @@ export const gameService = {
         const batch = writeBatch(db);
         initialPlayers.forEach(player => {
           const playerRef = doc(db, "sessions", docRef.id, "players", player.id);
-          batch.set(playerRef, player);
+          batch.set(playerRef, removeUndefined(player));
         });
         await batch.commit();
       }
