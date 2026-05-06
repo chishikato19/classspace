@@ -5,11 +5,21 @@ export const parseQuestionsFromText = (text: string): Question[] => {
   
   // Helper to extract image marker
   const extractImage = (str: string): { text: string, imageUrl: string } => {
+    // Legacy [IMG:...] match
     const imgRegex = /\[IMG:(data:image\/[^\]]+)\]/i;
-    const match = str.match(imgRegex);
+    let match = str.match(imgRegex);
     if (match) {
       return {
         text: str.replace(imgRegex, '').trim(),
+        imageUrl: match[1]
+      };
+    }
+    // Markdown ![alt](url) match
+    const mdImgRegex = /!\[.*?\]\((https?:\/\/[^\)]+)\)/i;
+    match = str.match(mdImgRegex);
+    if (match) {
+      return {
+        text: str.replace(mdImgRegex, '').trim(),
         imageUrl: match[1]
       };
     }
