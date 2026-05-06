@@ -163,14 +163,28 @@ export default function QuizEditor() {
     setQuestions(newQuestions);
   };
 
-  const handleImageUpload = async (file: File, callback: (base64: string) => void) => {
+  const handleImageUpload = async (file: File, callback: (url: string) => void) => {
     try {
-      const base64 = await compressImage(file);
-      callback(base64);
+      if (!auth.currentUser) return;
+      const ext = file.name.split('.').pop() || 'png';
+      const fileName = `users/${auth.currentUser.uid}/quizzes/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const { storage } = await import('../../../config/firebase');
+      const fileRef = ref(storage, fileName);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      callback(url);
     } catch (error) {
       console.error("Error processing image", error);
       alert("Lỗi xử lý ảnh. Vui lòng thử lại.");
     }
+  };
+
+  const removeImage = (url: string, callback: () => void) => {
+    callback();
+    import('../../exam/utils/storage').then(({ deleteFileFromUrl }) => {
+      deleteFileFromUrl(url);
+    });
   };
 
   const handleAddShortAnswerOption = (qIndex: number) => {
@@ -474,13 +488,13 @@ export default function QuizEditor() {
                           accept="image/*"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) handleImageUpload(file, (base64) => handleQuestionChange(qIndex, 'imageUrl', base64));
+                            if (file) handleImageUpload(file, (url) => handleQuestionChange(qIndex, 'imageUrl', url));
                           }}
                         />
                       </label>
                       {q.imageUrl && (
                         <button
-                          onClick={() => handleQuestionChange(qIndex, 'imageUrl', '')}
+                          onClick={() => removeImage(q.imageUrl!, () => handleQuestionChange(qIndex, 'imageUrl', ''))}
                           className="text-red-500 text-sm hover:underline"
                         >
                           Xóa ảnh
@@ -554,13 +568,13 @@ export default function QuizEditor() {
                                 accept="image/*"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                                  if (file) handleImageUpload(file, (url) => handleOptionChange(qIndex, oIndex, 'imageUrl', url));
                                 }}
                               />
                             </label>
                             {opt.imageUrl && (
                               <button
-                                onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
+                                onClick={() => removeImage(opt.imageUrl!, () => handleOptionChange(qIndex, oIndex, 'imageUrl', ''))}
                                 className="text-xs text-red-500 hover:underline ml-2"
                               >
                                 Xóa
@@ -660,13 +674,13 @@ export default function QuizEditor() {
                                 accept="image/*"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) handleImageUpload(file, (base64) => handleOptionChange(qIndex, oIndex, 'imageUrl', base64));
+                                  if (file) handleImageUpload(file, (url) => handleOptionChange(qIndex, oIndex, 'imageUrl', url));
                                 }}
                               />
                             </label>
                             {opt.imageUrl && (
                               <button
-                                onClick={() => handleOptionChange(qIndex, oIndex, 'imageUrl', '')}
+                                onClick={() => removeImage(opt.imageUrl!, () => handleOptionChange(qIndex, oIndex, 'imageUrl', ''))}
                                 className="text-xs text-red-500 hover:underline ml-2"
                               >
                                 Xóa

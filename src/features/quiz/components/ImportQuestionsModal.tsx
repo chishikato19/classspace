@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Question } from '../../../types';
 import { parseQuestionsFromText } from '../../../utils/questionParser';
-import { X, FileText, CheckCircle, AlertCircle, ArrowRight, Upload } from 'lucide-react';
+import { X, FileText, CheckCircle, AlertCircle, ArrowRight, Upload, ImagePlus } from 'lucide-react';
 import mammoth from 'mammoth';
 import { MathText } from '../../../components/MathText';
+import { importQuestionsFromWord } from '../../exam/utils/wordImport';
+import { auth, storage } from '../../../config/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface ImportQuestionsModalProps {
   isOpen: boolean;
@@ -25,50 +28,102 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
 
     setIsProcessingFile(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      // Use convertToHtml to get images
-      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const uid = auth.currentUser?.uid || 'anonymous';
+      const { questions: examQuestions } = await importQuestionsFromWord(file, uid);
       
-      // Convert HTML to text with [IMG:...] markers
-      const div = document.createElement('div');
-      div.innerHTML = result.value;
-      
-      let extractedText = '';
-      const traverse = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          extractedText += node.textContent;
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const el = node as HTMLElement;
-          if (el.tagName === 'IMG') {
-            const src = (el as HTMLImageElement).src;
-            extractedText += `\n[IMG:${src}]\n`;
-          } else if (el.tagName === 'P' || el.tagName === 'DIV' || el.tagName === 'BR' || el.tagName === 'TR') {
-            extractedText += '\n';
-          } else if (el.tagName === 'TD' || el.tagName === 'TH') {
-            extractedText += ' ';
+      const mappedQuestions: Question[] = examQuestions.map(eq => {
+        let qType = 'SHORT_ANSWER';
+        if (eq.type === 'multiple_choice' || eq.type === undefined) qType = 'MULTIPLE_CHOICE';
+        else if (eq.type === 'true_false') qType = 'TRUE_FALSE';
+        else if (eq.type === 'true_false_cluster') qType = 'TRUE_FALSE_CLUSTER';
+
+        const options = eq.options.map((opt, i) => {
+          let isCorrect = false;
+          if (qType === 'TRUE_FALSE_CLUSTER' && eq.clusterAnswers) {
+            isCorrect = !!eq.clusterAnswers[i];
+          } else {
+            isCorrect = (i === eq.correctIndex);
           }
+          let optImageUrl = undefined;
           
-          for (let i = 0; i < el.childNodes.length; i++) {
-            traverse(el.childNodes[i]);
-          }
-          
-          if (el.tagName === 'P' || el.tagName === 'DIV' || el.tagName === 'TABLE') {
-            extractedText += '\n';
-          }
+          return {
+            id: crypto.randomUUID(),
+            text: opt,
+            imageUrl: optImageUrl,
+            isCorrect
+          };
+        });
+
+        if (qType === 'SHORT_ANSWER' && eq.shortAnswerText) {
+          options.push({
+            id: crypto.randomUUID(),
+            text: eq.shortAnswerText,
+            imageUrl: undefined,
+            isCorrect: true
+          });
         }
-      };
-      
-      traverse(div);
-      
-      // Clean up multiple newlines
-      const cleanText = extractedText.replace(/\n{3,}/g, '\n\n').trim();
-      
-      setText(cleanText);
+
+        // If there are images in the parsed text `![Image](url)`, we can pull out one if we want, or leave it in the text.
+        // `wordImport` keeps images in the markdown `text` field. We will let standard ReactMarkdown handle it, or we can extract the first image.
+        let finalText = eq.text;
+        let imageUrl: undefined | string = undefined;
+
+        const imgMatch = finalText.match(/!\[.*?\]\((.*?)\)/);
+        if (imgMatch) {
+           imageUrl = imgMatch[1];
+           finalText = finalText.replace(imgMatch[0], '').trim();
+        }
+
+        return {
+          id: crypto.randomUUID(),
+          type: qType as any,
+          text: finalText,
+          imageUrl,
+          options,
+          timeLimit: 30,
+          points: 100
+        };
+      });
+
+      setParsedQuestions(mappedQuestions);
+      setStep('PREVIEW');
     } catch (error) {
       console.error("Error reading file:", error);
       alert("Không thể đọc file Word. Vui lòng thử lại hoặc copy nội dung thủ công.");
     } finally {
       setIsProcessingFile(false);
+    }
+  };
+
+  const handleImageInsert = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !storage || !auth.currentUser) return;
+    
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const fileName = `users/${auth.currentUser.uid}/exams/word_imports/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const fileRef = ref(storage, fileName);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      
+      const textarea = document.getElementById('text-input') as HTMLTextAreaElement;
+      const imgMarkdown = `\n![Hình ảnh](${url})\n`;
+      
+      if (textarea) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newText = text.substring(0, start) + imgMarkdown + text.substring(end);
+        setText(newText);
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + imgMarkdown.length, start + imgMarkdown.length);
+        }, 10);
+      } else {
+        setText(prev => prev + imgMarkdown);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Tải ảnh lên thất bại!');
     }
   };
 
@@ -112,17 +167,17 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
           {step === 'INPUT' ? (
             <div className="flex-1 p-6 flex flex-col gap-4">
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
-                <p className="font-bold mb-2 flex items-center gap-2"><AlertCircle className="w-4 h-4"/> Hướng dẫn định dạng:</p>
+                <p className="font-bold mb-2 flex items-center gap-2"><AlertCircle className="w-4 h-4"/> Hướng dẫn định dạng (Hỗ trợ chung cho Quizizz & Đề thi):</p>
                 <ul className="list-disc pl-5 space-y-1 opacity-90">
-                  <li>Câu hỏi bắt đầu bằng: <strong>Câu 1:, Bài 1:, 1.</strong></li>
-                  <li>Đáp án trắc nghiệm: <strong>A. B. C. D.</strong> hoặc <strong>a) b) c) d)</strong></li>
+                  <li>Câu hỏi bắt đầu bằng: <strong>Câu 1:, Bài 1:</strong> (VD: <i>Câu 1 (đúng/sai):</i>, <i>Câu 2 (chùm đúng sai):</i>)</li>
+                  <li>Đáp án trắc nghiệm: <strong>A. B. C. D.</strong> (Có thể đánh dấu đúng bằng <strong>*A.</strong>)</li>
+                  <li>Phần đáp án đúng nằm ở cuối file: <strong>Trả lời: 1. A  2. B</strong>...</li>
+                  <li>Hoặc ghi trực tiếp dưới mỗi câu: <strong>Đáp án: A</strong></li>
                   <li>Hỗ trợ mã Latex: Ví dụ <strong>$x^2 + y^2 = r^2$</strong></li>
-                  <li>Câu hỏi chùm: Gồm 4 ý a, b, c, d. Đáp án ghi dạng: <strong>1. a:Đ, b:S, c:Đ, d:S</strong></li>
-                  <li>Phần đáp án đúng nằm ở cuối, sau từ khóa: <strong>Trả lời:</strong> hoặc <strong>Đáp án:</strong></li>
                 </ul>
               </div>
 
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                   <Upload className="w-4 h-4" />
                   {isProcessingFile ? 'Đang đọc file...' : 'Tải file Word (.docx)'}
@@ -134,10 +189,21 @@ export default function ImportQuestionsModal({ isOpen, onClose, onImport }: Impo
                     disabled={isProcessingFile}
                   />
                 </label>
-                <span className="text-xs text-gray-500">Hoặc dán nội dung vào bên dưới</span>
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
+                  <ImagePlus className="w-4 h-4" />
+                  Chèn ảnh vào văn bản
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageInsert}
+                  />
+                </label>
+                <span className="text-xs text-gray-500 ml-2">Bạn có thể chèn ảnh cho câu hỏi và đáp án</span>
               </div>
               
               <textarea
+                id="text-input"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder={`Ví dụ mẫu:

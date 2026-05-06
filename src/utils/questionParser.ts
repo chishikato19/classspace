@@ -16,19 +16,23 @@ export const parseQuestionsFromText = (text: string): Question[] => {
     return { text: str.trim(), imageUrl: '' };
   };
 
-  // 1. Split Questions and Answers block
-  // Assuming answers block starts with "Trả lời" or "Đáp án"
-  const answerBlockRegex = /(?:Trả lời|Đáp án)[:\.\n]/i;
-  const parts = text.split(answerBlockRegex);
+  // 1. Split Questions and Answers block ONLY if there's a standalone "Trả lời:" or "Đáp án:" at the end
+  // We should be careful not to split inline "Đáp án: A" attached to each question.
+  // A global answer block usually has multiple lines like "1. A", "2. B" after it.
+  let questionContent = text;
+  let answerContent = '';
   
-  const questionContent = parts[0];
-  const answerContent = parts.length > 1 ? parts.slice(1).join(' ') : '';
+  // Look for a block at the bottom that starts with Trả lời or Đáp án, followed by numbered answers.
+  const globalAnswerBlockRegex = /(?:Trả lời|Đáp án)[:\.\n]\s*(?:\d+[\.\s:\)]+[^\d\n]+[ \t\n]*)+$/i;
+  const globalMatch = text.match(globalAnswerBlockRegex);
+  if (globalMatch) {
+    answerContent = globalMatch[0];
+    questionContent = text.substring(0, text.length - answerContent.length);
+  }
 
-  // 2. Parse Answers Map
+  // 2. Parse Answers Map from the global block
   const answerMap = new Map<number, string>();
   if (answerContent) {
-    // Matches "1. A", "1 A", "1: A", "1) A", "1. Đúng", "1. True"
-    // Also handles cluster answers: "1. a:Đ, b:S, c:Đ, d:S"
     const answerRegex = /(\d+)[\.\s:\)]+([^\d\n]+)/g;
     let match;
     while ((match = answerRegex.exec(answerContent)) !== null) {
@@ -40,7 +44,6 @@ export const parseQuestionsFromText = (text: string): Question[] => {
 
   // 3. Parse Questions
   // Regex to find start of a question: "Câu 1:", "Bài 1:", "1.", "Câu 1."
-  // We use a lookahead to split by question start, keeping the delimiter
   const questionSplitRegex = /(?=(?:^|\n)(?:Câu|Bài|Question)\s*\d+[:\.]?|(?=(?:^|\n)\d+[\.:]))/i;
   
   const rawQuestions = questionContent
@@ -49,72 +52,77 @@ export const parseQuestionsFromText = (text: string): Question[] => {
     .filter(q => q.length > 0);
 
   rawQuestions.forEach((rawQ, index) => {
-    // Extract Question Number (optional, for mapping answers)
     const qNumMatch = rawQ.match(/(?:Câu|Bài|Question)?\s*(\d+)[:\.]?/i);
     const qNum = qNumMatch ? parseInt(qNumMatch[1]) : index + 1;
     
-    // Remove the "Câu 1:" prefix to get text
     let qTextRaw = rawQ.replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
     
-    // Extract Options
-    // Options usually start with A. B. C. D. or a) b) c) d)
-    const options: { id: string; text: string; isCorrect: boolean; imageUrl?: string }[] = [];
-    let type: QuestionType = 'SHORT_ANSWER'; // Default
-
-    // Split by options
-    // Regex matches "A.", "A)", "a.", "a)" at start of line or after space
-    const optionSplitRegex = /(?:^|\n|\s+)([A-D a-d])[\.\)]/g;
+    // Check for inline answer at the end of the question block: "Đáp án: A"
+    const inlineAnswerRegex = /(?:^|\n)Đáp\s*án\s*[:\.]\s*(.*)$/i;
+    const inlineMatch = qTextRaw.match(inlineAnswerRegex);
+    let inlineAnswer = '';
+    if (inlineMatch) {
+      inlineAnswer = inlineMatch[1].trim();
+      qTextRaw = qTextRaw.replace(inlineAnswerRegex, '').trim();
+    }
     
-    // Check if options exist
-    const optionMatches = Array.from(rawQ.matchAll(optionSplitRegex));
+    const correctAnswerStr = inlineAnswer || answerMap.get(qNum);
+
+    const options: { id: string; text: string; isCorrect: boolean; imageUrl?: string }[] = [];
+    let type: QuestionType = 'SHORT_ANSWER'; 
+    let specifiedTypeMatch = rawQ.match(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*\((.*?)\)/i);
+    if (specifiedTypeMatch) {
+      const t = specifiedTypeMatch[1].toLowerCase();
+      if (t.includes('chùm đúng')) type = 'TRUE_FALSE_CLUSTER';
+      else if (t.includes('đúng') || t.includes('sai')) type = 'TRUE_FALSE';
+      else if (t.includes('trả lời ngắn')) type = 'SHORT_ANSWER';
+    }
+
+    // Split by options: A., *A., A), *A)
+    const optionSplitRegex = /(?:^|\n|\s+)(\*?[A-D a-d])[\.\)]/g;
+    const optionMatches = Array.from(qTextRaw.matchAll(optionSplitRegex));
     
     if (optionMatches.length >= 2) {
-      // Check if it's a cluster question (has A, B, C, D AND answer map shows cluster format)
-      const correctAnswer = answerMap.get(qNum);
-      const isClusterAns = correctAnswer && (
-        correctAnswer.toLowerCase().includes('a:') || 
-        correctAnswer.toLowerCase().includes('a)') ||
-        correctAnswer.toLowerCase().includes('a.')
+      const isClusterAns = correctAnswerStr && (
+        correctAnswerStr.toLowerCase().includes('a:') || 
+        correctAnswerStr.toLowerCase().includes('a)') ||
+        correctAnswerStr.toLowerCase().includes('a.')
       ) && (
-        correctAnswer.toLowerCase().includes('đ') || 
-        correctAnswer.toLowerCase().includes('s') ||
-        correctAnswer.toLowerCase().includes('t') || 
-        correctAnswer.toLowerCase().includes('f')
+        correctAnswerStr.toLowerCase().includes('đ') || 
+        correctAnswerStr.toLowerCase().includes('s') ||
+        correctAnswerStr.toLowerCase().includes('t') || 
+        correctAnswerStr.toLowerCase().includes('f')
       );
 
       if (isClusterAns && optionMatches.length === 4) {
         type = 'TRUE_FALSE_CLUSTER';
-      } else {
+      } else if (type === 'SHORT_ANSWER') { // If it wasn't explicitly set above
         type = 'MULTIPLE_CHOICE';
       }
       
-      // We need to split the text by these indices
-      const parts = rawQ.split(optionSplitRegex);
+      const parts = qTextRaw.split(optionSplitRegex);
       
-      // Clean up question text again from parts[0]
-      qTextRaw = parts[0].replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*/i, '').trim();
+      qTextRaw = parts[0].replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*(\(.*?\))?\s*/i, '').trim();
       
       for (let i = 1; i < parts.length; i += 2) {
-        const optLabel = parts[i].toUpperCase(); // A, B, C, D
+        const rawLabel = parts[i];
+        const isStarred = rawLabel.startsWith('*');
+        const optLabel = rawLabel.replace('*', '').toUpperCase();
         const optTextRaw = parts[i+1].trim();
         
-        // Extract image from option text if any
         const { text: optText, imageUrl: optImageUrl } = extractImage(optTextRaw);
 
-        // Check correctness from answer map
-        let isCorrect = false;
-        if (correctAnswer) {
+        let isCorrect = isStarred;
+        if (correctAnswerStr) {
            if (type === 'TRUE_FALSE_CLUSTER') {
-             // For cluster, look for "a:Đ" or "a:S" etc.
              const clusterRegex = new RegExp(`${optLabel.toLowerCase()}[\\:\\.\\)]\\s*([ĐSđsTFtf])`, 'i');
-             const clusterMatch = correctAnswer.match(clusterRegex);
+             const clusterMatch = correctAnswerStr.match(clusterRegex);
              if (clusterMatch) {
                const val = clusterMatch[1].toUpperCase();
-               isCorrect = (val === 'Đ' || val === 'T');
+               isCorrect = isCorrect || (val === 'Đ' || val === 'T');
              }
            } else {
-             // If answer is "A", "A.", "A)"
-             const cleanAns = correctAnswer.replace(/[\.\)]/g, '').trim().toUpperCase();
+             const cleanAns = correctAnswerStr.split(/[,;\s]/)[0].replace(/[\.\)]/g, '').trim().toUpperCase();
              if (cleanAns === optLabel) isCorrect = true;
            }
         }
@@ -127,30 +135,26 @@ export const parseQuestionsFromText = (text: string): Question[] => {
         });
       }
     } else {
-      // No options found. Check if True/False or Short Answer
-      const correctAnswer = answerMap.get(qNum);
-      
-      if (correctAnswer) {
-        const lowerAns = correctAnswer.toLowerCase();
+      qTextRaw = qTextRaw.replace(/^(?:Câu|Bài|Question)?\s*\d+[:\.]?\s*(\(.*?\))?\s*/i, '').trim();
+      if (correctAnswerStr) {
+        const lowerAns = correctAnswerStr.toLowerCase();
         if (['đúng', 'sai', 'true', 'false'].includes(lowerAns)) {
           type = 'TRUE_FALSE';
           const isTrue = lowerAns === 'đúng' || lowerAns === 'true';
           
           options.push({ id: crypto.randomUUID(), text: 'Đúng', isCorrect: isTrue });
           options.push({ id: crypto.randomUUID(), text: 'Sai', isCorrect: !isTrue });
-        } else {
+        } else if (type !== 'TRUE_FALSE_CLUSTER') {
           type = 'SHORT_ANSWER';
-          // For short answer, we usually store the correct answer in options list as a valid answer
           options.push({
              id: crypto.randomUUID(),
-             text: correctAnswer,
+             text: correctAnswerStr,
              isCorrect: true
           });
         }
       }
     }
 
-    // Extract image from question text
     const { text: finalQText, imageUrl: qImageUrl } = extractImage(qTextRaw);
 
     questions.push({

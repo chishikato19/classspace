@@ -10,6 +10,7 @@ import { Pickaxe, Save, Upload, FileText, PlusCircle, CheckSquare, ImagePlus, X,
 import { classService, ClassData } from '../../random-selector/services/classService';
 import ReactMarkdown from 'react-markdown';
 import { QuestionEditorCard, EditorQuestionData } from '../components/QuestionEditorCard';
+import ImportQuestionsModal from '../../quiz/components/ImportQuestionsModal';
 
 export default function ExamEditor() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export default function ExamEditor() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<{ qIndex: number, optIndex?: number } | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const totalScore = questions.reduce((acc, q) => acc + (q.points || 0), 0);
   const [localTotalScoreStr, setLocalTotalScoreStr] = useState<string>('');
@@ -48,6 +50,54 @@ export default function ExamEditor() {
       setLocalTotalScoreStr(Number(totalScore.toFixed(2)).toString());
     }
   }, [totalScore]);
+
+  const handleImportedQuestions = (importedQuestions: any[]) => {
+    if (importedQuestions.length > 0) {
+      if (window.confirm(`Bạn muốn đưa khối ${importedQuestions.length} câu hỏi mới này vào đề thi? Các câu hỏi đã có sẽ được giữ nguyên.`)) {
+        const pts = totalScore > 0 ? Number((totalScore / importedQuestions.length).toFixed(2)) : 0;
+        
+        const mappedExamData: EditorQuestionData[] = importedQuestions.map(q => {
+          let type: any = 'multiple_choice';
+          if (q.type === 'MULTIPLE_CHOICE') type = 'multiple_choice';
+          else if (q.type === 'TRUE_FALSE') type = 'true_false';
+          else if (q.type === 'TRUE_FALSE_CLUSTER') type = 'true_false_cluster';
+          else if (q.type === 'SHORT_ANSWER') type = 'short_answer';
+
+          const options = q.type === 'SHORT_ANSWER' ? [] : q.options.map((o: any) => o.text);
+          const optionImageUrls = q.type === 'SHORT_ANSWER' ? [] : q.options.map((o: any) => o.imageUrl || null);
+          
+          let correctIndex = 0;
+          let clusterAnswers = undefined;
+          let shortAnswerText = undefined;
+
+          if (type === 'true_false_cluster') {
+             clusterAnswers = q.options.map((o: any) => o.isCorrect);
+          } else if (type === 'short_answer') {
+             shortAnswerText = q.options[0]?.text || '';
+          } else {
+             correctIndex = q.options.findIndex((o: any) => o.isCorrect);
+             if (correctIndex === -1) correctIndex = 0;
+          }
+
+          return {
+            id: uuidv4(),
+            type,
+            text: q.text,
+            imageUrl: q.imageUrl || null,
+            options,
+            optionImageUrls,
+            correctIndex,
+            clusterAnswers,
+            shortAnswerText,
+            points: q.points || pts
+          };
+        });
+
+        setQuestions(prev => [...prev, ...mappedExamData]);
+        alert(`Đã nhập thành công ${mappedExamData.length} câu hỏi!`);
+      }
+    }
+  };
 
   const handleWordImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -561,16 +611,31 @@ export default function ExamEditor() {
                </details>
             </div>
          </div>
-         <label className="bg-white border text-center border-indigo-200 text-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50 shadow-sm transition-colors text-sm cursor-pointer whitespace-nowrap">
-            <span>Chọn File .docx</span>
-            <input 
-              type="file" 
-              accept=".docx" 
-              className="hidden" 
-              onChange={handleWordImport}
-            />
-         </label>
+         <div className="flex flex-col sm:flex-row gap-2">
+           <button
+             type="button"
+             onClick={() => setShowImportModal(true)}
+             className="bg-white border text-center border-indigo-200 text-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50 shadow-sm transition-colors text-sm cursor-pointer whitespace-nowrap"
+           >
+             Dán văn bản
+           </button>
+           <label className="bg-white border text-center border-indigo-200 text-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-50 shadow-sm transition-colors text-sm cursor-pointer whitespace-nowrap">
+              <span>Chọn File .docx</span>
+              <input 
+                type="file" 
+                accept=".docx" 
+                className="hidden" 
+                onChange={handleWordImport}
+              />
+           </label>
+         </div>
       </div>
+
+      <ImportQuestionsModal 
+        isOpen={showImportModal} 
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImportedQuestions}
+      />
 
       <input 
         type="file" 
