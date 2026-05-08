@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { Exam, ExamAttempt } from '../types';
 import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search, RefreshCw } from 'lucide-react';
@@ -149,6 +149,107 @@ export default function TeacherExamResultsPage() {
     document.body.removeChild(link);
   };
 
+  const calculateScoreAndCorrectCount = (examData: Exam, submissions: Record<string, number | string>) => {
+    let correctCount = 0;
+    let totalScore = 0;
+    
+    // Fallback for legacy exams without points setup
+    const isLegacy = examData.questions.every(q => typeof q.points !== 'number');
+    const legacyPointsPerQ = isLegacy ? 10 / examData.questions.length : 0;
+    
+    examData.questions.forEach(q => {
+      const sub = submissions[q.id];
+      if (sub !== undefined && q.obfuscatedAnswer) {
+        if (q.type === 'true_false_cluster') {
+          const realAnsStr = deobfuscateStringAnswer(q.obfuscatedAnswer || '', q.id);
+          const realAnswers = realAnsStr.split(',');
+          const studentAnswers = (String(sub) || '').split(',');
+          let cCount = 0;
+          realAnswers.forEach((ans, idx) => {
+            const normalizedAns = ans === 'true' ? 'T' : 'F';
+            if (studentAnswers[idx] === normalizedAns) cCount++;
+          });
+          if (cCount > 0) {
+            let multiplier = 0;
+            if (examData.clusterScoringType === 'proportional') {
+              multiplier = cCount / 4;
+            } else {
+              if (cCount === 1) multiplier = 0.1;
+              if (cCount === 2) multiplier = 0.25;
+              if (cCount === 3) multiplier = 0.5;
+              if (cCount === 4) multiplier = 1.0;
+            }
+            totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ) * multiplier;
+            if (cCount === 4) correctCount++;
+          }
+        } else if (q.type === 'short_answer') {
+          const correctAns = deobfuscateStringAnswer(q.obfuscatedAnswer, q.id);
+          const validAnswers = correctAns.split('||').map((s: string) => s.trim().toLowerCase());
+          const studentAns = String(sub).trim().toLowerCase();
+          if (validAnswers.includes(studentAns)) {
+            correctCount++;
+            totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+          }
+        } else {
+          // Multiple choice / True/False / Checkbox
+          const correctAns = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
+          if (sub === correctAns) {
+            correctCount++;
+            totalScore += (typeof q.points === 'number' ? q.points : legacyPointsPerQ);
+          }
+        }
+      }
+    });
+
+    return { 
+      score: parseFloat(totalScore.toFixed(2)), 
+      correct: correctCount 
+    };
+  };
+
+  const regradeAttempts = async () => {
+    if (!exam || attempts.length === 0) return;
+    
+    if (!window.confirm("Bạn có chắc chắn muốn chấm điểm lại toàn bộ bài làm? Quá trình này sẽ sử dụng thang điểm và đáp án hiện tại của đề thi.")) {
+        return;
+    }
+
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'examAttempts'), where('examId', '==', exam.id));
+      const attemptSnap = await getDocs(q);
+      
+      const batch = writeBatch(db);
+      let updateCount = 0;
+
+      attemptSnap.forEach(docSnap => {
+        const attempt = docSnap.data() as ExamAttempt;
+        if (attempt.status === 'submitted' || attempt.endTime) {
+            const { score, correct } = calculateScoreAndCorrectCount(exam, attempt.submissions);
+            batch.update(docSnap.ref, {
+                score,
+                totalCorrect: correct
+            });
+            updateCount++;
+        }
+      });
+      
+      if (updateCount > 0) {
+          await batch.commit();
+          alert(`Đã chấm lại ${updateCount} bài làm thành công!`);
+          fetchData(true);
+      } else {
+          alert('Không có bài làm nào để chấm lại.');
+          setLoading(false);
+      }
+
+    } catch (error) {
+        console.error("Error regrading attempts:", error);
+        alert("Có lỗi xảy ra khi chấm điểm lại.");
+        setLoading(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center">Đang tải báo cáo...</div>;
   if (!exam) return <div className="min-h-screen flex items-center justify-center">Không tìm thấy đề thi.</div>;
 
@@ -166,6 +267,13 @@ export default function TeacherExamResultsPage() {
           <p className="text-slate-500">Báo cáo kết quả chi tiết của {attempts.length} thí sinh</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={regradeAttempts}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+          >
+            <RefreshCw className="w-5 h-5" />
+            Chấm lại
+          </button>
           <button 
             onClick={() => fetchData(true)}
             className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
