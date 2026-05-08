@@ -68,6 +68,9 @@ export default function ExamResultsPage() {
               ? (isPassed ? 'Chúc mừng! Bạn đã Đạt' : 'Chưa Đạt! Cố gắng lần sau') 
               : 'Nộp bài thành công!'}
           </h2>
+          {attempt.studentName && (
+            <p className="text-xl font-semibold text-white mb-1">Thí sinh: {attempt.studentName}</p>
+          )}
           <p className="text-white/80">{exam.title}</p>
         </div>
 
