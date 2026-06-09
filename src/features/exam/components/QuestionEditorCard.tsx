@@ -242,7 +242,7 @@ export function QuestionEditorCard({
           </div>
           <textarea 
             ref={questionTextareaRef}
-            value={q.text}
+            value={q.text || ''}
             onChange={e => updateQuestion({ text: e.target.value })}
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px]"
             placeholder="Nhập nội dung câu hỏi (hỗ trợ Markdown)..."
@@ -303,7 +303,7 @@ export function QuestionEditorCard({
                     </div>
                     {q.type === 'true_false' ? (
                        <input 
-                         value={opt}
+                         value={opt || ''}
                          readOnly
                          className={`flex-1 px-3 py-2 border rounded-lg min-h-[44px] bg-slate-50 font-medium ${q.correctIndex === optIndex ? 'border-green-300 text-green-700' : 'border-slate-300 text-slate-700'}`}
                        />
@@ -311,7 +311,7 @@ export function QuestionEditorCard({
                       <>
                         <textarea 
                           ref={el => { optionRefs.current[optIndex] = el; }}
-                          value={opt}
+                          value={opt || ''}
                           onChange={e => updateOption(optIndex, e.target.value)}
                           className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[44px] ${(q.type === 'true_false_cluster' ? false : q.correctIndex === optIndex) ? 'border-green-300 bg-green-50' : 'border-slate-300'}`}
                           placeholder={`Đáp án ${String.fromCharCode(65 + optIndex)}`}
