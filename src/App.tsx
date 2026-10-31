@@ -30,8 +30,6 @@ import GuestDashboard from './features/guest/GuestDashboard';
 
 import ResourceRepository from './features/resources/pages/ResourceRepository';
 
-import ClassSessionDashboard from './features/teacher/pages/ClassSessionDashboard';
-
 import { StudentDashboardWrapper } from './features/shop/pages/StudentDashboard';
 
 import ShopManager from './features/shop/pages/ShopManager';
@@ -109,7 +107,6 @@ export default function App() {
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-              <Route path="/teacher/class-session/:sessionId" element={<ClassSessionDashboard />} />
               <Route path="/teacher/shop" element={<ShopManager />} />
               <Route path="/teacher/exams" element={<TeacherExamDashboard />} />
               <Route path="/teacher/exams/new" element={<ExamEditor />} />

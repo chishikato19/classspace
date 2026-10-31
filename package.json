@@ -48,6 +48,7 @@
     "tailwind-merge": "^3.5.0",
     "uuid": "^13.0.0",
     "vite": "^6.2.0",
+    "xlsx": "^0.18.5",
     "zxing-wasm": "^3.0.1"
   },
   "devDependencies": {
@@ -57,13 +58,8 @@
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-legacy": "^7.2.1",
-    "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
-    "terser": "^5.46.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.19.3",
     "typescript": "~5.8.2"
-  },
-  "overrides": {
-    "node-domexception": "npm:domexception@^4.0.0"
   }
 }

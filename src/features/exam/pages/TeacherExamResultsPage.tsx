@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { Exam, ExamAttempt } from '../types';
-import { FileDown, Users, ShieldAlert, Award, Clock, ArrowLeft, Search, RefreshCw } from 'lucide-react';
+import { Exam, ExamAttempt, ExamQuestion } from '../types';
+import { FileDown, FileSpreadsheet, Users, ShieldAlert, Award, Clock, ArrowLeft, Search, RefreshCw } from 'lucide-react';
 import { deobfuscateAnswer, deobfuscateStringAnswer } from '../utils/obfuscator';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import * as XLSX from 'xlsx';
+import { exportExamReportToExcel } from '../utils/exportExamExcel';
 
 export default function TeacherExamResultsPage() {
   const { examId } = useParams();
@@ -102,36 +104,129 @@ export default function TeacherExamResultsPage() {
     }).format(new Date(ts));
   };
 
+  const formatDateTime = (ts?: number) => {
+    if (!ts) return '-';
+    const d = new Date(ts);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
+  const formatDuration = (startTime: number, endTime?: number) => {
+    if (!endTime) return 'Chưa nộp';
+    const durationMs = Math.max(0, endTime - startTime);
+    const totalSeconds = Math.floor(durationMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const getQuestionAnswerDisplay = (q: ExamQuestion, sub: number | string | undefined) => {
+    if (sub === undefined || sub === null || sub === '') {
+      return 'Chưa làm';
+    }
+
+    if (q.type === 'short_answer') {
+      return String(sub).trim();
+    }
+
+    if (q.type === 'true_false_cluster') {
+      const arr = String(sub).split(',');
+      return arr
+        .map((val, idx) => {
+          const letter = String.fromCharCode(97 + idx); // a, b, c, d
+          const displayVal = val === 'T' ? 'Đúng' : val === 'F' ? 'Sai' : '-';
+          return `${letter}: ${displayVal}`;
+        })
+        .join('; ');
+    }
+
+    if (q.type === 'true_false') {
+      const s = String(sub).toLowerCase().trim();
+      if (s === '0' || s === 't' || s === 'true') return 'Đúng';
+      if (s === '1' || s === 'f' || s === 'false') return 'Sai';
+      return String(sub);
+    }
+
+    // Default: Multiple choice (0 -> A, 1 -> B, 2 -> C, 3 -> D...)
+    const num = Number(sub);
+    if (!isNaN(num) && num >= 0 && num < 26) {
+      return String.fromCharCode(65 + num);
+    }
+    return String(sub);
+  };
+
+  const getQuestionCorrectAnswerDisplay = (q: ExamQuestion) => {
+    if (!q.obfuscatedAnswer) return '-';
+    try {
+      if (q.type === 'short_answer') {
+        return deobfuscateStringAnswer(q.obfuscatedAnswer, q.id);
+      }
+      if (q.type === 'true_false_cluster') {
+        const realAnsStr = deobfuscateStringAnswer(q.obfuscatedAnswer, q.id);
+        const realAnswers = realAnsStr.split(',');
+        return realAnswers
+          .map((ans, idx) => {
+            const letter = String.fromCharCode(97 + idx);
+            return `${letter}: ${ans === 'true' ? 'Đúng' : 'Sai'}`;
+          })
+          .join('; ');
+      }
+      if (q.type === 'true_false') {
+        const correctStr = deobfuscateStringAnswer(q.obfuscatedAnswer, q.id);
+        return correctStr === 'true' || correctStr === 'T' ? 'Đúng' : 'Sai';
+      }
+      const correctIdx = deobfuscateAnswer(q.obfuscatedAnswer, q.id);
+      if (correctIdx >= 0 && correctIdx < 26) {
+        return String.fromCharCode(65 + correctIdx);
+      }
+      return String(correctIdx);
+    } catch {
+      return '-';
+    }
+  };
+
+  const exportToExcel = () => {
+    if (!exam || attempts.length === 0) {
+      alert("Không có dữ liệu bài làm để xuất báo cáo!");
+      return;
+    }
+    exportExamReportToExcel(exam, attempts, { selectedClass });
+    return;
+  };
+
   const exportToCSV = () => {
     if (!exam || attempts.length === 0) return;
     
     const questionHeaders = exam.questions.map((_, idx) => `"Câu ${idx + 1}"`);
-    const headers = ["Họ tên", "Lớp", "Số câu đúng", "Điểm", "Bắt đầu", "Kết thúc", "Thời gian làm (phút)", "Số lần chuyển tab", ...questionHeaders];
+    const headers = [
+      "\"STT\"",
+      "\"Họ tên\"",
+      "\"Lớp\"",
+      "\"Điểm\"",
+      "\"Số câu đúng/tổng số câu\"",
+      "\"Thời gian bắt đầu làm bài\"",
+      "\"Thời gian làm bài (phút:giây)\"",
+      "\"Nộp bài lúc\"",
+      "\"Số lần chuyển tab\"",
+      ...questionHeaders
+    ];
     
-    const rows = filteredAttempts.map(a => {
+    const rows = sortedAttempts.map((a, idx) => {
       const questionAnswers = exam.questions.map(q => {
-        const selectedAnswer = a.submissions[q.id];
-        if (selectedAnswer === undefined) return `""`;
-        if (q.type === 'short_answer') {
-           return `"${String(selectedAnswer).replace(/"/g, '""')}"`;
-        } else if (q.type === 'true_false' || q.type === 'true_false_cluster') {
-           const arr = String(selectedAnswer).split(',');
-           const res = arr.map((val, idx) => `${String.fromCharCode(97 + idx)}. ${val === 'T' ? 'Đúng' : val === 'F' ? 'Sai' : '-'}`).join('; ');
-           return `"${res}"`;
-        }
-        const label = String.fromCharCode(65 + Number(selectedAnswer)); 
-        return `"${label}"`;
+        const displayAns = getQuestionAnswerDisplay(q, a.submissions[q.id]);
+        return `"${displayAns.replace(/"/g, '""')}"`;
       });
 
       return [
-        `"${a.studentName}"`,
-        `"${a.studentClass || 'Khác'}"`,
-        a.totalCorrect,
+        idx + 1,
+        `"${a.studentName.replace(/"/g, '""')}"`,
+        `"${(a.studentClass || 'Khác').replace(/"/g, '""')}"`,
         a.score,
-        `"${formatTime(a.startTime)}"`,
-        `"${a.endTime ? formatTime(a.endTime) : 'Chưa nộp'}"`,
-        a.endTime ? Math.round((a.endTime - a.startTime) / 60000) : 0,
-        a.tabSwitchCount,
+        `"${a.totalCorrect}/${exam.questions.length}"`,
+        `"${formatDateTime(a.startTime)}"`,
+        `"${formatDuration(a.startTime, a.endTime)}"`,
+        `"${a.endTime ? formatDateTime(a.endTime) : 'Chưa nộp'}"`,
+        a.tabSwitchCount || 0,
         ...questionAnswers
       ];
     });
@@ -143,7 +238,8 @@ export default function TeacherExamResultsPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Bao_cao_${exam.title.replace(/\s+/g, '_')}.csv`);
+    const cleanTitle = (exam.title || 'de_thi').replace(/[/\\?%*:|"<>]/g, '_').trim();
+    link.setAttribute("download", `Bao_cao_${cleanTitle}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -269,24 +365,33 @@ export default function TeacherExamResultsPage() {
         <div className="flex flex-wrap gap-3">
           <button 
             onClick={regradeAttempts}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
           >
             <RefreshCw className="w-5 h-5" />
             Chấm lại
           </button>
           <button 
             onClick={() => fetchData(true)}
-            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
           >
             <RefreshCw className="w-5 h-5" />
             Cập nhật
           </button>
           <button 
-            onClick={exportToCSV}
-            className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+            onClick={exportToExcel}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+            title="Xuất báo cáo kết quả ra file Excel (.xlsx) gồm đầy đủ: họ tên, lớp, điểm, số câu đúng/tổng số câu, thời gian bắt đầu, thời gian làm bài (phút:giây) và phương án lựa chọn từng câu"
           >
-            <FileDown className="w-5 h-5" />
-            Xuất file CSV (Excel)
+            <FileSpreadsheet className="w-5 h-5" />
+            Xuất file Excel (.xlsx)
+          </button>
+          <button 
+            onClick={exportToCSV}
+            className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shrink-0 shadow-sm"
+            title="Xuất file CSV"
+          >
+            <FileDown className="w-5 h-5 text-slate-500" />
+            Xuất CSV
           </button>
         </div>
       </div>
@@ -369,7 +474,7 @@ export default function TeacherExamResultsPage() {
                     Điểm {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                   </div>
                 </th>
-                <th className="px-6 py-4">Thời gian làm</th>
+                <th className="px-6 py-4">Thời gian làm (phút:giây)</th>
                 <th 
                   className="px-6 py-4 cursor-pointer hover:bg-slate-100"
                   onClick={() => handleSort('time')}
@@ -399,8 +504,15 @@ export default function TeacherExamResultsPage() {
                       {attempt.score.toFixed(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-sm">
-                    {attempt.endTime ? <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {Math.round((attempt.endTime - attempt.startTime) / 60000)} phút</span> : 'Đang làm'}
+                  <td className="px-6 py-4 text-slate-600 text-sm font-medium">
+                    {attempt.endTime ? (
+                      <span className="flex items-center gap-1.5 font-mono">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" /> 
+                        {formatDuration(attempt.startTime, attempt.endTime)}
+                      </span>
+                    ) : (
+                      <span className="text-amber-600 font-medium">Đang làm</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-sm font-medium">
                     {attempt.endTime ? formatTime(attempt.endTime) : '-'}

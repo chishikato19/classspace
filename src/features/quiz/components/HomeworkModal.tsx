@@ -13,7 +13,6 @@ interface HomeworkModalProps {
 
 export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle, onClose }) => {
   const navigate = useNavigate();
-  const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [loading, setLoading] = useState(false);
   
   // Homework Config State
@@ -45,14 +44,6 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
     persistSession: true, // Mặc định không cần nhập lại tên khi quay lại
     allowAvatars: true // Cho phép học sinh chọn avatar
   });
-
-  useEffect(() => {
-    const loadClasses = async () => {
-      const data = await adminService.getAllClasses();
-      setClasses(data);
-    };
-    loadClasses();
-  }, []);
 
   const handleCreateHomework = async () => {
     setLoading(true);
@@ -144,7 +135,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
         </div>
 
         <div className="p-6 space-y-8">
-          {/* 1. Thời hạn & Lớp học */}
+          {/* 1. Thời hạn */}
           <section className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2 text-indigo-700">
               <Calendar size={20} /> Cấu hình cơ bản
@@ -161,32 +152,14 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ quizId, quizTitle,
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp bài</label>
-                <input 
-                  type="datetime-local" 
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Giao cho lớp</label>
-                <select 
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                >
-                  <option value="">Tự do (Ai có link cũng vào được)</option>
-                  {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {selectedClassId ? "Chỉ học sinh trong lớp này mới được tham gia." : "Học sinh sẽ nhập tên để tham gia."}
-                </p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp bài</label>
+              <input 
+                type="datetime-local" 
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
             </div>
           </section>
 

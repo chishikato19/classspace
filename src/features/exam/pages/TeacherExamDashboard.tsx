@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../../../config/firebase';
-import { Exam, ExamFolder } from '../types';
+import { Exam, ExamFolder, ExamAttempt } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, FileText,  Users, Clock, PlayCircle, Settings, ChevronRight, Folder, FolderPlus, Edit, Trash2, Home, MoreVertical, Copy } from 'lucide-react';
+import { PlusCircle, FileText, Users, Clock, PlayCircle, Settings, ChevronRight, Folder, FolderPlus, Edit, Trash2, Home, MoreVertical, Copy, FileSpreadsheet } from 'lucide-react';
+import { exportExamReportToExcel } from '../utils/exportExamExcel';
 
 export default function TeacherExamDashboard() {
   const [exams, setExams] = useState<Exam[]>([]);
@@ -333,6 +334,28 @@ export default function TeacherExamDashboard() {
                     >
                       Báo cáo
                     </Link>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const q = query(collection(db, 'examAttempts'), where('examId', '==', exam.id));
+                          const snap = await getDocs(q);
+                          const attemptsData = snap.docs.map(d => d.data() as ExamAttempt);
+                          if (attemptsData.length === 0) {
+                            alert('Chưa có học sinh nào nộp bài thi này để xuất Excel!');
+                            return;
+                          }
+                          exportExamReportToExcel(exam, attemptsData);
+                        } catch (err) {
+                          console.error(err);
+                          alert('Lỗi khi tải dữ liệu để xuất Excel');
+                        }
+                      }}
+                      className="px-2.5 py-1.5 border border-emerald-300 hover:bg-emerald-50 text-emerald-700 rounded-lg flex items-center gap-1 text-xs font-bold uppercase tracking-wider bg-emerald-50/50"
+                      title="Xuất nhanh báo cáo điểm học sinh ra file Excel (.xlsx)"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                      Excel
+                    </button>
                     <div className="w-px h-6 bg-slate-200 mx-1"></div>
                     <Link 
                       to={`/teacher/exams/${exam.id}/edit`}

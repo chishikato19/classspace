@@ -33,25 +33,9 @@ export default function GameHostLobby() {
   const [sessionTitle, setSessionTitle] = useState('');
   const [players, setPlayers] = useState<any[]>([]);
   
-  // New settings
-  const [classes, setClasses] = useState<ClassData[]>([]);
-  const [nameInputType, setNameInputType] = useState<'MANUAL' | 'CLASS_LIST'>('MANUAL');
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [isGroupPlay, setIsGroupPlay] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
-          const data = await classService.getClassesByTeacher(user.uid);
-          setClasses(data);
-        } catch (error) {
-          console.error("Error fetching classes:", error);
-        }
-      }
-    });
-    
-    return () => unsubscribe();
   }, []);
 
   const [sessionIdState, setSessionIdState] = useState<string | null>(null);
@@ -84,10 +68,7 @@ export default function GameHostLobby() {
       return;
     }
     
-    if (nameInputType === 'CLASS_LIST' && !selectedClassId) {
-      alert('Vui lòng chọn lớp học!');
-      return;
-    }
+    if (loading) return;
 
     setLoading(true);
     try {
@@ -98,8 +79,7 @@ export default function GameHostLobby() {
         undefined, 
         sessionTitle,
         {
-          type: nameInputType,
-          classId: selectedClassId || undefined,
+          type: 'MANUAL',
           isGroupPlay
         }
       );
@@ -183,7 +163,6 @@ export default function GameHostLobby() {
                     type="button"
                     onClick={() => {
                       setGameMode('PLICKERS');
-                      setNameInputType('CLASS_LIST');
                       setIsGroupPlay(false);
                     }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
@@ -210,66 +189,23 @@ export default function GameHostLobby() {
                 <label className="block text-sm font-medium text-gray-700">Cài đặt người chơi</label>
                 
                 {gameMode !== 'PLICKERS' && (
-                  <>
-                    <div className="flex items-center gap-4 mb-2">
-                      <label className="flex items-center cursor-pointer select-none">
-                        <input 
-                          type="checkbox" 
-                          className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500 mr-2"
-                          checked={isGroupPlay}
-                          onChange={(e) => setIsGroupPlay(e.target.checked)}
-                        />
-                        <span className="text-gray-700 font-medium">Chế độ chơi nhóm</span>
-                      </label>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-600">Cách nhập tên:</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setNameInputType('MANUAL')}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                            nameInputType === 'MANUAL'
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          Tự nhập tên {isGroupPlay ? 'nhóm' : ''}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNameInputType('CLASS_LIST')}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                            nameInputType === 'CLASS_LIST'
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          Chọn từ danh sách lớp
-                        </button>
-                      </div>
-                    </div>
-                  </>
+                  <div className="flex items-center gap-4 mb-2">
+                    <label className="flex items-center cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        className="form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500 mr-2"
+                        checked={isGroupPlay}
+                        onChange={(e) => setIsGroupPlay(e.target.checked)}
+                      />
+                      <span className="text-gray-700 font-medium">Chế độ chơi nhóm</span>
+                    </label>
+                  </div>
                 )}
 
-                {nameInputType === 'CLASS_LIST' && (
-                  <div className="mt-2 animate-fadeIn">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Chọn lớp học</label>
-                    <select
-                      value={selectedClassId}
-                      onChange={(e) => setSelectedClassId(e.target.value)}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 bg-white border"
-                    >
-                      <option value="">-- Chọn lớp --</option>
-                      {classes.map((cls) => (
-                        <option key={cls.id} value={cls.id}>{cls.name}</option>
-                      ))}
-                    </select>
-                    {classes.length === 0 && (
-                      <p className="text-xs text-red-500 mt-1">Bạn chưa có lớp học nào. Vui lòng tạo lớp trước.</p>
-                    )}
-                  </div>
+                {gameMode === 'PLICKERS' && (
+                  <p className="text-sm text-gray-500 italic">
+                    Chế độ quét thẻ giấy. Học sinh tham gia bằng cách giơ thẻ.
+                  </p>
                 )}
               </div>
 
@@ -498,7 +434,7 @@ export default function GameHostLobby() {
           ))}
           {players.length === 0 && (
             <div className="col-span-full text-center text-indigo-300 text-xl mt-20 animate-pulse">
-              {session.mode === 'PLICKERS' ? 'Lớp học chưa có học sinh nào.' : 'Đang chờ người chơi tham gia...'}
+              Đang chờ người chơi tham gia...
             </div>
           )}
         </div>

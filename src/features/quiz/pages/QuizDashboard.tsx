@@ -6,7 +6,9 @@ import { gameService } from '../../game/services/gameService';
 import { auth } from '../../../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { HomeworkModal } from '../components/HomeworkModal';
-import { Play, Clock, Trash2, Swords, Folder as FolderIcon, FolderPlus, ArrowLeft, MoveRight, Camera, Mic } from 'lucide-react';
+import { AssignModal } from '../components/AssignModal';
+import { QuizPreviewModal } from '../components/QuizPreviewModal';
+import { Play, Clock, Trash2, Swords, Folder as FolderIcon, FolderPlus, ArrowLeft, MoveRight, Camera, Mic, Edit, Eye, Send } from 'lucide-react';
 
 export default function QuizDashboard() {
   const navigate = useNavigate();
@@ -19,6 +21,8 @@ export default function QuizDashboard() {
   
   // Modals State
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
@@ -225,111 +229,115 @@ export default function QuizDashboard() {
       {loading ? (
         <div className="text-center py-10">Đang tải...</div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-4">
           {/* Folders (only show in root) */}
-          {!currentFolderId && folders.map((folder) => (
-            <div key={folder.id} className="flex flex-col overflow-hidden rounded-lg bg-indigo-50 shadow-sm border border-indigo-100 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex-1 p-6 flex flex-col justify-between">
-                <div className="flex items-center gap-4" onClick={() => setCurrentFolderId(folder.id)}>
-                  <div className="p-3 bg-indigo-100 rounded-lg text-indigo-600">
-                    <FolderIcon size={32} />
+          {!currentFolderId && folders.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {folders.map((folder) => (
+                <div 
+                  key={folder.id} 
+                  onClick={() => setCurrentFolderId(folder.id)}
+                  className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                >
+                  <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <FolderIcon size={24} />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-indigo-900">{folder.name}</h3>
-                    <p className="text-sm text-indigo-600">{quizzes.filter(q => q.folderId === folder.id).length} bộ câu hỏi</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-indigo-900 truncate">{folder.name}</h3>
+                    <p className="text-xs text-indigo-600">{quizzes.filter(q => q.folderId === folder.id).length} bộ câu hỏi</p>
                   </div>
-                </div>
-                <div className="mt-4 flex justify-end">
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
-                    className="p-1.5 rounded-md text-red-500 hover:bg-red-100"
+                    className="p-1.5 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Xóa thư mục"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Quizzes */}
-          {displayedQuizzes.map((quiz) => (
-            <div key={quiz.id} className="flex flex-col overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-              <div className="flex-1 p-6 flex flex-col justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                      Sẵn sàng
-                    </span>
-                    <span className="text-sm text-gray-500">{quiz.questions.length} câu hỏi</span>
-                  </div>
-                  <div className="mt-2 block">
-                    <p className="text-xl font-semibold text-gray-900">{quiz.title}</p>
-                    <p className="mt-3 text-base text-gray-500 line-clamp-2">{quiz.description || 'Không có mô tả'}</p>
-                  </div>
-                </div>
-                  <div className="mt-6 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleStartGame(quiz.id)}
-                        className="flex-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center justify-center gap-2"
-                      >
-                        <Play size={16} /> Thi Trực Tiếp
-                      </button>
-                      <button 
-                        onClick={() => handleAssignHomework(quiz)}
-                        className="flex-1 rounded-md bg-white border border-indigo-600 px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 flex items-center justify-center gap-2"
-                      >
-                        <Clock size={16} /> Giao Bài Tập
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => navigate(`/game/local-battle/${quiz.id}`)}
-                        className="flex-1 rounded-md bg-yellow-500 px-3 py-2 text-sm font-semibold text-black shadow-sm hover:bg-yellow-400 flex items-center justify-center gap-2"
-                      >
-                        <Swords size={16} /> Đấu trường tốc độ
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => navigate(`/game/oral-quiz-setup/${quiz.id}`)}
-                        className="flex-1 rounded-md bg-orange-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-400 flex items-center justify-center gap-2"
-                      >
-                        <Mic size={16} /> Kiểm tra miệng
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => navigate(`/teacher/quiz/edit/${quiz.id}`)}
-                        className="flex-1 rounded-md bg-gray-50 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 border border-gray-200"
-                      >
-                        Chỉnh sửa
-                      </button>
-                      <button 
-                        onClick={() => { setQuizToMove(quiz); setShowMoveModal(true); }}
-                        className="p-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200"
-                        title="Di chuyển"
-                      >
-                        <MoveRight size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteQuiz(quiz.id)}
-                        className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
-                        title="Xóa bộ câu hỏi"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-              </div>
-            </div>
-          ))}
-          {displayedQuizzes.length === 0 && (!currentFolderId ? folders.length === 0 : true) && (
-            <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500">Chưa có nội dung nào. Hãy tạo mới ngay!</p>
+              ))}
             </div>
           )}
+
+          {/* Quizzes List View */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bộ câu hỏi</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Số câu</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {displayedQuizzes.map((quiz) => (
+                    <tr key={quiz.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+                            <Clock size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-gray-900 truncate">{quiz.title}</h3>
+                            <p className="text-xs text-gray-500 truncate">{quiz.description || 'Không có mô tả'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {quiz.questions.length} câu
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button 
+                            onClick={() => { setSelectedQuiz(quiz); setShowAssignModal(true); }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
+                            title="Mở các chế độ giao bài"
+                          >
+                            <Send size={13} /> Chế độ giao bài
+                          </button>
+                          <button 
+                            onClick={() => { setSelectedQuiz(quiz); setShowPreviewModal(true); }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-gray-200 bg-white text-xs font-medium"
+                            title="Xem chi tiết câu hỏi"
+                          >
+                            <Eye size={13} /> Xem
+                          </button>
+                          <button 
+                            onClick={() => navigate(`/teacher/quiz/edit/${quiz.id}`)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-blue-700 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 bg-blue-50 text-xs font-medium"
+                            title="Chỉnh sửa bộ câu hỏi"
+                          >
+                            <Edit size={13} /> Chỉnh sửa
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteQuiz(quiz.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-700 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors border border-red-200 bg-red-50 text-xs font-medium"
+                            title="Xóa bộ câu hỏi"
+                          >
+                            <Trash2 size={13} /> Xóa
+                          </button>
+                          <button 
+                            onClick={() => { setQuizToMove(quiz); setShowMoveModal(true); }}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 bg-white"
+                            title="Di chuyển vào thư mục"
+                          >
+                            <MoveRight size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {displayedQuizzes.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-gray-500 italic">
+                        Chưa có bộ câu hỏi nào trong mục này...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -404,6 +412,21 @@ export default function QuizDashboard() {
           quizId={selectedQuiz.id}
           quizTitle={selectedQuiz.title}
           onClose={() => setShowHomeworkModal(false)}
+        />
+      )}
+
+      {showAssignModal && selectedQuiz && (
+        <AssignModal 
+          quiz={selectedQuiz}
+          onClose={() => setShowAssignModal(false)}
+          onAssignHomework={handleAssignHomework}
+        />
+      )}
+
+      {showPreviewModal && selectedQuiz && (
+        <QuizPreviewModal 
+          quiz={selectedQuiz}
+          onClose={() => setShowPreviewModal(false)}
         />
       )}
     </div>

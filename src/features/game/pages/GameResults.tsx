@@ -5,9 +5,10 @@ import { gameService } from '../services/gameService';
 import { quizService } from '../../quiz/services/quizService';
 import { classSessionService } from '../../../services/classSessionService';
 import { groupService } from '../../teacher/services/groupService';
-import { CheckCircle, XCircle, Clock, Award, ChevronLeft, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Award, ChevronLeft, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { StudentAvatar } from '../../../components/Avatar/StudentAvatar';
 import { MathText } from '../../../components/MathText';
+import * as XLSX from 'xlsx';
 
 export default function GameResults() {
   const { sessionId } = useParams();
@@ -107,6 +108,59 @@ export default function GameResults() {
     }
   };
 
+  const exportGameToExcel = () => {
+    if (!session || !quiz || !session.players || session.players.length === 0) {
+      alert("Chưa có dữ liệu người chơi để xuất báo cáo!");
+      return;
+    }
+
+    const questionHeaders = quiz.questions.map((_, idx) => `Câu ${idx + 1}`);
+    const headers = [
+      "STT",
+      "Họ tên",
+      "Điểm",
+      "Số câu đúng/tổng số câu",
+      "Trạng thái",
+      ...questionHeaders
+    ];
+
+    const sortedList = [...(session.players || [])].sort((a, b) => b.score - a.score);
+    const rows = sortedList.map((p, idx) => {
+      let correctCount = 0;
+      const qAnswers = quiz.questions.map(q => {
+        const ans = p.answers?.[q.id];
+        if (!ans) return "Chưa làm";
+        if (ans.isCorrect) correctCount++;
+        const opt = q.options.find(o => o.id === ans.optionId);
+        return opt ? opt.text : ans.optionId;
+      });
+
+      return [
+        idx + 1,
+        p.name,
+        p.score,
+        `${correctCount}/${quiz.questions.length}`,
+        p.finished ? "Đã nộp" : "Đang làm",
+        ...qAnswers
+      ];
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [
+      { wch: 6 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 24 },
+      { wch: 14 },
+      ...quiz.questions.map(() => ({ wch: 18 }))
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Bảng Điểm");
+
+    const cleanTitle = (quiz.title || 'quiz').replace(/[/\\?%*:|"<>]/g, '_').trim();
+    XLSX.writeFile(wb, `Bao_cao_${cleanTitle}.xlsx`);
+  };
+
   if (!session || !quiz) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50">Đang tải dữ liệu...</div>;
   }
@@ -163,20 +217,14 @@ export default function GameResults() {
               </h1>
             </div>
             <div className="flex gap-2 items-center">
-              {activeClassSession && (
-                <button
-                  onClick={handleSyncToClassSession}
-                  disabled={isSyncing || isSynced}
-                  className={`mr-4 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                    isSynced 
-                      ? 'bg-green-100 text-green-700 cursor-not-allowed' 
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  }`}
-                >
-                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSynced ? 'Đã đồng bộ vào Tiết học' : 'Đồng bộ điểm vào Tiết học'}
-                </button>
-              )}
+              <button
+                onClick={exportGameToExcel}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center gap-1.5 shadow-sm"
+                title="Xuất báo cáo kết quả ra file Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Xuất Excel
+              </button>
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${

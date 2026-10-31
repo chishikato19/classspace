@@ -71,9 +71,9 @@ export default function ExamEditor() {
           let shortAnswerText = undefined;
 
           if (type === 'true_false_cluster') {
-             clusterAnswers = q.options.map((o: any) => o.isCorrect);
+             clusterAnswers = q.options.map((o: any) => !!o.isCorrect);
           } else if (type === 'short_answer') {
-             shortAnswerText = q.options[0]?.text || '';
+             shortAnswerText = q.options.map((o: any) => o.text).join(' || ');
           } else {
              correctIndex = q.options.findIndex((o: any) => o.isCorrect);
              if (correctIndex === -1) correctIndex = 0;
@@ -114,7 +114,7 @@ export default function ExamEditor() {
           const merged = importedQuestions.map(q => ({
              ...q,
              points: pts,
-             options: q.options.length > 0 ? q.options : ['A', 'B', 'C', 'D'] // fallback
+             options: q.options.length > 0 ? q.options : (q.type === 'short_answer' ? [] : ['A', 'B', 'C', 'D'])
           }));
           setQuestions(prev => [...prev, ...merged]);
           setSessionImages(prev => [...prev, ...importedImages]);
@@ -170,6 +170,8 @@ export default function ExamEditor() {
       classService.getClassesByTeacher(auth.currentUser.uid).then(setTeacherClasses);
     }
 
+    const fromQuizId = searchParams.get('fromQuiz');
+
     if (editExamId) {
       setLoading(true);
       getDoc(doc(db, 'exams', editExamId)).then(snap => {
@@ -205,8 +207,46 @@ export default function ExamEditor() {
           })));
         }
       }).finally(() => setLoading(false));
+    } else if (fromQuizId) {
+      setLoading(true);
+      import('../../quiz/services/quizService').then(({ quizService }) => {
+        quizService.getQuizById(fromQuizId).then(quiz => {
+          if (quiz && quiz.questions && quiz.questions.length > 0) {
+            setTitle(quiz.title ? `Đề thi: ${quiz.title}` : 'Đề thi Online');
+            const pts = Number((10 / quiz.questions.length).toFixed(2));
+            const mapped: EditorQuestionData[] = quiz.questions.map(q => {
+              let type: any = 'multiple_choice';
+              if (q.type === 'MULTIPLE_CHOICE') type = 'multiple_choice';
+              else if (q.type === 'TRUE_FALSE') type = 'true_false';
+              else if (q.type === 'TRUE_FALSE_CLUSTER') type = 'true_false_cluster';
+              else if (q.type === 'SHORT_ANSWER') type = 'short_answer';
+
+              const options = q.type === 'SHORT_ANSWER' ? [] : q.options.map(o => o.text);
+              const optionImageUrls = q.type === 'SHORT_ANSWER' ? [] : q.options.map(o => o.imageUrl || null);
+              let correctIndex = q.options.findIndex(o => o.isCorrect);
+              if (correctIndex === -1) correctIndex = 0;
+              const clusterAnswers = type === 'true_false_cluster' ? q.options.map(o => o.isCorrect) : undefined;
+              const shortAnswerText = type === 'short_answer' ? (q.options[0]?.text || '') : undefined;
+
+              return {
+                id: uuidv4(),
+                type,
+                text: q.text,
+                imageUrl: q.imageUrl || null,
+                options,
+                optionImageUrls,
+                correctIndex,
+                clusterAnswers,
+                shortAnswerText,
+                points: pts
+              };
+            });
+            setQuestions(mapped);
+          }
+        }).finally(() => setLoading(false));
+      });
     }
-  }, [editExamId]);
+  }, [editExamId, searchParams]);
 
   const handleAddQuestion = () => {
     const pointsPerQ = Number(((totalScore || 10) / (questions.length + 1)).toFixed(2));
@@ -568,44 +608,64 @@ export default function ExamEditor() {
             </div>
             <div>
                <h4 className="font-semibold text-indigo-900">Nhập từ file Word (Tự động nhận diện)</h4>
-               <p className="text-sm text-indigo-700">Hỗ trợ định dạng .docx. Hình ảnh trong dòng (inline) sẽ được tự động trích xuất.</p>
+               <p className="text-sm text-indigo-700">Hỗ trợ file .docx. Tự động nhận diện công thức Toán (Word Equation / LaTeX) và trích xuất ảnh nhúng.</p>
                <details className="mt-2 text-xs text-indigo-800">
-                 <summary className="cursor-pointer font-medium hover:text-indigo-900">Xem mẫu nhận diện file Word</summary>
-                 <div className="mt-2 bg-indigo-100/50 p-3 rounded border border-indigo-100 space-y-3">
-                   <div>
-                     <strong className="block mb-1">1. Cấu trúc Trắc nghiệm (MCQ):</strong>
-                     Câu 1: Nội dung câu hỏi...<br />
-                     A. Lựa chọn A<br />
-                     <u>B. Lựa chọn B (Gạch chân đáp án đúng)</u><br />
-                     C. Lựa chọn C<br />
-                     D. Lựa chọn D<br />
-                     <em className="text-indigo-600">Hoặc đánh dấu sao trước đáp án đúng: *B. Lựa chọn B</em>
+                 <summary className="cursor-pointer font-medium hover:text-indigo-900 flex items-center gap-1.5">
+                   <span>Xem hướng dẫn cú pháp & mẫu nhận diện 3 dạng câu hỏi (Chuẩn GDPT 2018)</span>
+                 </summary>
+                 <div className="mt-2.5 bg-white p-3.5 rounded-lg border border-indigo-200 shadow-xs space-y-3">
+                   <div className="p-2.5 bg-indigo-50/60 rounded-md border border-indigo-100">
+                     <strong className="text-indigo-900 block mb-1 font-bold">1. Dạng Trắc nghiệm 4 lựa chọn (Phần I):</strong>
+                     <div className="text-slate-700 space-y-1">
+                       <p>Bắt đầu bằng <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold">Câu 1:</code> hoặc đặt dưới <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold">PHẦN I</code>. Bốn phương án <code className="bg-white px-1 py-0.5 rounded font-mono">A. B. C. D.</code> (hoặc <code className="bg-white px-1 py-0.5 rounded font-mono">A) B) C) D)</code>).</p>
+                       <div className="bg-white p-2 rounded border border-indigo-100 font-mono text-[11px] text-slate-700">
+                         Câu 1: Cho hàm số y = f(x)...<br/>
+                         A. Đồng biến trên (0; 1)<br/>
+                         <u>B. Nghịch biến trên R (Gạch chân đáp án đúng)</u><br/>
+                         C. Có 2 điểm cực trị<br/>
+                         D. Giá trị nhỏ nhất bằng 0<br/>
+                         <span className="text-indigo-600 font-sans italic">Hoặc đánh dấu sao trước đáp án: *B. Nghịch biến trên R, hoặc ghi: Đáp án: B</span>
+                       </div>
+                     </div>
                    </div>
 
-                   <div>
-                     <strong className="block mb-1">2. Cấu trúc Đúng/Sai (Câu chùm - Chuẩn 2025):</strong>
-                     Dùng từ khóa <code className="bg-indigo-200 px-1 rounded">(Chùm đúng/sai)</code> sau số câu. Ghi 4 ý lựa chọn.<br />
-                     Ví dụ: Câu 2 (Chùm đúng/sai): Cho hàm số y = f(x)...<br />
-                     A. Ý thứ nhất đúng<br />
-                     B. Ý thứ hai sai<br />
-                     C. Ý thứ ba đúng<br />
-                     D. Ý thứ tư sai<br />
-                     Đáp án: Đúng, Sai, Đúng, Sai
+                   <div className="p-2.5 bg-amber-50/60 rounded-md border border-amber-200">
+                     <strong className="text-amber-900 block mb-1 font-bold">2. Dạng Đúng / Sai chùm (Phần II - Theo cấu trúc đề 2025):</strong>
+                     <div className="text-slate-700 space-y-1">
+                       <p>Dùng từ khóa <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold text-amber-800">(Đúng sai chùm)</code> hoặc <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold text-amber-800">(Chùm đúng/sai)</code> sau số câu, hoặc đặt dưới tiêu đề <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold text-amber-800">PHẦN II. CÂU TRẮC NGHIỆM ĐÚNG SAI</code>. Gồm 4 ý <code className="bg-white px-1 py-0.5 rounded font-mono">a), b), c), d)</code> (hoặc <code className="bg-white px-1 py-0.5 rounded font-mono">a. b. c. d.</code>).</p>
+                       <div className="bg-white p-2 rounded border border-amber-200 font-mono text-[11px] text-slate-700">
+                         Câu 2 (Đúng sai chùm): Cho hình chóp S.ABCD...<br/>
+                         a) SA vuông góc với (ABCD)<br/>
+                         b) Tam giác SBC vuông tại B<br/>
+                         c) Góc giữa SC và đáy bằng 60 độ<br/>
+                         d) Thể tích khối chóp bằng 4<br/>
+                         <span className="text-amber-800 font-semibold font-sans">Cách ghi đáp án chùm:</span><br/>
+                         • Dạng chữ: <span className="font-bold text-amber-900">Đáp án: a.Đ, b.Đ, c.S, d.Đ</span> (hoặc a) Đúng, b) Đúng, c) Sai, d) Đúng)<br/>
+                         • Dạng thứ tự: <span className="font-bold text-amber-900">Đáp án: Đúng, Đúng, Sai, Đúng</span> (hoặc Đ, Đ, S, Đ)<br/>
+                         • Đánh dấu sao/gạch chân: Đặt <span className="font-bold text-amber-900">*a)</span> trước các ý Đúng.
+                       </div>
+                     </div>
                    </div>
 
-                   <div>
-                     <strong className="block mb-1">3. Cấu trúc Trả lời ngắn:</strong>
-                     Dùng từ khóa <code className="bg-indigo-200 px-1 rounded">(Trả lời ngắn)</code>.<br />
-                     Ví dụ: Câu 3 (Trả lời ngắn): Thủ đô của Việt Nam là gì?<br />
-                     Đáp án: Hà Nội || Thu do Ha Noi <em className="text-indigo-600">(Dùng || để ngăn cách các đáp án đúng)</em>
+                   <div className="p-2.5 bg-emerald-50/60 rounded-md border border-emerald-200">
+                     <strong className="text-emerald-900 block mb-1 font-bold">3. Dạng Trả lời ngắn (Phần III - Tự luận điền kết quả):</strong>
+                     <div className="text-slate-700 space-y-1">
+                       <p>Dùng từ khóa <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold text-emerald-800">(Trả lời ngắn)</code> sau số câu, hoặc đặt dưới tiêu đề <code className="bg-white px-1 py-0.5 rounded font-mono font-semibold text-emerald-800">PHẦN III. CÂU TRẮC NGHIỆM TRẢ LỜI NGẮN</code>. Dạng này không có các lựa chọn A, B, C, D.</p>
+                       <div className="bg-white p-2 rounded border border-emerald-200 font-mono text-[11px] text-slate-700">
+                         Câu 3 (Trả lời ngắn): Tính vận tốc của vật tại thời điểm t = 5s...<br/>
+                         <span className="text-emerald-800 font-semibold font-sans">Đáp án: 32</span><br/>
+                         <span className="text-slate-500 font-sans italic">Nếu có nhiều cách viết đúng, dùng dấu || ngăn cách: Đáp án: 12.5 || 12,5 || 25/2</span>
+                       </div>
+                     </div>
                    </div>
 
-                   <div>
-                     <strong className="block mb-1 text-red-700">4. Câu hỏi chùm (Đúng / Sai):</strong>
-                     Định dạng đáp án chùm: <code className="bg-indigo-200 px-1 rounded">Câu 1: a.Đ, b.S, c.Đ, d.S</code>. Ý bắt đầu bằng a, b, c, d.<br/>
-                     <strong className="block mb-1 text-red-700 mt-2">5. Công thức Toán học (LaTeX):</strong>
-                     Nhập mã LaTeX giữa cặp ký hiệu <code className="bg-indigo-200 px-1 rounded">{'$'}</code> cho công thức trên dòng hoặc <code className="bg-indigo-200 px-1 rounded">{'$$'}</code> cho khối công thức.<br />
-                     Ví dụ: <code className="bg-indigo-200 px-1 rounded">{'$\\sqrt{x^2 + 1}$'}</code> sẽ hiển thị là công thức toán.
+                   <div className="p-2.5 bg-slate-50 rounded-md border border-slate-200 text-slate-700">
+                     <strong className="text-slate-900 block mb-1 font-bold">4. Công thức Toán học (Equation & LaTeX) & Hình ảnh:</strong>
+                     <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                       <li>Công thức tạo bằng <strong>Equation trong Word (Alt +=)</strong> sẽ được tự động nhận diện và chuyển sang mã LaTeX hiển thị sắc nét bằng KaTeX.</li>
+                       <li>Có thể gõ mã LaTeX trực tiếp: <code className="bg-white px-1 rounded font-mono text-indigo-700">$...$</code> cho công thức nội dòng hoặc <code className="bg-white px-1 rounded font-mono text-indigo-700">$$...$$</code> cho khối công thức.</li>
+                       <li>Mọi hình ảnh chèn trong file Word (.docx) được tự động trích xuất và tải lên đám mây.</li>
+                     </ul>
                    </div>
                  </div>
                </details>
